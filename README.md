@@ -12,7 +12,7 @@ train_source.py      Stage 1: foresighted source training  -> runs/<name>/source
 adapt.py             Stage 2: CIDA on the target            -> runs/<name>/adapt_*_seed<k>/
 scripts/aggregate.py Mean ± std over seeds next to the paper's numbers
 configs/             One YAML per transfer (base.yaml holds the defaults)
-slurm/               A40 job scripts with checkpoint/requeue for the 6 h limit
+slurm/               CCDS GPU TC2 job scripts: run.sbatch (one experiment), check.sbatch (environment check)
 tests/               Prototype unit tests + an end-to-end smoke test on synthetic data
 ```
 
@@ -40,18 +40,29 @@ Any config value can be overridden:
 python adapt.py --config configs/office_a2d.yaml --seed 0 --set adapt.ablation=b adapt.epochs=40
 ```
 
-On the cluster (the `slurm/*.sbatch` scripts are set up for CCDS-TC2: partition `MGPU-TC2`, conda env `cida`). Overrides follow the config path as plain `key=value` pairs, without `--set`:
+### On the CCDS GPU TC2 cluster
+The scripts in `slurm/` follow the cluster user guide:
+- no code runs on the head node: everything goes through `sbatch`, not `srun`;
+- QoS `normal` (1 GPU, ≤ 10 CPUs, ≤ 30 GB, ≤ 6 h);
+- one job at a time.
+
+One job runs a whole experiment: source training, then the five adaptation seeds one after another. Anything already finished is skipped, so you can simply resubmit the same command. Overrides go after the config path as plain `key=value` pairs, without `--set`.
+
 ```bash
-bash slurm/pipeline.sh configs/digits_m2u.yaml                        # source, then seeds 0-4
-bash slurm/pipeline.sh configs/digits_m2u_chi2.yaml                   # chi2 negative threshold
-sbatch --array=0-4 slurm/adapt.sbatch configs/office_a2d.yaml adapt.ablation=a   # reuses the source model
-squeue -u $USER                                                        # job status; output in logs/
-python scripts/aggregate.py runs/
+sbatch slurm/check.sbatch                                   # once: GPU + environment + tests
+sbatch slurm/run.sbatch configs/digits_m2u.yaml             # source, then seeds 0-4
+sbatch slurm/run.sbatch configs/digits_m2u_chi2.yaml        # chi2 negative threshold
+sbatch --export=ALL,STAGES=adapt slurm/run.sbatch configs/office_a2d.yaml adapt.ablation=a   # reuses the source model
+sbatch --export=ALL,SEEDS="0" slurm/run.sbatch configs/digits_m2u.yaml                      # just one seed
+squeue -u $USER                                             # status; output in logs/cida_<jobid>.out
+python scripts/aggregate.py runs/                           # results table (cheap; or run it after a job)
 ```
+
+Submit the next experiment only after the previous one finishes. With one GPU per user, extra jobs only sit in the queue as `QOSMaxGRESPerUser`, and the guide asks you to cancel those.
 
 To keep data elsewhere, symlink it into the repo (`ln -s ~/datasets data`) or add `data_root=/path/to/data`.
 
-Both stages save a checkpoint every epoch and every 20 minutes, and resume automatically from `ckpt.pt` in their run folder. The SLURM scripts requeue themselves 3 minutes before the time limit.
+Both stages save a checkpoint every epoch and every 20 minutes, and resume automatically from `ckpt.pt` in their run folder. `run.sbatch` requeues itself 3 minutes before the 6 h limit. `--force` makes `train_source.py` or `adapt.py` rerun a finished stage.
 
 ## Suggested order
 1. `configs/smoke.yaml` (tests) → **Digits M→U** (paper: 72.5 / 71.6). Tune the epoch counts here.

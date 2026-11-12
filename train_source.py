@@ -51,11 +51,15 @@ def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", required=True)
     ap.add_argument("--set", nargs="*", default=[], help="overrides, e.g. src_train.epochs=5")
+    ap.add_argument("--force", action="store_true", help="retrain even if final.pt exists")
     args = ap.parse_args(argv)
     cfg = load_config(args.config, args.set)
     scfg = cfg["src_train"]
     out = Path(cfg["out_dir"]) / "source"
     out.mkdir(parents=True, exist_ok=True)
+    if (out / "final.pt").exists() and not args.force:
+        print(f"[skip] source model already trained: {out / 'final.pt'} (use --force to retrain)", flush=True)
+        return
     set_seed(cfg.get("source_seed", 0))
     device = get_device(cfg.get("device", "auto"))
     log = Logger(out)

@@ -80,6 +80,7 @@ def main(argv=None):
     ap.add_argument("--seed", type=int, default=0, help="selects the one-shot samples and RNG")
     ap.add_argument("--source_ckpt", default=None)
     ap.add_argument("--set", nargs="*", default=[])
+    ap.add_argument("--force", action="store_true", help="rerun even if final_metrics.json exists")
     args = ap.parse_args(argv)
     cfg = load_config(args.config, args.set)
     acfg = cfg["adapt"]
@@ -87,6 +88,9 @@ def main(argv=None):
     losses = ABLATIONS[ablation]
     out = Path(cfg["out_dir"]) / run_name(cfg, args.seed)
     out.mkdir(parents=True, exist_ok=True)
+    if (out / "final_metrics.json").exists() and not args.force:
+        print(f"[skip] already finished: {out / 'final_metrics.json'} (use --force to rerun)", flush=True)
+        return
     set_seed(1000 + args.seed)
     device = get_device(cfg.get("device", "auto"))
     log = Logger(out)

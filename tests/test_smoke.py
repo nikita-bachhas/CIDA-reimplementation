@@ -25,10 +25,23 @@ def test_source_outputs(out_dir):
     assert epochs[-1]["src_acc"] > 50
 
 
-def test_source_resume_is_noop_when_finished(out_dir):
+def test_finished_source_is_skipped(out_dir, capsys):
     train_source.main(["--config", CFG, "--set", f"out_dir={out_dir}"])
+    assert "[skip]" in capsys.readouterr().out
+
+
+def test_source_resumes_from_checkpoint(out_dir):
+    train_source.main(["--config", CFG, "--force", "--set", f"out_dir={out_dir}"])
     logs = [json.loads(l) for l in open(out_dir / "source" / "log.jsonl")]
     assert any(l.get("event") == "resumed" for l in logs)
+
+
+def test_finished_adaptation_is_skipped(out_dir, capsys):
+    args = ["--config", CFG, "--seed", "0", "--set", f"out_dir={out_dir}"]
+    adapt.main(args)
+    capsys.readouterr()
+    adapt.main(args)
+    assert "[skip]" in capsys.readouterr().out
 
 
 @pytest.mark.parametrize("ablation", ["none", "a", "b", "c"])
