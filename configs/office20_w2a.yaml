@@ -1,0 +1,4 @@
+base: office20.yaml
+name: office20_w2a
+src_domain: webcam
+tgt_domain: amazon

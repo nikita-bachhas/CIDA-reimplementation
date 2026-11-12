@@ -1,0 +1,12 @@
+base: base.yaml
+dataset: digits
+shared: {range: [0, 4]}    # [paper] digits 0-4 shared
+private: {range: [5, 9]}   # [paper] digits 5-9 target-private
+src_train_split: train
+src_eval_split: test
+tgt_train_split: train     # unlabelled adaptation data
+tgt_eval_split: test
+batch_size: 64
+model: {backbone: lenet, feat_dim: 100, cls_hidden: 32, act: lrelu, proj_layers: 2, bn: true}
+src_train: {epochs: 10}
+adapt: {epochs: 30}

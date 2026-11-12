@@ -1,0 +1,4 @@
+base: digits.yaml
+name: digits_m2u
+src_domain: mnist
+tgt_domain: usps

@@ -1,0 +1,4 @@
+# Table 2 setting: |Cs| = 20, |Ct| = 31
+base: office31.yaml
+shared: {range: [0, 19]}
+private: {range: [20, 30]}

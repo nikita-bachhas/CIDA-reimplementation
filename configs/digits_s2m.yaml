@@ -1,0 +1,4 @@
+base: digits.yaml
+name: digits_s2m
+src_domain: svhn
+tgt_domain: mnist

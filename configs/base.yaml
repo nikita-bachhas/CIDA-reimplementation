@@ -1,0 +1,32 @@
+# Shared defaults. Paper-specified values are marked [paper]; everything else is our choice.
+data_root: ./data
+device: auto
+num_workers: 4
+batch_size: 64
+lr: 1.0e-4                 # [paper] Adam, all optimisers
+source_seed: 0
+ckpt_every_minutes: 20     # intermediate checkpoints (6 h cluster limit)
+
+src_train:
+  warmup_epochs: 1         # [paper] 1 epoch vanilla CE before fitting prototypes
+  epochs: 20
+  neg_ratio: 1.0           # [paper] Nsrc = Nneg
+  k_sigma: 3               # [paper] 3-sigma
+  neg_mode: paper          # paper | chi2 (see SPEC.md)
+  chi2_quantile: 0.997
+  use_ls1: true            # ablation: class separability objective
+  use_negatives: true      # ablation: negative training
+  cov_shrink: 0.1          # covariance regularisation (not in paper)
+  cov_eps: 1.0e-4
+
+adapt:
+  epochs: 20
+  shots: 1                 # [paper] one-shot target-private samples
+  fewshot_frac: null       # 0.05 for the few-shot (Ours*) setting
+  n_percent: 20            # [paper] confident samples per guide
+  ablation: none           # none | a | b | c  (Ours-a/b/c)
+  proj_pretrain_iters: 2000
+  max_guide_samples_per_class: 16
+  cov_shrink: 0.1
+  cov_eps: 1.0e-4
+  iters_per_epoch: null    # default: len(target loader) * number of losses

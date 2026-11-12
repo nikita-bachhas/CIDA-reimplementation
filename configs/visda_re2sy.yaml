@@ -1,0 +1,4 @@
+base: visda.yaml
+name: visda_re2sy
+src_domain: real
+tgt_domain: synthetic

@@ -1,0 +1,4 @@
+base: office31.yaml
+name: office_w2d
+src_domain: webcam
+tgt_domain: dslr

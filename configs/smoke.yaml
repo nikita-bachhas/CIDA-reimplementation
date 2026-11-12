@@ -1,0 +1,11 @@
+# Synthetic data, tiny schedule: checks the pipeline end to end in ~1 minute on a laptop.
+base: digits.yaml
+name: smoke
+dataset: fake
+src_domain: fakeA
+tgt_domain: fakeB
+num_workers: 0
+batch_size: 32
+device: cpu
+src_train: {epochs: 2}
+adapt: {epochs: 2, proj_pretrain_iters: 100}

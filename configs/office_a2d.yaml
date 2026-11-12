@@ -1,0 +1,4 @@
+base: office31.yaml
+name: office_a2d
+src_domain: amazon
+tgt_domain: dslr

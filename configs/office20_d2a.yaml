@@ -1,0 +1,4 @@
+base: office20.yaml
+name: office20_d2a
+src_domain: dslr
+tgt_domain: amazon

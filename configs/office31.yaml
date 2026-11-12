@@ -1,0 +1,20 @@
+base: base.yaml
+dataset: office31
+domain_paths:              # relative to data_root; each folder holds one sub-folder per class
+  amazon: office31/amazon/images
+  dslr: office31/dslr/images
+  webcam: office31/webcam/images
+# Table 3 setting: |Cs| = 10, |Ct| = 20. Classes are indexed alphabetically (0-based).
+# Supp. says private = "classes ranked 21-31" (11 classes) but Table 3 has |Ct| = 20,
+# so we use ranks 21-30 (indices 20-29). See SPEC.md.
+shared: {range: [0, 9]}
+private: {range: [20, 29]}
+src_train_split: all       # Office has no official split: train/eval on the full domain
+src_eval_split: all
+tgt_train_split: all
+tgt_eval_split: all        # labelled one-shot samples are excluded from evaluation
+image_size: 224
+batch_size: 32
+model: {backbone: resnet50, pretrained: true, feat_dim: 256, cls_hidden: 64, act: elu, proj_layers: 3}
+src_train: {epochs: 50}
+adapt: {epochs: 60}
