@@ -10,7 +10,7 @@
 #SBATCH --signal=B:USR1@180
 #SBATCH --output=logs/%x-%A_%a.out
 #SBATCH --partition=MGPU-TC2
-##SBATCH --account=CHANGE_ME   # enable if sacctmgr shows an account is required
+#SBATCH --account=stud
 
 # conda's activate scripts reference unset variables, so activate before `set -u`.
 source /apps/anaconda3-2025.06-0/etc/profile.d/conda.sh && conda activate cida
