@@ -4,7 +4,7 @@
 #SBATCH --job-name=cida-adapt
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=8
-#SBATCH --mem=32G
+#SBATCH --mem=28G                     # QOS normal caps a user at 30G
 #SBATCH --time=05:55:00
 #SBATCH --requeue
 #SBATCH --signal=B:USR1@180
