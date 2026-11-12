@@ -70,6 +70,29 @@ class CIDA(nn.Module):
         return self.logits_v(self.ft(x))
 
 
+@torch.no_grad()
+def adabn(model, loader, device):
+    """Re-estimate BatchNorm running statistics on the target domain (AdaBN).
+
+    ft starts as a copy of fs, so its BN layers hold *source* statistics. Pseudo-labels are
+    computed in eval mode, and with source statistics a shared-class USPS digit lies closer
+    to any one-shot USPS guide than to its MNIST class mean: on Digits M->U ~75% of shared
+    samples were pseudo-labelled as private classes. Target statistics cut this to ~15-20%.
+    """
+    bns = [m for m in model.modules() if isinstance(m, nn.modules.batchnorm._BatchNorm)]
+    if not bns:
+        return
+    for m in bns:
+        m.reset_running_stats()
+        m.momentum = None  # cumulative average over the whole pass
+    model.train()
+    for x, _, _ in loader:
+        model(x.to(device))
+    for m in bns:
+        m.momentum = 0.1
+    model.eval()
+
+
 def params(*mods):
     return [p for m in mods for p in m.parameters() if p.requires_grad]
 
@@ -168,6 +191,9 @@ def main(argv=None):
         log.log(event="resumed", **state)
     else:
         model.ft.load_state_dict(model.fs.state_dict())  # Algo. 4 line 2
+        if acfg.get("adabn", True):
+            adabn(model.ft, plain_loader, device)
+            log.log(event="adabn", note="ft BatchNorm statistics re-estimated on the target domain")
 
     def checkpoint():
         save_ckpt({"model": model.state_dict(), "opts": {k: o.state_dict() for k, o in opts.items()},

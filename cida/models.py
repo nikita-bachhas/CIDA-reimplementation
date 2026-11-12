@@ -74,9 +74,31 @@ def build_classifier(cfg, n_out):
     return mlp([m["feat_dim"], m["cls_hidden"], n_out], m["act"])
 
 
+class ResidualProjection(nn.Module):
+    """u + MLP(u) with the MLP's last layer zero-initialised: exactly the identity at the start.
+
+    The paper pretrains fe / fd to a "near-identity" mapping. With a plain MLP, 2000 pretraining
+    steps still leave ~13% relative reconstruction error, which on a well-trained source model
+    pushes shared-class features across gs's decision boundaries before adaptation even starts
+    (shared accuracy 28-85% at epoch 0 on Digits M->U instead of ~99%).
+    """
+
+    def __init__(self, net: nn.Sequential):
+        super().__init__()
+        self.net = net
+        last = [m for m in net if isinstance(m, nn.Linear)][-1]
+        nn.init.zeros_(last.weight)
+        nn.init.zeros_(last.bias)
+
+    def forward(self, u):
+        return u + self.net(u)
+
+
 def build_projection(cfg):
     """fe / fd. The paper's final layer has an activation; that cannot represent the
-    identity on BN outputs (negative values), so `proj_final_act` defaults to False."""
+    identity on BN outputs (negative values), so `proj_final_act` defaults to False.
+    `proj_residual` (default True) makes the identity initialisation exact."""
     m = cfg["model"]
     d = m["feat_dim"]
-    return mlp([d] * (m["proj_layers"] + 1), m["act"], final_act=m.get("proj_final_act", False))
+    net = mlp([d] * (m["proj_layers"] + 1), m["act"], final_act=m.get("proj_final_act", False))
+    return ResidualProjection(net) if m.get("proj_residual", True) else net

@@ -25,6 +25,7 @@ adapt:
   fewshot_frac: null       # 0.05 for the few-shot (Ours*) setting
   n_percent: 20            # [paper] confident samples per guide
   ablation: none           # none | a | b | c  (Ours-a/b/c)
+  adabn: true              # re-estimate ft's BatchNorm stats on the target first (see SPEC.md)
   proj_pretrain_iters: 2000
   max_guide_samples_per_class: 16
   cov_shrink: 0.1
