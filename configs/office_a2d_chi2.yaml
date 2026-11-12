@@ -1,0 +1,3 @@
+base: office_a2d.yaml
+name: office_a2d_chi2
+src_train: {neg_mode: chi2}

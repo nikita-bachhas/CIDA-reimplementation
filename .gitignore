@@ -36,7 +36,8 @@ __pycache__/
 .venv/
 data/
 runs/
-logs/
+logs/*
+!logs/.gitkeep
 *.tmp
 
 ### IntelliJ project files ###

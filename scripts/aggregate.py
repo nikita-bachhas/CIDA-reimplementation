@@ -19,6 +19,7 @@ PAPER = {
     ("office_w2a", "few5", "none"): (67.2, 65.3), ("office_w2d", "few5", "none"): (90.4, 90.8),
     ("office_a2d", "1shot", "a"): (67.4, 64.1), ("office_a2d", "1shot", "b"): (68.4, 70.2),
     ("office_a2d", "1shot", "c"): (70.0, 69.3),
+    ("office_a2d_nols1", "1shot", "none"): (68.6, 70.4), ("office_a2d_noneg", "1shot", "none"): (67.4, 62.3),
     ("office20_a2d", "1shot", "none"): (73.3, 73.1), ("office20_a2w", "1shot", "none"): (63.6, 62.6),
     ("office20_d2a", "1shot", "none"): (64.1, 64.3), ("office20_d2w", "1shot", "none"): (80.3, 79.4),
     ("office20_w2a", "1shot", "none"): (63.7, 62.8), ("office20_w2d", "1shot", "none"): (89.5, 88.4),

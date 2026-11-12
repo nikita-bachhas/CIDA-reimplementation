@@ -1,0 +1,4 @@
+base: office_a2d.yaml
+name: office_a2d_noneg
+# Ablation (paper 4.1d): source model trained without negative samples.
+src_train: {use_negatives: false}

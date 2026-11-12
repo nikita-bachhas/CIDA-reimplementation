@@ -1,0 +1,4 @@
+base: office_a2d.yaml
+name: office_a2d_nols1
+# Ablation (paper 4.1c): source model trained without the class-separability loss Ls1.
+src_train: {use_ls1: false}

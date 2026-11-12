@@ -1,0 +1,4 @@
+base: digits_m2u.yaml
+name: digits_m2u_chi2
+# Dimension-aware negative threshold instead of the paper's literal 3-sigma rule (see SPEC.md).
+src_train: {neg_mode: chi2}

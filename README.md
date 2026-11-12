@@ -40,20 +40,25 @@ Any config value can be overridden:
 python adapt.py --config configs/office_a2d.yaml --seed 0 --set adapt.ablation=b adapt.epochs=40
 ```
 
-On the cluster (edit the partition, account and conda lines in `slurm/*.sbatch` first):
+On the cluster (the `slurm/*.sbatch` scripts are set up for CCDS-TC2: partition `MGPU-TC2`, conda env `cida`). Overrides follow the config path as plain `key=value` pairs, without `--set`:
 ```bash
-bash slurm/pipeline.sh configs/digits_m2u.yaml                       # source, then seeds 0-4
-sbatch --array=0-4 slurm/adapt.sbatch configs/office_a2d.yaml --set adapt.ablation=a
+bash slurm/pipeline.sh configs/digits_m2u.yaml                        # source, then seeds 0-4
+bash slurm/pipeline.sh configs/digits_m2u_chi2.yaml                   # chi2 negative threshold
+sbatch --array=0-4 slurm/adapt.sbatch configs/office_a2d.yaml adapt.ablation=a   # reuses the source model
+squeue -u $USER                                                        # job status; output in logs/
 python scripts/aggregate.py runs/
 ```
+
+To keep data elsewhere, symlink it into the repo (`ln -s ~/datasets data`) or add `data_root=/path/to/data`.
 
 Both stages save a checkpoint every epoch and every 20 minutes, and resume automatically from `ckpt.pt` in their run folder. The SLURM scripts requeue themselves 3 minutes before the time limit.
 
 ## Suggested order
 1. `configs/smoke.yaml` (tests) → **Digits M→U** (paper: 72.5 / 71.6). Tune the epoch counts here.
 2. **Office A→D one-shot** (paper: 72.2 / 72.6; source accuracy 96.7%).
-3. The other Office transfers, then ablations (`adapt.ablation=a|b|c`, `src_train.use_ls1=false`, `src_train.use_negatives=false`), then few-shot (`adapt.fewshot_frac=0.05`).
+3. The other Office transfers, then ablations, then few-shot (`adapt.fewshot_frac=0.05`):
+   - adaptation ablations reuse the A→D source model: `adapt.ablation=a|b|c`;
+   - source ablations train their own source model, through separate configs: `configs/office_a2d_nols1.yaml`, `configs/office_a2d_noneg.yaml`.
 4. Table 2 settings (`office20_*`, `digits_s2m`, `digits_u2m`), then VisDA last.
 
-Runs that change source training (for example `use_negatives=false`) need their own `out_dir`, so they don't overwrite the default source model:
-`--set out_dir=runs/office_a2d_noneg src_train.use_negatives=false`.
+Every config `name` gets its own `runs/<name>/` folder. So a variant that changes source training must have its own config with a new `name` (as the `*_chi2`, `*_nols1` and `*_noneg` configs do), or it would overwrite the default source model.
