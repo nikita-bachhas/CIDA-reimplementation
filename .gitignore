@@ -38,3 +38,7 @@ data/
 runs/
 logs/
 *.tmp
+
+### IntelliJ project files ###
+.idea/
+*.iml
