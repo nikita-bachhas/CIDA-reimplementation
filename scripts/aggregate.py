@@ -39,11 +39,13 @@ def main(root):
         m = re.match(r"adapt_(\w+?)_abl-(\w+?)(_.+)?_seed\d+$", f.parent.name)
         task = f.parent.parent.name
         groups[(task, m.group(1), m.group(2) + (m.group(3) or ""))].append(json.load(open(f)))
-    print(f"{'task':14} {'shots':6} {'abl':8} {'n':>2} | {'ALL':>13} {'PRIV':>13} | {'ALL(cls)':>13} | paper ALL/PRIV")
+    wt = max([4] + [len(k[0]) for k in groups])
+    wa = max([3] + [len(k[2]) for k in groups])
+    print(f"{'task':{wt}} {'shots':6} {'abl':{wa}} {'n':>2} | {'ALL':>13} {'PRIV':>13} | {'ALL(cls)':>13} | paper ALL/PRIV")
     for key in sorted(groups):
         rs = groups[key]
         paper = PAPER.get(key)
-        print(f"{key[0]:14} {key[1]:6} {key[2]:8} {len(rs):>2} | {fmt([r['all'] for r in rs]):>13} "
+        print(f"{key[0]:{wt}} {key[1]:6} {key[2]:{wa}} {len(rs):>2} | {fmt([r['all'] for r in rs]):>13} "
               f"{fmt([r['priv'] for r in rs]):>13} | {fmt([r['all_cls'] for r in rs]):>13} | "
               f"{'%.1f / %.1f' % paper if paper else '-'}")
 
