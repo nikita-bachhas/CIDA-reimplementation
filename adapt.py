@@ -40,6 +40,7 @@ ABLATIONS = {
     "a": ["Lr1", "Lc", "La1", "La2"],  # Ours-a: no fe/fd (fixed shared guides), no Lr2
     "b": ["Lc", "La1", "La2"],  # Ours-b: no Lr
     "c": ["Lr1", "Lr2", "Lc", "La1"],  # Ours-c: no La2
+    "nola1": ["Lr1", "Lr2", "Lc", "La2"],  # diagnostic (not in the paper): no La1
 }
 
 

@@ -11,6 +11,7 @@ cida/metrics.py      ALL / PRIV / shared accuracy (per-sample and class-averaged
 train_source.py      Stage 1: foresighted source training  -> runs/<name>/source/final.pt
 adapt.py             Stage 2: CIDA on the target            -> runs/<name>/adapt_*_seed<k>/
 scripts/aggregate.py Mean ± std over seeds next to the paper's numbers
+scripts/trajectory.py Per-epoch metrics averaged over seeds, per variant (for diagnosing drift)
 configs/             One YAML per transfer (base.yaml holds the defaults)
 slurm/               CCDS GPU TC2 job scripts: run.sbatch (one experiment), check.sbatch (environment check)
 tests/               Prototype unit tests + an end-to-end smoke test on synthetic data
