@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 
 import pytest
+import torch
 
 import adapt
 import train_source
@@ -61,3 +62,13 @@ def test_adapt_la1_variants(out_dir):
     adapt.main(["--config", CFG, "--seed", "2", "--set", f"out_dir={out_dir}", "adapt.la1_samples=all",
                 "adapt.la1_temp=100", "adapt.tag=la1var"])
     assert (out_dir / "adapt_1shot_abl-none_la1var_seed2" / "final_metrics.json").exists()
+
+
+def test_confusion_script(out_dir):
+    from scripts.confusion import analyse
+    adapt.main(["--config", CFG, "--seed", "3", "--set", f"out_dir={out_dir}"])
+    run = out_dir / "adapt_1shot_abl-none_seed3"
+    o = analyse(run, torch.device("cpu"), 0)
+    final = json.load(open(run / "final_metrics.json"))
+    assert abs(o["priv"] - final["priv"]) < 1e-6 and o["priv_given_priv"] >= o["priv"]
+    assert (run / "confusion.json").exists()
