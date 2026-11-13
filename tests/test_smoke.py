@@ -58,6 +58,6 @@ def test_adapt_fewshot(out_dir):
 
 
 def test_adapt_la1_variants(out_dir):
-    adapt.main(["--config", CFG, "--seed", "2", "--set", f"out_dir={out_dir}", "adapt.la1_samples=confident",
+    adapt.main(["--config", CFG, "--seed", "2", "--set", f"out_dir={out_dir}", "adapt.la1_samples=all",
                 "adapt.la1_temp=100", "adapt.tag=la1var"])
     assert (out_dir / "adapt_1shot_abl-none_la1var_seed2" / "final_metrics.json").exists()
