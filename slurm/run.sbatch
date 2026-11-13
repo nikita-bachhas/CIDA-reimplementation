@@ -10,6 +10,9 @@
 #   sbatch --export=ALL,SEEDS="0 1" slurm/run.sbatch configs/digits_m2u.yaml
 #   sbatch --export=ALL,STAGES=adapt,ABLATIONS="b c nola1" slurm/run.sbatch configs/digits_m2u.yaml adapt.epochs=15
 #     (ABLATIONS loops over adapt.ablation values; seeds run inside each one)
+#   sbatch --export=ALL,STAGES=adapt,VARIANTS="adapt.la1_samples=confident+adapt.tag=la1conf adapt.la1_temp=100+adapt.tag=la1t100" \
+#          slurm/run.sbatch configs/digits_m2u.yaml
+#     (VARIANTS: space-separated variants, each a "+"-joined list of overrides; sbatch --export splits on commas)
 #
 # If the 6 h limit is near, the job requeues itself and resumes from the latest checkpoint.
 #SBATCH --partition=MGPU-TC2
@@ -36,7 +39,8 @@ CONFIG=$1; shift
 SEEDS=${SEEDS:-"0 1 2 3 4"}
 STAGES=${STAGES:-"source adapt"}
 ABLATIONS=${ABLATIONS:-""}
-echo "job ${SLURM_JOB_ID:-local} on $(hostname): $CONFIG | stages: $STAGES | ablations: ${ABLATIONS:-config default} | seeds: $SEEDS | overrides: $*"
+VARIANTS=${VARIANTS:-""}
+echo "job ${SLURM_JOB_ID:-local} on $(hostname): $CONFIG | stages: $STAGES | ablations: ${ABLATIONS:-config default} | variants: ${VARIANTS:-none} | seeds: $SEEDS | overrides: $*"
 nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader || true
 
 PID=""
@@ -47,10 +51,14 @@ if [[ " $STAGES " == *" source "* ]]; then
     run python train_source.py --config "$CONFIG" --set num_workers=6 "$@"
 fi
 if [[ " $STAGES " == *" adapt "* ]]; then
-    for a in ${ABLATIONS:-__default__}; do
-        abl=(); [ "$a" != "__default__" ] && abl=("adapt.ablation=$a")
-        for s in $SEEDS; do
-            run python adapt.py --config "$CONFIG" --seed "$s" --set num_workers=6 "$@" ${abl[@]+"${abl[@]}"}
+    for v in ${VARIANTS:-__default__}; do
+        var=(); [ "$v" != "__default__" ] && IFS=+ read -r -a var <<< "$v"
+        for a in ${ABLATIONS:-__default__}; do
+            abl=(); [ "$a" != "__default__" ] && abl=("adapt.ablation=$a")
+            for s in $SEEDS; do
+                run python adapt.py --config "$CONFIG" --seed "$s" --set num_workers=6 "$@" \
+                    ${var[@]+"${var[@]}"} ${abl[@]+"${abl[@]}"}
+            done
         done
     done
 fi

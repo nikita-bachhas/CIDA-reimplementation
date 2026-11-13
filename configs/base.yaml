@@ -24,7 +24,10 @@ adapt:
   shots: 1                 # [paper] one-shot target-private samples
   fewshot_frac: null       # 0.05 for the few-shot (Ours*) setting
   n_percent: 20            # [paper] confident samples per guide
-  ablation: none           # none | a | b | c  (Ours-a/b/c)
+  ablation: none           # none | a | b | c  (Ours-a/b/c) | nola1 (diagnostic)
+  la1_samples: all         # [paper] all | confident (draw La1 batches from B_t)
+  la1_temp: 1.0            # La1 logits = log-density / la1_temp (1.0 = paper)
+  tag: null                # appended to the run folder name, e.g. la1conf
   adabn: true              # re-estimate ft's BatchNorm stats on the target first (see SPEC.md)
   proj_pretrain_iters: 2000
   max_guide_samples_per_class: 16

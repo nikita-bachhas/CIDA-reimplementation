@@ -55,3 +55,9 @@ def test_adapt(out_dir, ablation):
 def test_adapt_fewshot(out_dir):
     adapt.main(["--config", CFG, "--seed", "1", "--set", f"out_dir={out_dir}", "adapt.fewshot_frac=0.05"])
     assert (out_dir / "adapt_few5_abl-none_seed1" / "final_metrics.json").exists()
+
+
+def test_adapt_la1_variants(out_dir):
+    adapt.main(["--config", CFG, "--seed", "2", "--set", f"out_dir={out_dir}", "adapt.la1_samples=confident",
+                "adapt.la1_temp=100", "adapt.tag=la1var"])
+    assert (out_dir / "adapt_1shot_abl-none_la1var_seed2" / "final_metrics.json").exists()

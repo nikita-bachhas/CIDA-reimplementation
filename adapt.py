@@ -305,10 +305,11 @@ def main(argv=None):
                 x, y, _ = next(b_iter)
                 loss = F.cross_entropy(model(x.to(device)), y.to(device))
             elif key == "La1":
-                x, _, _ = next(t_iter)
+                # Paper: all target samples (x_t ~ q_X). "confident" draws from B_t instead (see SPEC.md).
+                x, _, _ = next(b_iter if acfg.get("la1_samples", "all") == "confident" else t_iter)
                 v, guides = ft_with_guides(x.to(device))
                 k = torch.cdist(v.detach(), guides.detach()).argmin(1)  # nearest-guide pseudo-label
-                loss = F.cross_entropy(protos_t.log_prob(v), k)
+                loss = F.cross_entropy(protos_t.log_prob(v) / acfg.get("la1_temp", 1.0), k)
             else:  # La2
                 x, y, _ = next(b_iter)
                 v, guides = ft_with_guides(x.to(device))
