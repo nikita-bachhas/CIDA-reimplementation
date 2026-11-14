@@ -52,6 +52,19 @@ This file records what the paper fixes, what we chose ourselves, and where the p
 2. **The 3σ rule in high dimensions.** For a Gaussian, the point μ + 3√λ·ν has squared Mahalanobis distance exactly 9, so the Algo 1 test reduces to "Mahalanobis distance > 3 from the most likely class". In D dimensions a typical in-distribution sample has squared distance about D (100 or 256). So almost every global sample, and almost every real class sample, counts as "negative": the acceptance rate is about 100%. `src_train.neg_mode=chi2` instead uses the chi-square(D) quantile as the threshold. **Result (Digits M→U):** the chi2 threshold (143 for D = 100) also accepts 100% of samples. The global Gaussian's covariance includes the spread *between* classes, so its samples lie far outside every class prototype under either rule. Both source models trained identically (same losses to 5 decimals), so the threshold is irrelevant here: the negatives are simply samples of the global Gaussian. The two adaptation runs then differ only through GPU nondeterminism: ALL 71.9 vs 70.5, PRIV 55.3 vs 53.5. **Treat differences under about 2 points between variants as noise.**
 3. **Algo 1 line 9** writes P(u_s) where it means P(u_n).
 
+## Investigated, not adopted
+
+**Prediction-step changes for PRIV** (`scripts/posthoc.py`, re-evaluating the 15 saved Digits models; no target labels used). Mean change from the paper's rule (ALL / PRIV / shared):
+
+| Variant | M→U | U→M | S→M |
+| --- | --- | --- | --- |
+| gate: gs "unknown" hands the sample to gt | −0.1 / +0.3 / −0.5 | −1.7 / +0.4 / −3.6 | −0.3 / +0.1 / −0.6 |
+| bias: offset on gt logits, matched to the nearest-guide private share | −3.3 / +5.5 / −9.4 | −0.7 / +3.0 / −4.2 | −0.9 / +5.1 / −6.7 |
+
+- **The gate barely fires on the samples that matter.** gs's unknown class was trained on global-Gaussian negatives far from every class (finding 2 above), so it does not recognise the new digits.
+- **The bias raises PRIV on all 15 seeds but costs about as much in shared accuracy.** So ALL never improves. The offset only moves the boundary between overlapping shared and private features. The calibration target is also high: 46–63% private, against 41% (USPS test) and 49% (MNIST test) in truth.
+- **Conclusion:** the PRIV gap comes from the features and pseudo-labels, not from the prediction step. The paper's prediction rule stays.
+
 ## Not implemented yet
 - **Ours-d.** This variant uses real source features instead of proxy samples, so it needs source data during adaptation.
 - **The two-step A→D→W upgrade** (supp §8).
