@@ -46,15 +46,23 @@ class LeNetFeat(nn.Module):
 
 
 class ResNetFeat(nn.Module):
-    def __init__(self, feat_dim=256, pretrained=True):
+    """ResNet-50 (till avg pool) -> FC1024-ELU -> BN -> FC256-ELU -> FC256-ELU -> BN (supp. Table 2A).
+
+    `n_fc_out` = number of FC(feat_dim)-ELU layers: 2 as in the paper. Runs made before this
+    was fixed used 1; their saved configs lack the key, so they still load with 1.
+    """
+
+    def __init__(self, feat_dim=256, pretrained=True, n_fc_out=2):
         super().__init__()
         weights = tvm.ResNet50_Weights.IMAGENET1K_V1 if pretrained else None
         self.backbone = tvm.resnet50(weights=weights)
         self.backbone.fc = nn.Identity()
-        self.head = nn.Sequential(
-            nn.Linear(2048, 1024), nn.ELU(), nn.BatchNorm1d(1024),
-            nn.Linear(1024, feat_dim), nn.ELU(), nn.BatchNorm1d(feat_dim),
-        )
+        layers = [nn.Linear(2048, 1024), nn.ELU(), nn.BatchNorm1d(1024)]
+        d = 1024
+        for _ in range(n_fc_out):
+            layers += [nn.Linear(d, feat_dim), nn.ELU()]
+            d = feat_dim
+        self.head = nn.Sequential(*layers, nn.BatchNorm1d(feat_dim))
 
     def forward(self, x):
         return self.head(self.backbone(x))
@@ -65,7 +73,7 @@ def build_feature_extractor(cfg):
     if m["backbone"] == "lenet":
         return LeNetFeat(m["feat_dim"], bn=m.get("bn", True))
     if m["backbone"] == "resnet50":
-        return ResNetFeat(m["feat_dim"], pretrained=m.get("pretrained", True))
+        return ResNetFeat(m["feat_dim"], pretrained=m.get("pretrained", True), n_fc_out=m.get("resnet_fc_out", 1))
     raise ValueError(m["backbone"])
 
 

@@ -15,6 +15,6 @@ tgt_train_split: all
 tgt_eval_split: all        # labelled one-shot samples are excluded from evaluation
 image_size: 224
 batch_size: 32
-model: {backbone: resnet50, pretrained: true, feat_dim: 256, cls_hidden: 64, act: elu, proj_layers: 3}
+model: {backbone: resnet50, pretrained: true, resnet_fc_out: 2, feat_dim: 256, cls_hidden: 64, act: elu, proj_layers: 3}
 src_train: {epochs: 50}
 adapt: {epochs: 60}

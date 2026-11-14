@@ -82,3 +82,22 @@ def test_posthoc_script(out_dir):
     final = json.load(open(run / "final_metrics.json"))
     assert abs(o["paper"]["all"] - final["all"]) < 1e-6  # the paper's rule reproduces final_metrics
     assert 0 <= o["pi_private"] <= 1 and set(o) >= {"gate", "bias", "both"}
+
+
+def test_feature_probe_script(out_dir, monkeypatch, capsys):
+    import sys as _sys
+    from scripts import feature_probe
+    adapt.main(["--config", CFG, "--seed", "0", "--set", f"out_dir={out_dir}"])
+    monkeypatch.setattr(_sys, "argv", ["feature_probe.py", str(out_dir), "--num_workers", "0"])
+    feature_probe.main()
+    out = capsys.readouterr().out
+    assert "priv|priv" in out and "ft (adapted)" in out
+
+
+def test_resnet_head_matches_paper():
+    from cida.models import ResNetFeat
+    head = ResNetFeat(256, pretrained=False, n_fc_out=2).head  # supp. Table 2A
+    kinds = [type(m).__name__ for m in head]
+    assert kinds == ["Linear", "ELU", "BatchNorm1d", "Linear", "ELU", "Linear", "ELU", "BatchNorm1d"]
+    old = ResNetFeat(256, pretrained=False, n_fc_out=1).head  # runs saved before the fix still load
+    assert [type(m).__name__ for m in old] == ["Linear", "ELU", "BatchNorm1d", "Linear", "ELU", "BatchNorm1d"]
