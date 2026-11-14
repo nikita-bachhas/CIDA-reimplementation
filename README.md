@@ -13,6 +13,7 @@ adapt.py             Stage 2: CIDA on the target            -> runs/<name>/adapt
 scripts/aggregate.py Mean ± std over seeds next to the paper's numbers
 scripts/trajectory.py Per-epoch metrics averaged over seeds, per variant (for diagnosing drift)
 scripts/confusion.py  Per-class confusion for finished runs (GPU job: slurm/confusion.sbatch)
+scripts/posthoc.py    Label-free prediction-step variants (gate / bias) on finished runs (GPU job: slurm/posthoc.sbatch)
 configs/             One YAML per transfer (base.yaml holds the defaults)
 slurm/               CCDS GPU TC2 job scripts: run.sbatch (one experiment), check.sbatch (environment check)
 tests/               Prototype unit tests + an end-to-end smoke test on synthetic data

@@ -72,3 +72,13 @@ def test_confusion_script(out_dir):
     final = json.load(open(run / "final_metrics.json"))
     assert abs(o["priv"] - final["priv"]) < 1e-6 and o["priv_given_priv"] >= o["priv"]
     assert (run / "confusion.json").exists()
+
+
+def test_posthoc_script(out_dir):
+    from scripts.posthoc import analyse
+    adapt.main(["--config", CFG, "--seed", "4", "--set", f"out_dir={out_dir}"])
+    run = out_dir / "adapt_1shot_abl-none_seed4"
+    o = analyse(run, torch.device("cpu"), 0)
+    final = json.load(open(run / "final_metrics.json"))
+    assert abs(o["paper"]["all"] - final["all"]) < 1e-6  # the paper's rule reproduces final_metrics
+    assert 0 <= o["pi_private"] <= 1 and set(o) >= {"gate", "bias", "both"}
