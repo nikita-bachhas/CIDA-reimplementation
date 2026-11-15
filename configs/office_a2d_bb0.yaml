@@ -1,0 +1,6 @@
+base: office_a2d.yaml
+name: office_a2d_bb0
+# ResNet-50 backbone frozen at its ImageNet weights in both stages; only the FC head, classifiers
+# and projections train (see SPEC.md: source fine-tuning destroyed the private-class information).
+src_train: {backbone_lr_mult: 0.0}
+adapt: {backbone_lr_mult: 0.0}

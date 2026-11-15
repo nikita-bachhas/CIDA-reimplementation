@@ -22,7 +22,7 @@ from torch.utils.data import DataLoader
 from cida.common import (Logger, Timer, extract, get_device, load_ckpt, load_config, rng_state, save_ckpt,
                          set_rng_state, set_seed)
 from cida.data import build_domain
-from cida.models import build_classifier, build_feature_extractor
+from cida.models import build_classifier, build_feature_extractor, freeze_backbone, param_groups
 from cida.prototypes import GaussianPrototypes
 
 
@@ -80,9 +80,12 @@ def main(argv=None):
     fs = build_feature_extractor(cfg).to(device)
     gs = build_classifier(cfg, n_shared + 1).to(device)  # +1 = OOD / negative class
     lr = cfg["lr"]
-    opt_warm = torch.optim.Adam(list(fs.parameters()) + list(gs.parameters()), lr)
-    opt_ls1 = torch.optim.Adam(fs.parameters(), lr)
-    opt_ls2 = torch.optim.Adam(list(fs.parameters()) + list(gs.parameters()), lr)
+    bbm = scfg.get("backbone_lr_mult", 1.0)  # pretrained ResNet backbone: lr * bbm (0 = frozen); see SPEC.md
+    if bbm == 0:
+        freeze_backbone(fs)
+    opt_warm = torch.optim.Adam(param_groups([fs, gs], lr, bbm))
+    opt_ls1 = torch.optim.Adam(param_groups([fs], lr, bbm))
+    opt_ls2 = torch.optim.Adam(param_groups([fs, gs], lr, bbm))
     opts = {"warm": opt_warm, "ls1": opt_ls1, "ls2": opt_ls2}
 
     warm, epochs = scfg["warmup_epochs"], scfg["epochs"]

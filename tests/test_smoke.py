@@ -101,3 +101,25 @@ def test_resnet_head_matches_paper():
     assert kinds == ["Linear", "ELU", "BatchNorm1d", "Linear", "ELU", "Linear", "ELU", "BatchNorm1d"]
     old = ResNetFeat(256, pretrained=False, n_fc_out=1).head  # runs saved before the fix still load
     assert [type(m).__name__ for m in old] == ["Linear", "ELU", "BatchNorm1d", "Linear", "ELU", "BatchNorm1d"]
+
+
+def test_feature_probe_source_only(tmp_path, monkeypatch, capsys):
+    import sys as _sys
+    from scripts import feature_probe
+    out = tmp_path / "src_only"
+    train_source.main(["--config", CFG, "--set", f"out_dir={out}"])
+    monkeypatch.setattr(_sys, "argv", ["feature_probe.py", str(out), "--num_workers", "0"])
+    feature_probe.main()
+    text = capsys.readouterr().out
+    assert "seeds 0-4" in text and "ft (adapted)" not in text
+
+
+def test_backbone_param_groups():
+    from cida.models import ResNetFeat, freeze_backbone, param_groups
+    fs = ResNetFeat(256, pretrained=False)
+    g = param_groups([fs], 1e-4, 0.1)
+    assert [x["lr"] for x in g] == [1e-4, 1e-5]
+    assert sum(len(x["params"]) for x in g) == len(list(fs.parameters()))
+    freeze_backbone(fs)
+    g = param_groups([fs], 1e-4, 0.0)
+    assert len(g) == 1 and len(g[0]["params"]) == len(list(fs.head.parameters()))

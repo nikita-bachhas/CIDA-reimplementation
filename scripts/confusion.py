@@ -62,7 +62,7 @@ def analyse(run_dir, device, num_workers):
     is_p = y >= ns
 
     # Guides as in adaptation: fe(mu_s) for shared classes, mean ft(one-shot images) for private.
-    src = load_ckpt(Path(cfg["out_dir"]) / "source" / "final.pt")
+    src = load_ckpt(run_dir.parent / "source" / "final.pt")  # works after the task folder is renamed
     mu_s = GaussianPrototypes.from_state_dict(src["protos"], device).means
     oneshot = {c: torch.stack([tgt_train[i][0] for i in lab_idx[c]]) for c in private}
     g_priv = torch.stack([model.ft(oneshot[c].to(device)).mean(0) for c in private])

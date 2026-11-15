@@ -16,6 +16,8 @@ one-shot target image(s). Reported, averaged over seeds (Euclidean on L2-normali
 If imagenet >> fs on priv|priv, source training discarded what separates the new classes.
 
   sbatch slurm/py.sbatch scripts/feature_probe.py runs/office_a2d
+Works right after source training too (no adaptation runs yet): the one-shot images are then
+picked exactly as adapt.py would for seeds 0-4, and the ft row is skipped.
 """
 import argparse
 import copy
@@ -31,7 +33,7 @@ from torch.utils.data import DataLoader
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from adapt import CIDA, adabn  # noqa: E402
 from cida.common import get_device, load_ckpt  # noqa: E402
-from cida.data import build_domain  # noqa: E402
+from cida.data import build_domain, sample_labelled  # noqa: E402
 from cida.models import build_feature_extractor  # noqa: E402
 
 
@@ -89,12 +91,18 @@ def main():
     for name, m in spaces.items():  # target BN statistics, as in adaptation; source features use them too
         adabn(m, tgt_loader, device)
 
-    labelled = {r: load_ckpt(r / "final.pt")["labelled"] for r in runs}
+    if runs:
+        labelled = {r: load_ckpt(r / "final.pt")["labelled"] for r in runs}
+    else:  # source only: the same one-shot picks adapt.py makes for seeds 0-4
+        a = cfg["adapt"]
+        labelled = {s: sample_labelled(tgt.labels, list(range(ns, n)), a.get("shots", 1), a.get("fewshot_frac"), seed=s)
+                    for s in range(5)}
+        print("(no adaptation runs yet: using the one-shot picks of seeds 0-4)")
     rows = {}
     for name, m in spaces.items():
         Vt, Yt = feats(m, tgt, device, args.num_workers)
         Vs, Ys = feats(m, srcd, device, args.num_workers)
-        rows[name] = [nearest_guide(Vt, Yt, Vs, Ys, labelled[r], ns, n) for r in runs]
+        rows[name] = [nearest_guide(Vt, Yt, Vs, Ys, lab, ns, n) for lab in labelled.values()]
     ft_rows = []
     for r in runs:
         ck = load_ckpt(r / "final.pt")
@@ -103,9 +111,10 @@ def main():
         Vt, Yt = feats(model.ft, tgt, device, args.num_workers)
         Vs, Ys = feats(model.ft, srcd, device, args.num_workers)
         ft_rows.append(nearest_guide(Vt, Yt, Vs, Ys, ck["labelled"], ns, n))
-    rows["ft (adapted)"] = ft_rows
+    if ft_rows:
+        rows["ft (adapted)"] = ft_rows
 
-    print(f"\n===== {task}: nearest-guide accuracy on the target, mean over {len(runs)} seeds (per seed in brackets)")
+    print(f"\n===== {task}: nearest-guide accuracy on the target, mean over {len(labelled)} seeds (per seed in brackets)")
     print(f"{'feature space':14}" + "".join(f"{k:>12}" for k in ["priv|priv", "priv", "shared", "all"]) + "   priv|priv per seed")
     for name, rs in rows.items():
         print(f"{name:14}" + "".join(f"{st.mean(r[k] for r in rs):12.1f}" for k in ["priv|priv", "priv", "shared", "all"])

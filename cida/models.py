@@ -68,6 +68,30 @@ class ResNetFeat(nn.Module):
         return self.head(self.backbone(x))
 
 
+def param_groups(mods, lr, backbone_mult=1.0):
+    """Adam parameter groups: pretrained ResNet backbones train at lr * backbone_mult.
+
+    Parameters with requires_grad=False (e.g. a frozen backbone, backbone_mult=0) are left out.
+    Returns [] if nothing is trainable.
+    """
+    bb, rest = [], []
+    for m in mods:
+        bb_ids = {id(p) for p in m.backbone.parameters()} if hasattr(m, "backbone") else set()
+        for p in m.parameters():
+            if p.requires_grad:
+                (bb if id(p) in bb_ids else rest).append(p)
+    groups = [{"params": rest, "lr": lr}] if rest else []
+    if bb and backbone_mult > 0:
+        groups.append({"params": bb, "lr": lr * backbone_mult})
+    return groups
+
+
+def freeze_backbone(feat_extractor):
+    """Fix the pretrained backbone's weights (its BatchNorm statistics still follow the data)."""
+    if hasattr(feat_extractor, "backbone"):
+        feat_extractor.backbone.requires_grad_(False)
+
+
 def build_feature_extractor(cfg):
     m = cfg["model"]
     if m["backbone"] == "lenet":

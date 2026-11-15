@@ -74,7 +74,7 @@ def analyse(run_dir, device, nw):
     excl = lab if cfg["tgt_eval_split"] == cfg["tgt_train_split"] else frozenset()
 
     # Calibration on the unlabelled target train split: share of samples whose nearest guide is private.
-    src = load_ckpt(Path(cfg["out_dir"]) / "source" / "final.pt")
+    src = load_ckpt(run_dir.parent / "source" / "final.pt")  # works after the task folder is renamed
     mu_s = GaussianPrototypes.from_state_dict(src["protos"], device).means
     g_priv = torch.stack([model.ft(torch.stack([tgt_train[i][0] for i in labelled[c]]).to(device)).mean(0)
                           for c in range(ns, n)])

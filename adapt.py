@@ -31,7 +31,7 @@ from cida.common import (Logger, Timer, extract, get_device, infinite, load_ckpt
                          save_ckpt, set_rng_state, set_seed)
 from cida.data import Relabeled, build_domain, sample_labelled
 from cida.metrics import cida_metrics
-from cida.models import build_classifier, build_feature_extractor, build_projection
+from cida.models import build_classifier, build_feature_extractor, build_projection, freeze_backbone, param_groups
 from cida.prototypes import GaussianPrototypes
 
 LOSSES = ["Lr1", "Lr2", "Lc", "La1", "La2"]  # supp. Algo. 4 line 8
@@ -92,10 +92,6 @@ def adabn(model, loader, device):
     for m in bns:
         m.momentum = 0.1
     model.eval()
-
-
-def params(*mods):
-    return [p for m in mods for p in m.parameters() if p.requires_grad]
 
 
 def main(argv=None):
@@ -175,7 +171,10 @@ def main(argv=None):
         "La1": (model.ft,),
         "La2": (model.fe, model.ft),
     }
-    opts = {k: torch.optim.Adam(params(*groups[k]), lr) for k in losses if params(*groups[k])}
+    bbm = acfg.get("backbone_lr_mult", 1.0)  # ft's pretrained ResNet backbone: lr * bbm (0 = frozen)
+    if bbm == 0:
+        freeze_backbone(model.ft)
+    opts = {k: torch.optim.Adam(param_groups(groups[k], lr, bbm)) for k in losses if param_groups(groups[k], lr, bbm)}
     losses = [k for k in losses if k in opts]
     pre_opts = None if ablation == "a" else {
         "fe": torch.optim.Adam(model.fe.parameters(), lr), "fd": torch.optim.Adam(model.fd.parameters(), lr)}

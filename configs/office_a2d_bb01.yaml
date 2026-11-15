@@ -1,0 +1,5 @@
+base: office_a2d.yaml
+name: office_a2d_bb01
+# ResNet-50 backbone trained at 0.1x the learning rate in both stages (common DA practice); see SPEC.md.
+src_train: {backbone_lr_mult: 0.1}
+adapt: {backbone_lr_mult: 0.1}
