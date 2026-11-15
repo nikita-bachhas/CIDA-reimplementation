@@ -16,5 +16,6 @@ tgt_eval_split: all        # labelled one-shot samples are excluded from evaluat
 image_size: 224
 batch_size: 32
 model: {backbone: resnet50, pretrained: true, resnet_fc_out: 2, feat_dim: 256, cls_hidden: 64, act: elu, proj_layers: 3}
-src_train: {epochs: 50}
-adapt: {epochs: 60}
+# ResNet-50 backbone frozen at its ImageNet weights (lr x 0) in both stages; see SPEC.md.
+src_train: {epochs: 50, backbone_lr_mult: 0.0}
+adapt: {epochs: 60, backbone_lr_mult: 0.0}
