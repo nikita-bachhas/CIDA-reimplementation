@@ -13,6 +13,8 @@
 #   sbatch --export=ALL,STAGES=adapt,VARIANTS="adapt.la1_samples=confident+adapt.tag=la1conf adapt.la1_temp=100+adapt.tag=la1t100" \
 #          slurm/run.sbatch configs/digits_m2u.yaml
 #     (VARIANTS: space-separated variants, each a "+"-joined list of overrides; sbatch --export splits on commas)
+#   sbatch --export=ALL,CONFIGS="configs/digits_m2u.yaml configs/office_a2d.yaml" slurm/run.sbatch preset=vanilla
+#     (CONFIGS: several experiments one after another in one job; all arguments are then overrides)
 #
 # If the 6 h limit is near, the job requeues itself and resumes from the latest checkpoint.
 #SBATCH --partition=MGPU-TC2
@@ -35,18 +37,21 @@ eval "$(conda shell.bash hook)"
 conda activate cida
 set -euo pipefail
 
-CONFIG=$1; shift
+if [ -n "${CONFIGS:-}" ]; then read -r -a CONFIG_LIST <<< "$CONFIGS"; else CONFIG_LIST=("$1"); shift; fi
+for c in "${CONFIG_LIST[@]}"; do [ -f "$c" ] || { echo "no such config: $c" >&2; exit 1; }; done
 SEEDS=${SEEDS:-"0 1 2 3 4"}
 STAGES=${STAGES:-"source adapt"}
 ABLATIONS=${ABLATIONS:-""}
 VARIANTS=${VARIANTS:-""}
-echo "job ${SLURM_JOB_ID:-local} on $(hostname): $CONFIG | stages: $STAGES | ablations: ${ABLATIONS:-config default} | variants: ${VARIANTS:-none} | seeds: $SEEDS | overrides: $*"
+echo "job ${SLURM_JOB_ID:-local} on $(hostname): ${CONFIG_LIST[*]} | stages: $STAGES | ablations: ${ABLATIONS:-config default} | variants: ${VARIANTS:-none} | seeds: $SEEDS | overrides: $*"
 nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader || true
 
 PID=""
 trap 'echo "6 h limit near: requeueing; work resumes from checkpoints"; [ -n "$PID" ] && kill -TERM "$PID"; scontrol requeue "$SLURM_JOB_ID"; exit 0' USR1
 run() { "$@" & PID=$!; wait "$PID"; PID=""; }
 
+for CONFIG in "${CONFIG_LIST[@]}"; do
+echo "=== $CONFIG"
 if [[ " $STAGES " == *" source "* ]]; then
     run python train_source.py --config "$CONFIG" --set num_workers=6 "$@"
 fi
@@ -62,4 +67,5 @@ if [[ " $STAGES " == *" adapt "* ]]; then
         done
     done
 fi
-echo "all done: python scripts/aggregate.py runs/"
+done
+echo "all done: python scripts/aggregate.py runs/   (runs_vanilla/ for preset=vanilla)"

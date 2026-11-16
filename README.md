@@ -15,7 +15,7 @@ scripts/trajectory.py Per-epoch metrics averaged over seeds, per variant (for di
 scripts/confusion.py  Per-class confusion for finished runs (GPU job: slurm/confusion.sbatch)
 scripts/posthoc.py    Label-free prediction-step variants (gate / bias) on finished runs (GPU job: slurm/posthoc.sbatch)
 scripts/feature_probe.py Can each feature space (ImageNet, source, adapted) separate the private classes? (GPU job: slurm/py.sbatch)
-configs/             One YAML per transfer (base.yaml holds the defaults)
+configs/             One YAML per transfer (base.yaml holds the defaults; presets/vanilla.yaml = the paper as written)
 slurm/               CCDS GPU TC2 job scripts: run.sbatch (one experiment), check.sbatch (environment check)
 tests/               Prototype unit tests + an end-to-end smoke test on synthetic data
 ```
@@ -107,9 +107,13 @@ sbatch slurm/run.sbatch configs/digits_m2u.yaml             # source, then seeds
 sbatch slurm/run.sbatch configs/digits_m2u_chi2.yaml        # chi2 negative threshold
 sbatch --export=ALL,STAGES=adapt slurm/run.sbatch configs/office_a2d.yaml adapt.ablation=a   # reuses the source model
 sbatch --export=ALL,SEEDS="0" slurm/run.sbatch configs/digits_m2u.yaml                      # just one seed
+sbatch slurm/run.sbatch configs/digits_m2u.yaml preset=vanilla                               # the paper as written -> runs_vanilla/
+sbatch --export=ALL,CONFIGS="configs/digits_m2u.yaml configs/digits_u2m.yaml" slurm/run.sbatch preset=vanilla  # several in one job
 squeue -u $USER                                             # status; output in logs/cida_<jobid>.out
 python scripts/aggregate.py runs/                           # results table (cheap; or run it after a job)
 ```
+
+`preset=vanilla` turns off all our changes to the method (see SPEC.md, "Vanilla preset"). `CONFIGS` runs several experiments one after another in a single job, which keeps to one job in the queue; it requeues itself at the 6 h limit like any other job.
 
 Submit the next experiment only after the previous one finishes. With one GPU per user, extra jobs only sit in the queue as `QOSMaxGRESPerUser`, and the guide asks you to cancel those.
 

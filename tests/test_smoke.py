@@ -123,3 +123,22 @@ def test_backbone_param_groups():
     freeze_backbone(fs)
     g = param_groups([fs], 1e-4, 0.0)
     assert len(g) == 1 and len(g[0]["params"]) == len(list(fs.head.parameters()))
+
+
+def test_vanilla_preset():
+    from cida.common import load_config
+    cfgs = Path(CFG).parent
+    v = load_config(cfgs / "office_a2d.yaml", ["preset=vanilla"])
+    assert v["out_dir"] == "runs_vanilla/office_a2d" and v["src_train"]["epochs"] == 50
+    assert v["src_train"]["backbone_lr_mult"] == 1.0 and v["adapt"]["backbone_lr_mult"] == 1.0
+    assert v["adapt"]["la1_samples"] == "all" and v["adapt"]["adabn"] is False
+    assert v["model"]["proj_residual"] is False and v["model"]["proj_final_act"] is True
+    assert v["model"]["resnet_fc_out"] == 2  # paper head, not one of our fixes
+    d = load_config(cfgs / "digits_m2u.yaml", ["preset=vanilla", "adapt.epochs=3"])
+    assert d["out_dir"] == "runs_vanilla/digits_m2u" and d["adapt"]["epochs"] == 3  # overrides beat the preset
+    assert load_config(cfgs / "office_a2d.yaml")["out_dir"] == "runs/office_a2d"  # default unchanged
+
+
+def test_adapt_vanilla(out_dir):
+    adapt.main(["--config", CFG, "--seed", "3", "--set", "preset=vanilla", f"out_dir={out_dir}", "adapt.tag=vanilla"])
+    assert (out_dir / "adapt_1shot_abl-none_vanilla_seed3" / "final_metrics.json").exists()

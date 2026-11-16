@@ -31,9 +31,20 @@ def _load_yaml(path: Path) -> dict:
 
 
 def load_config(path, overrides=()) -> dict:
-    """YAML config with optional `base:` inheritance and `a.b=value` CLI overrides."""
-    cfg = _load_yaml(Path(path))
-    for ov in overrides or ():
+    """YAML config with optional `base:` inheritance and `a.b=value` CLI overrides.
+
+    `preset=<name>` (in the file or as an override) merges configs/presets/<name>.yaml on top of
+    the task config, before the other overrides, and writes to runs_<name>/<task> by default."""
+    path = Path(path)
+    cfg = _load_yaml(path)
+    overrides = list(overrides or ())
+    preset = next((yaml.safe_load(o.split("=", 1)[1]) for o in overrides if o.split("=", 1)[0] == "preset"),
+                  cfg.get("preset"))
+    if preset:
+        cfg = _deep_merge(cfg, _load_yaml(path.parent / "presets" / f"{preset}.yaml"))
+        cfg["preset"] = preset
+        cfg.setdefault("out_dir", f"runs_{preset}/{cfg['name']}")
+    for ov in overrides:
         key, val = ov.split("=", 1)
         d = cfg
         parts = key.split(".")

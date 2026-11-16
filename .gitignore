@@ -36,6 +36,7 @@ __pycache__/
 .venv/
 data/
 runs/
+runs_*/
 logs/*
 !logs/.gitkeep
 *.tmp
