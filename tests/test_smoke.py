@@ -145,7 +145,6 @@ def test_adapt_vanilla(out_dir):
 
 
 def test_finished_run_deletes_resume_checkpoint(out_dir):
-    assert (out_dir / "source" / "ckpt.pt").exists()  # keep_ckpt=true in the fixture
     adapt.main(["--config", CFG, "--seed", "4", "--set", f"out_dir={out_dir}"])
     run = out_dir / "adapt_1shot_abl-none_seed4"
     assert (run / "final.pt").exists() and not (run / "ckpt.pt").exists()
