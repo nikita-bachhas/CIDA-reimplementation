@@ -332,6 +332,8 @@ def main(argv=None):
     with open(out / "final_metrics.json", "w") as f:
         json.dump(final, f, indent=2)
     save_ckpt({"model": model.state_dict(), "labelled": labelled, "cfg": cfg}, out / "final.pt")
+    if not cfg.get("keep_ckpt", False):  # the resume checkpoint (model + all optimiser states) is no longer needed
+        ckpt_path.unlink(missing_ok=True)
     log.log(event="done", **final)
 
 

@@ -119,7 +119,7 @@ Submit the next experiment only after the previous one finishes. With one GPU pe
 
 To keep data elsewhere, symlink it into the repo (`ln -s ~/datasets data`) or add `data_root=/path/to/data`.
 
-Both stages save a checkpoint every epoch and every 20 minutes, and resume automatically from `ckpt.pt` in their run folder. `run.sbatch` requeues itself 3 minutes before the 6 h limit. `--force` makes `train_source.py` or `adapt.py` rerun a finished stage.
+Both stages save a checkpoint every epoch and every 20 minutes, and resume automatically from `ckpt.pt` in their run folder. `run.sbatch` requeues itself 3 minutes before the 6 h limit. Once a stage finishes, its `ckpt.pt` (model plus all optimiser states) is deleted to save disk space; `final.pt` keeps the result (`keep_ckpt=true` keeps the checkpoint). `--force` makes `train_source.py` or `adapt.py` rerun a finished stage.
 
 Measured on an A40 (job 53729): about 5 s per Digits source epoch and 8 s per Digits adaptation epoch. A full `digits_m2u` experiment (source + 5 seeds) takes about 25 minutes.
 

@@ -6,6 +6,7 @@ batch_size: 64
 lr: 1.0e-4                 # [paper] Adam, all optimisers
 source_seed: 0
 ckpt_every_minutes: 20     # intermediate checkpoints (6 h cluster limit)
+keep_ckpt: false           # delete a run's resume checkpoint ckpt.pt once final.pt is written (saves disk)
 
 src_train:
   warmup_epochs: 1         # [paper] 1 epoch vanilla CE before fitting prototypes

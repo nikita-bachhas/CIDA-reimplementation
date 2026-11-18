@@ -14,7 +14,7 @@ CFG = str(Path(__file__).resolve().parents[1] / "configs" / "smoke.yaml")
 @pytest.fixture(scope="module")
 def out_dir(tmp_path_factory):
     out = tmp_path_factory.mktemp("runs") / "smoke"
-    train_source.main(["--config", CFG, "--set", f"out_dir={out}"])
+    train_source.main(["--config", CFG, "--set", f"out_dir={out}", "keep_ckpt=true"])  # kept for the resume test
     return out
 
 
@@ -142,3 +142,10 @@ def test_vanilla_preset():
 def test_adapt_vanilla(out_dir):
     adapt.main(["--config", CFG, "--seed", "3", "--set", "preset=vanilla", f"out_dir={out_dir}", "adapt.tag=vanilla"])
     assert (out_dir / "adapt_1shot_abl-none_vanilla_seed3" / "final_metrics.json").exists()
+
+
+def test_finished_run_deletes_resume_checkpoint(out_dir):
+    assert (out_dir / "source" / "ckpt.pt").exists()  # keep_ckpt=true in the fixture
+    adapt.main(["--config", CFG, "--seed", "4", "--set", f"out_dir={out_dir}"])
+    run = out_dir / "adapt_1shot_abl-none_seed4"
+    assert (run / "final.pt").exists() and not (run / "ckpt.pt").exists()

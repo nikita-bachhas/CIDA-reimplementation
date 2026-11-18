@@ -149,6 +149,8 @@ def main(argv=None):
 
     save_ckpt({"fs": fs.state_dict(), "gs": gs.state_dict(), "protos": protos.state_dict(), "cfg": cfg,
                "n_shared": n_shared}, out / "final.pt")
+    if not cfg.get("keep_ckpt", False):  # the resume checkpoint (model + optimiser states) is no longer needed
+        ckpt_path.unlink(missing_ok=True)
     log.log(event="done", path=str(out / "final.pt"))
 
 
