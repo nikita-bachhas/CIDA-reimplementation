@@ -48,7 +48,15 @@ nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader ||
 
 PID=""
 trap 'echo "6 h limit near: requeueing; work resumes from checkpoints"; [ -n "$PID" ] && kill -TERM "$PID"; scontrol requeue "$SLURM_JOB_ID"; exit 0' USR1
-run() { "$@" & PID=$!; wait "$PID"; PID=""; }
+run() {  # run one step; on failure say which one, with its exit code, in both .out and .err
+    local rc=0
+    "$@" & PID=$!; wait "$PID" || rc=$?; PID=""
+    if [ "$rc" -ne 0 ]; then
+        echo "FAILED with exit code $rc at $(date '+%F %T'): $*" | tee /dev/stderr
+        [ "$rc" -gt 128 ] && echo "(exit code > 128: killed by signal $((rc - 128)); 9 = SIGKILL, often out of memory)" | tee /dev/stderr
+        exit "$rc"
+    fi
+}
 
 for CONFIG in "${CONFIG_LIST[@]}"; do
 echo "=== $CONFIG"
