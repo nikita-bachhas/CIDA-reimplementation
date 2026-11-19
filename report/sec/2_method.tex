@@ -1,0 +1,132 @@
+\section{Method}\label{sec:method}
+
+This section describes CIDA as the paper and its supplementary material specify it~\citep{kundu2020cida}.
+\Cref{sec:implementation} then lists the details we had to choose ourselves and the changes we made.
+
+\input{fig/arch}
+
+\subsection{Problem setting}\label{sec:setting}
+The labelled source set is $\Ds=\{(\x_s,y_s)\}$ with label set $\Cs$.
+The unlabelled target set $\Dt=\{\x_t\}$ is drawn from the marginal distribution $q_X$ and has a larger label set $\Ct\supset\Cs$.
+The target-private classes are $\Cp=\Ct\setminus\Cs$, and each class $c\in\Cp$ comes with one labelled target image $\tilde{\x}_t^c$.
+The source data are not available during adaptation.
+
+\subsection{Stage 1: source training}\label{sec:stage1}
+A feature extractor $f_s$ maps images to a feature space $\U$, and a classifier $g_s$ maps these features to $|\Cs|+1$ outputs.
+The extra output, denoted $\unk$, stands for ``none of the source classes''.
+
+\paragraph{Gaussian prototypes.}
+For each class $c\in\Cs$, a Gaussian $\Ps^c=\mathcal{N}(\bm{\mu}_s^c,\bm{\Sigma}_s^c)$ is fitted to the features $f_s(\x_s)$ of that class.
+A global Gaussian $\Ps=\mathcal{N}(\bm{\mu}_s,\bm{\Sigma}_s)$ is fitted to all source features in the same way.
+These prototypes are all that Stage~2 keeps of the source data.
+
+\paragraph{Class separability ($\mathcal{L}_{s1}$).}
+This loss is a cross-entropy in which the class prototypes act as the classifier.
+With $\uu_s=f_s(\x_s)$, it reads
+\begin{equation}
+  \mathcal{L}_{s1} = \E_{(\x_s,y_s)}\Big[-\log\frac{\exp \ell^{y_s}(\uu_s)}{\sum_{c\in\Cs}\exp \ell^{c}(\uu_s)}\Big],
+  \label{eq:ls1}
+\end{equation}
+where $\ell^c(\uu)$ scores $\uu$ under $\Ps^c$.
+The paper uses the density $\Ps^c(\uu)$ as this score, while we use the log-density $\log\Ps^c(\uu)$ for numerical reasons (\cref{sec:choices}).
+Minimising the loss makes each class a compact cluster around its prototype.
+
+\paragraph{Negative samples ($\mathcal{L}_{s2}$).}
+Negative features $\uu_n$ represent regions of $\U$ where the source density is low.
+To create one, we draw a candidate $\uu\sim\Ps$ from the global Gaussian and find its most likely class $\hat c=\arg\max_c \Ps^c(\uu)$.
+Let $\lambda$ be the largest eigenvalue of $\bm{\Sigma}_s^{\hat c}$ and $\bm{\nu}$ its eigenvector.
+The candidate is kept as a negative if
+\begin{equation}
+  \Ps^{\hat c}(\uu) < \Ps^{\hat c}\big(\bm{\mu}_s^{\hat c}+3\sqrt{\lambda}\,\bm{\nu}\big),
+  \label{eq:neg}
+\end{equation}
+that is, if it lies outside the $3\sigma$ region of class $\hat c$.
+The classifier then learns to assign these negatives to $\unk$ through
+\begin{equation}
+  \mathcal{L}_{s2} = \E_{(\x_s,y_s)}\,\lce\big(g_s(f_s(\x_s)),y_s\big) + \E_{\uu_n}\,\lce\big(g_s(\uu_n),\unk\big),
+  \label{eq:ls2}
+\end{equation}
+where each batch holds as many negatives as source images.
+
+\paragraph{Optimisation.}
+One warm-up epoch first trains $f_s$ and $g_s$ with plain cross-entropy, which gives the first prototypes.
+Training then alternates between the two losses, one per iteration.
+$\mathcal{L}_{s1}$ updates only $f_s$, while $\mathcal{L}_{s2}$ updates both $f_s$ and $g_s$.
+Each loss has its own Adam optimiser~\citep{kingma2015adam} with learning rate $10^{-4}$, and the prototypes are refitted after every epoch.
+The final source model consists of $f_s$, $g_s$ and the prototypes $\{\Ps^c\}$ and $\Ps$.
+
+\subsection{Stage 2: adaptation to the target}\label{sec:stage2}
+
+\paragraph{Networks.}
+The target feature extractor $f_t$ is initialised from $f_s$ and maps images to a new space $\V$.
+A new classifier $g_t$ has one output per class in $\Cp$, while the source classifier $g_s$ stays frozen.
+Two domain projections, $f_e:\U\to\V$ and $f_d:\V\to\U$, connect the two feature spaces.
+Stage~2 replaces the source data with \emph{proxy-source} samples, which are features drawn from the prototypes, $\uu\sim\Ps^c$.
+Before adaptation, $f_e$ and $f_d$ are pretrained towards the identity by minimising $\|f_e(\uu)-\uu\|^2$ and $\|f_d(\uu)-\uu\|^2$ on these samples.
+For a feature $\fv\in\V$, the model then outputs $|\Ct|$ logits,
+\begin{equation}
+  \hat{y}(\fv) = \big[\,g_s(f_d(\fv))\big|_{\Cs}\;;\; g_t(\fv)\,\big],
+  \label{eq:yhat}
+\end{equation}
+where the first part keeps the $|\Cs|$ shared-class logits of $g_s$ and drops $\unk$.
+
+\paragraph{Retaining the source classes ($\mathcal{L}_{r1}$, $\mathcal{L}_{r2}$).}
+Proxy-source samples $\uu_s^c\sim\Ps^c$ with $c\in\Cs$ enter two losses that preserve the source classes,
+\begin{align}
+  \mathcal{L}_{r1} &= \E_{c,\,\uu_s^c}\,\lce\big(\hat{y}(f_e(\uu_s^c)),c\big),\label{eq:lr1}\\
+  \mathcal{L}_{r2} &= \E_{c,\,\uu_s^c}\,\big\|f_d(f_e(\uu_s^c))-\uu_s^c\big\|^2.\label{eq:lr2}
+\end{align}
+$\mathcal{L}_{r1}$ keeps the source classes recognisable after the round trip through $f_e$ and $f_d$.
+$\mathcal{L}_{r2}$ keeps $f_d$ an inverse of $f_e$, which stops the projections from discarding information.
+
+\paragraph{Guides and pseudo-labels.}
+Each class $c\in\Ct$ has a guide $\vg^c\in\V$, which acts as its class centre in the target space,
+\begin{equation}
+  \vg^c = f_e(\bm{\mu}_s^c)\ \ \text{for } c\in\Cs,
+  \qquad
+  \vg^c = f_t(\tilde{\x}_t^c)\ \ \text{for } c\in\Cp.
+  \label{eq:guides}
+\end{equation}
+The shared guides can move during adaptation, because $f_e$ is trained.
+Each target sample receives the label of its nearest guide, $k(\x_t)=\arg\min_{c}\|f_t(\x_t)-\vg^c\|_2$.
+Gaussian prototypes $\Pt^c$ are then fitted to the pseudo-labelled target features.
+The confident set $\Bt^c$ holds the $n=20\%$ of samples labelled $c$ that lie closest to $\vg^c$.
+The pseudo-labels, $\Pt^c$ and $\Bt^c$ are all recomputed after every epoch.
+
+\paragraph{Alignment ($\mathcal{L}_{a1}$, $\mathcal{L}_{a2}$) and classification ($\mathcal{L}_{c}$).}
+With $\fv_t=f_t(\x_t)$, the remaining three losses are
+\begin{align}
+  \mathcal{L}_{a1} &= \E_{\x_t\sim q_X}\Big[-\log\frac{\exp\ell_t^{k(\x_t)}(\fv_t)}{\sum_{c\in\Ct}\exp\ell_t^{c}(\fv_t)}\Big],\label{eq:la1}\\
+  \mathcal{L}_{a2} &= \E_{c,\,\x_t\in\Bt^c}\,\|\fv_t-\vg^c\|^2,\label{eq:la2}\\
+  \mathcal{L}_{c}  &= \E_{c,\,\x_t\in\Bt^c}\,\lce\big(\hat{y}(\fv_t),c\big),\label{eq:lc}
+\end{align}
+where $\ell_t^c$ is the score under $\Pt^c$.
+$\mathcal{L}_{a1}$ separates the target clusters and makes room for the new classes.
+$\mathcal{L}_{a2}$ pulls confident samples towards their guides, and $\mathcal{L}_{c}$ trains the classifiers on the confident pseudo-labels.
+
+\paragraph{Optimisation.}
+Each loss has its own Adam optimiser and updates only some of the networks, as \cref{tab:losses} shows.
+The losses take turns in a fixed cycle, with one loss per iteration.
+Because separate optimisers scale the gradients of each loss independently, the paper needs no loss weights.
+
+\begin{table}[t]
+  \centering
+  \small
+  \caption{Stage~2 losses and the networks each one updates. The source classifier $g_s$ stays frozen throughout.}
+  \label{tab:losses}
+  \begin{tabular}{@{}lll@{}}
+    \toprule
+    Loss & Samples & Updates \\
+    \midrule
+    $\mathcal{L}_{r1}$ \eqref{eq:lr1} & proxy-source $\uu_s^c\sim\Ps^c$ & $f_e, f_d, g_t$ \\
+    $\mathcal{L}_{r2}$ \eqref{eq:lr2} & proxy-source $\uu_s^c\sim\Ps^c$ & $f_e, f_d$ \\
+    $\mathcal{L}_{c}$ \eqref{eq:lc}   & confident set $\Bt$              & $f_t, g_t$ \\
+    $\mathcal{L}_{a1}$ \eqref{eq:la1} & all target samples               & $f_t$ \\
+    $\mathcal{L}_{a2}$ \eqref{eq:la2} & confident set $\Bt$              & $f_e, f_t$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\paragraph{Prediction.}
+The predicted class of a target image $\x$ is $\arg\max_{c\in\Ct}\hat{y}(f_t(\x))_c$.
+In the paper's few-shot setting, with several labelled images per private class, each private guide is the mean feature of those images.

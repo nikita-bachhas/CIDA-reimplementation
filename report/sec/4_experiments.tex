@@ -1,0 +1,38 @@
+% =====================================================================
+% SECTION 4 IS WRITTEN BY THE TEAM.
+% Budget: about 2 pages. The other sections take about 4 pages.
+% Keep the subsection labels: Sections 3 and 5 refer to them.
+% Sources: SPEC.md, the runs/ and runs_vanilla/ folders on the cluster,
+%          python scripts/aggregate.py runs/   (mean +- std over seeds, next to the paper's numbers)
+%          python scripts/trajectory.py runs/<task>   (per-epoch means)
+% Writing rules (same as the rest of the report):
+%  - One idea per sentence, up to about 25 words. Link sentences so the text flows.
+%  - Body text uses only commas and periods. No colons, semicolons or dashes.
+%    Write ranges as "14 to 28", not "14-28".
+%  - Parentheses only around numbers, citations and technical tags.
+%  - Every claim gets a number, and every number points to a table, figure or run folder.
+%  - Exact figures as in SPEC.md or aggregate.py. Bold only the milestone results.
+%  - Tables carry the numbers. Prose carries the interpretation.
+%  - State before/after contrasts explicitly, e.g. "ALL rises from X to Y".
+%  - Call the "paper as written" runs a reproduction, not a baseline.
+%    Label numbers quoted from the paper. Treat differences under 2 points as noise.
+% =====================================================================
+\section{Experiments}\label{sec:experiments}
+
+\subsection{Setup}\label{sec:exp-setup}
+\TODO{Datasets (Digits M/U/S, Office-31, VisDA) and class splits. ALL and PRIV accuracy. 5 seeds with different one-shot images. GPU and run times.}
+
+\subsection{The method as written}\label{sec:exp-vanilla}
+\TODO{Results of \texttt{preset=vanilla} against the paper on Digits and Office-31. Where accuracy is lost. Shared samples move to private classes on Digits, and private samples move to shared classes on Office. See SPEC.md, ``Vanilla preset''.}
+
+\subsection{Effect of our changes}\label{sec:exp-changes}
+\TODO{Evidence for each change in \cref{sec:changes}. A table with one change removed at a time, and a figure of shared accuracy per epoch. See SPEC.md, ``Our choices''.}
+
+\subsection{Main results}\label{sec:exp-main}
+\TODO{Our results against the paper's CIDA and the prior DA and CI methods (numbers quoted from the paper's Table~3, labelled as such), on Office-31 and Digits.}
+
+\subsection{Ablations}\label{sec:exp-ablation}
+\TODO{Ours-a, Ours-b, Ours-c. Source model without $\mathcal{L}_{s1}$ and without negatives. Few-shot (5\% labelled).}
+
+\subsection{Negative results}\label{sec:exp-negative}
+\TODO{The $\chi^2$ threshold against the $3\sigma$ rule. Prediction-step gate and bias (\texttt{scripts/posthoc.py}). See SPEC.md, ``Inconsistencies'' item 2 and ``Investigated, not adopted''.}
