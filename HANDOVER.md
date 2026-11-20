@@ -147,3 +147,5 @@ What the class-wise table shows:
 | `configs/office_a2d.yaml`, `office_a2d_rect.yaml`, `office31.yaml`, `office20*.yaml` | A→D main / rect / class split / Table 2 setting |
 | `tests/test_rectify.py`, `tests/test_smoke.py` | unit tests for the guide methods; end-to-end smoke tests for every script |
 | `logs/` | cluster logs the user copied back (guide_diag 56360/56361/56363, confusion 56418/56419, …) |
+
+`logs/` and `runs/` are **gitignored**: they exist only on the user's laptop and on the cluster, not on GitHub. The key numbers from them are copied into this file and SPEC.md. On another machine, ask the user for the log files.
