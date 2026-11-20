@@ -207,17 +207,31 @@ Not adopted: the main configuration keeps rectify off. eps, anchor and iters sta
 - **It closes only a sixth of the gap.** `oracle-all` reaches 88 / 80 / 96 on the same features, against 72–74 / 52–57 for `km`. K-means stops at a poor local optimum: on seeds 3 and 4 the private guides stay 9–10 class spreads off-centre after k-means (seeds 0 and 1: 0.8–1.5). Those are the seeds whose one-shot images were least typical at the start (ratio about 2.0 against 1.0), so shot quality matters for where k-means ends, even though it did not set the starting pseudo-label accuracy.
 - **It does nothing at the start** (58.3 / 30.6 against 57.2 / 28.2). Before adaptation the target classes are not yet compact enough for k-means to find them; it helps only on adapted features.
 
-**Under test: other label-free placements, and more labelled images** (`cida/rectify.py`, `scripts/guide_diag.py`, no retraining). New variants:
+**Other label-free placements, and more labelled images** (`cida/rectify.py`, `scripts/guide_diag.py`, no retraining; logs 56360 / 56361 / 56363, rect runs, final features). New variants:
 - `km-bal`: k-means with equal cluster sizes (Sinkhorn assignment, entropy weight 0.1 relative to the mean squared distance), the uniform class prior behind the sweep's q = 0.5.
 - `km-over`: k-means with 3 free clusters per class, each labelled by the majority `km` label of its members, so a class can own several clusters.
-- `lp`: label spreading (Zhou et al., NeurIPS 2004) from the guides over a cosine 10-NN graph, α = 0.99, class-balanced. It is dense N × N, so it is skipped above 20,000 samples.
+- `lp`: label spreading (Zhou et al., NeurIPS 2004) from the guides over a cosine 10-NN graph, alpha = 0.99, class-balanced. It is dense N x N, so it is skipped above 20,000 samples.
 
-`--label_frac 0.05` (or `--shots k`) builds the private guides from more labelled images per class: the run's shot plus extra images drawn with the run's seed. All labelled images are excluded from scoring, and results go to `guide_diag_final_few5.json`. The models were still trained with one shot, so this measures the guides alone; the trained few-shot runs are `adapt.fewshot_frac=0.05`. On DSLR the private classes average about 17 images (173 over 10 classes), so 5% rounds to one image for most classes. The script prints the per-class counts. To run:
-1. `sbatch slurm/py.sbatch scripts/guide_diag.py runs/office_a2d --runs adapt_1shot_abl-none_rect`
-2. `sbatch slurm/py.sbatch scripts/guide_diag.py runs/office_a2d --runs adapt_1shot_abl-none_rect --label_frac 0.05`
-3. `sbatch slurm/py.sbatch scripts/guide_diag.py runs/office_a2d --runs adapt_1shot_abl-none_rect --shots 3`
+`--label_frac 0.05` / `--shots k` build the private guides from more labelled images per class: the run's shot plus extra images drawn with the run's seed, all excluded from scoring. The models were still trained with one shot, so this measures the guides alone (the trained few-shot runs are `adapt.fewshot_frac=0.05`).
 
-The best placement then becomes the refresh during training, where a cleaner B_t should also improve the features.
+Seed means, ALL / PRIV / shared, with the per-seed PRIV change from basic:
+
+| Labelling | Run's one-shot | 3 labelled images per private class |
+| --- | --- | --- |
+| basic | 70.3 / 51.3 / 90.5 | 75.7 / 62.5 / 87.9 |
+| km | 73.6 / 56.8 / 91.3 (PRIV +3.7 to +7.4) | 75.4 / 60.3 / 89.4 (−9.1 to +7.7) |
+| km-bal | 73.4 / 60.0 / 87.7 (+5.5 to +12.9) | 75.0 / 60.4 / 88.6 (−4.9 to +3.5) |
+| km-over | 74.1 / 57.5 / 91.7 (+4.3 to +8.6) | 74.9 / 60.0 / 88.7 (−9.1 to +7.7) |
+| **lp** | **75.8 / 62.3 / 90.1** (+1.2 to +19.0) | **77.4 / 64.5 / 89.5** (−4.2 to +8.4) |
+| oracle-all | 88.3 / 80.2 / 96.9 | 89.3 / 80.6 / 97.4 |
+
+- **5% is one-shot on DSLR.** Every private class got exactly one labelled image (about 17 images per class, rounded per class with a minimum of 1), so the 5% run is identical to the one-shot run. 5% only means more labels on larger targets such as Amazon.
+- **Label propagation is the best label-free labelling.** From the one-shot guides it gives 75.8 / 62.3 / 90.1, against 70.3 / 48.5 / 93.4 for the main runs' classifier and 70.3 / 50.8 / 91.0 for the rect runs' classifier. ALL and PRIV rise on every seed (PRIV per seed 77.3 / 60.7 / 46.6 / 61.3 / 65.6). ALL is above the paper's 72.2; PRIV is still 10 points below its 72.6. `km-bal` gives the most even gain on PRIV (+5.5 to +12.9 on every seed) but costs 3 points of shared.
+- **One-shot label propagation is worth about two extra labels.** Averaging 3 labelled images per class (basic, 3 shots) gives PRIV 62.5, the same as `lp` from one shot. It also confirms the asymmetry theory: the private guides' offset off/tr drops from 2.8–9.2 to 0.5–1.4.
+- **Re-centring helps bad guides and hurts good ones.** With 3-shot guides, every k-means variant lowers PRIV on average (−2 to −2.5) and `lp` adds only +2.0, with 2 of 5 seeds down. K-means pulls well-placed guides toward the wrong clusters.
+- **Caveat.** The variant was chosen after seeing scores that use labels, on 5 seeds of one task. lp's settings (10 neighbours, alpha 0.99) were not tuned.
+
+Next: use `lp` as the prediction step (transductive, no retraining; the numbers above already are its scores on the evaluation set), then as the pseudo-labeller in the refresh during training. lp's B_t private precision (82.3) is close to basic's (79.5) and below `km` (86.1), so the training gain is not guaranteed.
 
 ## Investigated, not adopted
 
