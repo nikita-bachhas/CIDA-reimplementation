@@ -233,6 +233,42 @@ Seed means, ALL / PRIV / shared, with the per-seed PRIV change from basic:
 
 Next: use `lp` as the prediction step (transductive, no retraining; the numbers above already are its scores on the evaluation set), then as the pseudo-labeller in the refresh during training. lp's B_t private precision (82.3) is close to basic's (79.5) and below `km` (86.1), so the training gain is not guaranteed.
 
+**Per-image or class-averaged ALL / PRIV?** The paper reports "mean target accuracy over Ct (ALL) and C′t (PRIV)" and does not say how it averages. Supp §4 computes its precision class-averaged, so the paper's ALL / PRIV may be class-averaged too. Our runs, both readings (`final_metrics.json`, epoch 60, mean of 5 seeds):
+
+| Run | ALL | PRIV | shared | ALL (cls) | PRIV (cls) | shared (cls) |
+| --- | --- | --- | --- | --- | --- | --- |
+| Main | 70.3 | 48.5 | 93.4 | **72.4** | 51.9 | 93.0 |
+| Rect | 70.3 | 50.8 | 91.0 | 71.9 | 53.2 | 90.6 |
+| Paper | 72.2 | 72.6 | – | | | |
+
+Per seed, main (ALL / PRIV / shared per image; ALL / PRIV class-averaged): 76.3 / 57.7 / 96.1, 79.6 / 63.8; 69.1 / 49.1 / 90.3, 71.1 / 52.1; 64.4 / 38.0 / 92.2, 65.1 / 38.5; 72.9 / 56.4 / 90.3, 74.6 / 59.3; 68.8 / 41.1 / 98.1, 71.8 / 45.5. Rect: 77.6 / 63.2 / 92.9, 80.6 / 68.6; 67.2 / 47.9 / 87.7, 68.6 / 50.3; 64.7 / 42.9 / 87.7, 64.2 / 41.5; 72.6 / 54.0 / 92.2, 74.4 / 56.8; 69.7 / 46.0 / 94.8, 71.8 / 49.0.
+
+Class-averaged, the main runs' ALL (72.4) matches the paper's 72.2. PRIV is about 20 points short under either reading, so the averaging question does not explain the PRIV gap.
+
+**Class-wise accuracy** (`scripts/confusion.py`, logs 56418 main / 56419 rect, epoch 60). n is the number of evaluation images per class; "→ shared" is the share of a private class predicted as any shared class.
+
+| Class | n | Main, per seed | Main mean | Rect mean | Where the errors go |
+| --- | --- | --- | --- | --- | --- |
+| 9 of 10 shared classes | 12–24 | | 93–100 | 94–100 | – |
+| desktop_computer (shared) | 15 | 80 / 7 / 47 / 7 / 80 | 44.0 | 21.3 | to private (52% main, 36% rect), mainly speaker / projector |
+| scissors | 17 | 94 / 94 / 100 / 94 / 94 | 95.3 | 94.1 | – |
+| ring_binder | 9 | 100 / 44 / 22 / 100 / 67 | 66.7 | 64.4 | projector, calculator |
+| ruler | 6 | 83 / 33 / 17 / 83 / 83 | 60.0 | 60.0 | scissors, bottle (n = 6, noisy) |
+| phone | 12 | 92 / 100 / 92 / 0 / 0 | 56.7 | 56.7 | calculator (100% in seeds 3 and 4) |
+| stapler | 20 | 100 / 100 / 30 / 45 / 0 | 55.0 | 73.0 | tape_dispenser |
+| printer | 14 | 50 / 64 / 7 / 64 / 57 | 48.6 | 31.4 | file_cabinet; ring_binder 93% in seed 2 |
+| projector | 22 | 77 / 23 / 0 / 23 / 91 | 42.7 | 58.2 | desktop_computer |
+| tape_dispenser | 21 | 10 / 19 / 76 / 67 / 24 | 39.0 | 30.5 | stapler; desktop_computer in seed 4 |
+| punchers | 17 | 12 / 35 / 29 / 53 / 35 | 32.9 | 44.7 | stapler, tape_dispenser |
+| speaker | 25 | 20 / 8 / 12 / 64 / 4 | 21.6 | 19.2 | → shared 55% main / 66% rect, almost all desktop_computer; projector 92% in seed 1 |
+
+- **Fixed cross-group leaks.** Four private classes lose images to one shared neighbour: speaker and projector → desktop_computer, phone → calculator, printer → file_cabinet. desktop_computer leaks back the other way. These five classes carry most of priv_as_shared.
+- **Winner-takes-all among private classes.** One private guide absorbs its neighbours. In the punchers / stapler / tape_dispenser triangle, main seed 0 gives stapler 100% while punchers gets 12% and tape_dispenser 10% (both > 80% → stapler); main seed 4 reverses it, stapler 0% (95% → tape_dispenser).
+- **The seed spread comes from whole classes switching on or off** (phone 0% in seeds 3–4, projector 0–91%, stapler 0–100%). The same switches mostly repeat in the main and rect runs (phone seeds 3–4, printer seed 2, ring_binder seeds 1–2), which points at the one-shot images. Seed sets both the shot and the training RNG, so this is suggestive, not proof.
+- **A perfect boundary would not be enough.** PRIV|priv (argmax over the private logits only, i.e. every private image correctly routed to gt) is 60.2 for main and 65.4 for rect, both below the paper's 72.6.
+- **Rectification trades classes,** which is why ALL does not move. It helps stapler (+18), projector (+16) and punchers (+12), and hurts printer (−17), tape_dispenser (−9) and desktop_computer (−23).
+- **Open:** in the rect runs desktop_computer loses 43% of its images to *other shared* classes (21.3% correct, 36.0% to private), which accounts for most of the rise in shared → other shared (0.4 → 4.9). Not explained yet. The desktop_computer / speaker / projector images may be visually ambiguous on DSLR; not yet inspected.
+
 ## Investigated, not adopted
 
 **Prediction-step changes for PRIV** (`scripts/posthoc.py`, re-evaluating the 15 saved Digits models; no target labels used). Mean change from the paper's rule (ALL / PRIV / shared):
