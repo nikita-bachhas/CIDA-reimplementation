@@ -28,6 +28,8 @@ The paper doesn't report shared accuracy; its numbers imply about 71.8. Our ALL 
   - `9446bed`: balanced k-means (Sinkhorn), over-clustering, label propagation, and `--label_frac` / `--shots` for guide_diag.
   - `a2318f7`: SPEC write-up of lp and the 3-shot results.
   - `3432a2d`: `scripts/confusion.py` prints a class × seed accuracy table for all classes, and `confusion.json` gains `per_class`.
+  - `c719a33`: SPEC records section 7 below (class-averaged reading, class-wise accuracy).
+  - next commit: `scripts/posthoc.py` gains guide-relabelling prediction rules `nearest` / `km` / `km-bal` / `lp`, class-averaged metrics, and a class-wise table.
 - Tests: `python -m pytest -q` passes all **36** (about 2 min on a laptop CPU).
 - Local machine: Windows, RTX 3070. It has the trained Office A→D checkpoints under `runs/office_a2d/` (`source/`, the 5 main seeds and the 5 rect seeds, each with `final.pt` and `final_metrics.json`), but **not the Office-31 images**. Anything that runs a model over the DSLR images has to go to the cluster.
 
@@ -71,7 +73,7 @@ The paper doesn't report shared accuracy; its numbers imply about 71.8. Our ALL 
    - Caveat: the variants were chosen after seeing labelled scores, on 5 seeds of one task.
 5. **The paper check is done.** The A→D config matches the paper on everything checked: class counts, one-shot / 5% labels, 5 runs, the prediction rule, n = 20%, Adam 1e-4, equal source/negative batches, ResNet-50 ImageNet, and the DSLR augmentation.
 
-## 7. New since SPEC was last updated (not yet in SPEC)
+## 7. Class-averaged reading and class-wise accuracy (recorded in SPEC on 2026-11-21, kept here for reference)
 **a) The paper's ALL / PRIV may be class-averaged.** The paper says "mean target accuracy over Ct (ALL) and C′t (PRIV)", and supp §4 computes precision class-averaged. Our class-averaged numbers:
 
 | Run | ALL (class-avg) | PRIV (class-avg) | shared (class-avg) |
@@ -125,8 +127,11 @@ What the class-wise table shows:
 - Shell heredocs with embedded Python failed in this environment. Write scripts to the scratchpad, or use the Edit tool.
 
 ## 9. Open decisions and next steps
-1. **Pending user answer: record section 7 in SPEC.md?** This means the class-averaged reading of ALL / PRIV and the class-wise findings. If yes, add them to SPEC's "Under test" section, then commit and push.
-2. **Pending user choice, recommended first: lp as the prediction step.** Add `lp` (and optionally `km-bal`) as prediction variants in `scripts/posthoc.py`. Score them on both the main and rect runs with per-seed, class-averaged and class-wise output, and check whether they fix speaker / projector and the punchers–stapler–tape_dispenser triangle. No retraining needed.
+1. ~~Record section 7 in SPEC.md~~ — done (`c719a33`).
+2. **lp as the prediction step: implemented, cluster run pending.** `scripts/posthoc.py` now scores `nearest` / `km` / `km-bal` / `lp` (same functions as guide_diag) next to the paper's rule, with per-seed, class-averaged and class-wise output. Run on the cluster:
+   - `sbatch slurm/posthoc.sbatch runs/office_a2d` (main runs)
+   - `sbatch slurm/posthoc.sbatch runs/office_a2d --runs adapt_1shot_abl-none_rect`
+   Expect the rect `lp` row to reproduce guide_diag's 75.8 / 62.3 / 90.1 (same features and guides). Then check whether lp fixes speaker / projector and the punchers–stapler–tape_dispenser triangle, and record it in SPEC.
 3. **Then: lp in the training refresh.** Use it as the pseudo-labeller for B_t / Lc / La1, which needs retraining. Note that lp's B_t private precision (82.3) is close to basic's (79.5), so a training gain isn't guaranteed.
 4. **Separating shot from RNG.** Add a way to fix the one-shot draw while changing the training seed (or vice versa) to settle what drives the seed spread.
 5. **Still to look at:**

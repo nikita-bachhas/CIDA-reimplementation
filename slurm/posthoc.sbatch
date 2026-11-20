@@ -1,6 +1,8 @@
 #!/bin/bash
-# Prediction-step variants (gate / bias) on finished runs (no training; a few minutes).
+# Prediction-step variants (gate / bias, and guide relabelling nearest / km / km-bal / lp) on
+# finished runs (no training; a few minutes).
 #   sbatch slurm/posthoc.sbatch runs/digits_m2u runs/digits_u2m runs/digits_s2m
+#   sbatch slurm/posthoc.sbatch runs/office_a2d --runs adapt_1shot_abl-none_rect
 #   -> logs/cida-posthoc_<jobid>.out, plus <run>/posthoc.json
 #SBATCH --partition=MGPU-TC2
 #SBATCH --qos=normal

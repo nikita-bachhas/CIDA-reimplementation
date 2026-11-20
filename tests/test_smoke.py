@@ -105,7 +105,7 @@ def test_confusion_script(out_dir):
     print_class_table([o, o])
 
 
-def test_posthoc_script(out_dir):
+def test_posthoc_script(out_dir, monkeypatch, capsys):
     from scripts.posthoc import analyse
     adapt.main(["--config", CFG, "--seed", "4", "--set", f"out_dir={out_dir}"])
     run = out_dir / "adapt_1shot_abl-none_seed4"
@@ -113,12 +113,24 @@ def test_posthoc_script(out_dir):
     final = json.load(open(run / "final_metrics.json"))
     assert abs(o["paper"]["all"] - final["all"]) < 1e-6  # the paper's rule reproduces final_metrics
     assert 0 <= o["pi_private"] <= 1 and set(o) >= {"gate", "bias", "both"}
+    assert abs(o["paper"]["priv_cls"] - final["priv_cls"]) < 1e-4 and len(o["classes"]) == len(o["paper"]["per_class"])
+    # Guide relabelling: nearest guide is what guide_diag calls "basic"; lp runs on this small target.
+    from scripts.posthoc import GUIDE_METHODS, guide_labels, print_class_table
+    assert all(o[m] is not None and 0 <= o[m]["priv"] <= 100 for m in GUIDE_METHODS)
+    V, G = torch.randn(40, 8), torch.randn(6, 8)
+    assert torch.equal(guide_labels(V, G, 3, "nearest"), torch.cdist(V, G).argmin(1))
+    print_class_table([o, o], ["paper", *GUIDE_METHODS], "lp")
     # Raising the gt offset only moves predictions from shared to private classes.
     sw = o["sweep"]
     assert len(sw) > 10 and all(a["offset"] <= b["offset"] for a, b in zip(sw, sw[1:]))
     assert all(a["priv"] <= b["priv"] + 1e-6 and a["shared"] >= b["shared"] - 1e-6 for a, b in zip(sw, sw[1:]))
     from scripts.posthoc import print_sweep
     print_sweep([o, o])
+    import sys as _sys
+    from scripts import posthoc
+    monkeypatch.setattr(_sys, "argv", ["posthoc.py", str(out_dir), "--num_workers", "0"])
+    posthoc.main()
+    assert "Class-wise accuracy" in capsys.readouterr().out
 
 
 def test_feature_probe_script(out_dir, monkeypatch, capsys):
