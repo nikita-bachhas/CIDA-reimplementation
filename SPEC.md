@@ -207,7 +207,17 @@ Not adopted: the main configuration keeps rectify off. eps, anchor and iters sta
 - **It closes only a sixth of the gap.** `oracle-all` reaches 88 / 80 / 96 on the same features, against 72–74 / 52–57 for `km`. K-means stops at a poor local optimum: on seeds 3 and 4 the private guides stay 9–10 class spreads off-centre after k-means (seeds 0 and 1: 0.8–1.5). Those are the seeds whose one-shot images were least typical at the start (ratio about 2.0 against 1.0), so shot quality matters for where k-means ends, even though it did not set the starting pseudo-label accuracy.
 - **It does nothing at the start** (58.3 / 30.6 against 57.2 / 28.2). Before adaptation the target classes are not yet compact enough for k-means to find them; it helps only on adapted features.
 
-Candidates for the remaining gap, all checkable without retraining: k-means with balanced cluster sizes (Sinkhorn assignment with uniform class marginals, the q = 0.5 prior of the sweep), k-means with more clusters than classes, each labelled by its nearest guide, and label propagation on a kNN graph of the target features. Then the best re-centring becomes the refresh during training, where cleaner B_t should also improve the features.
+**Under test: other label-free placements, and more labelled images** (`cida/rectify.py`, `scripts/guide_diag.py`, no retraining). New variants:
+- `km-bal`: k-means with equal cluster sizes (Sinkhorn assignment, entropy weight 0.1 relative to the mean squared distance), the uniform class prior behind the sweep's q = 0.5.
+- `km-over`: k-means with 3 free clusters per class, each labelled by the majority `km` label of its members, so a class can own several clusters.
+- `lp`: label spreading (Zhou et al., NeurIPS 2004) from the guides over a cosine 10-NN graph, α = 0.99, class-balanced. It is dense N × N, so it is skipped above 20,000 samples.
+
+`--label_frac 0.05` (or `--shots k`) builds the private guides from more labelled images per class: the run's shot plus extra images drawn with the run's seed. All labelled images are excluded from scoring, and results go to `guide_diag_final_few5.json`. The models were still trained with one shot, so this measures the guides alone; the trained few-shot runs are `adapt.fewshot_frac=0.05`. On DSLR the private classes average about 17 images (173 over 10 classes), so 5% rounds to one image for most classes. The script prints the per-class counts. To run:
+1. `sbatch slurm/py.sbatch scripts/guide_diag.py runs/office_a2d --runs adapt_1shot_abl-none_rect`
+2. `sbatch slurm/py.sbatch scripts/guide_diag.py runs/office_a2d --runs adapt_1shot_abl-none_rect --label_frac 0.05`
+3. `sbatch slurm/py.sbatch scripts/guide_diag.py runs/office_a2d --runs adapt_1shot_abl-none_rect --shots 3`
+
+The best placement then becomes the refresh during training, where a cleaner B_t should also improve the features.
 
 ## Investigated, not adopted
 

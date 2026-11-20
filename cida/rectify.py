@@ -13,9 +13,13 @@ eps -> inf recovers the basic guide; eps -> 0 is a plain mean. Repeated `iters` 
 re-assigning samples to the current guides (k-means started at, and anchored to, the basic guide).
 No target labels are used.
 
-kmeans_guides is the unrestricted version: all members, plain means, optional anchor.
+kmeans_guides is the unrestricted version: all members, plain means, optional anchor, optionally
+balanced cluster sizes (sinkhorn_assign). overcluster and label_propagation are two further
+label-free ways to place the class boundaries (see scripts/guide_diag.py).
 """
 from __future__ import annotations
+
+import math
 
 import torch
 import torch.nn.functional as F
@@ -66,19 +70,39 @@ def rectify_guides(V: torch.Tensor, base: torch.Tensor, rows, n_percent: float =
 
 
 @torch.no_grad()
-def kmeans_guides(V, base, rows, iters=30, anchor=0.0):
+def sinkhorn_assign(D2, tau=0.1, n_iter=100):
+    """Hard assignment of N samples to C clusters with (roughly) equal cluster sizes.
+
+    Entropic optimal transport (log-domain Sinkhorn) from uniform sample mass to uniform cluster
+    mass with cost D2 / mean(D2); tau is the entropy weight. Returns argmax_c of the transport plan.
+    """
+    N, C = D2.shape
+    logK = -(D2 / D2.mean().clamp_min(1e-12)) / tau
+    log_r, log_c = -math.log(N), -math.log(C)
+    u, v = torch.zeros(N), torch.zeros(C)
+    for _ in range(n_iter):
+        u = log_r - torch.logsumexp(logK + v[None], 1)
+        v = log_c - torch.logsumexp(logK + u[:, None], 0)
+    return (logK + u[:, None] + v[None]).argmax(1)
+
+
+@torch.no_grad()
+def kmeans_guides(V, base, rows, iters=30, anchor=0.0, balanced=False, tau=0.1):
     """Lloyd's k-means over all unlabelled samples, started at the guides; only `rows` move.
 
     Unlike rectify_guides there is no top-n% member selection and no cosine weighting: each listed
-    guide becomes the plain mean of every sample nearest to it, mixed with its starting guide by
-    `anchor` (0 = free k-means). Cluster c keeps the label of the guide it started from. Stops
-    early once the guides no longer move; an empty cluster keeps its current guide. Label-free.
+    guide becomes the plain mean of every sample assigned to it, mixed with its starting guide by
+    `anchor` (0 = free k-means). balanced=True assigns samples by sinkhorn_assign (equal cluster
+    sizes, i.e. a uniform class prior) instead of nearest guide. Cluster c keeps the label of the
+    guide it started from. Stops early once the guides no longer move; an empty cluster keeps its
+    current guide. Label-free.
     """
     V, base = V.float(), base.float()
     cur = base.clone()
     rows = list(rows)
     for _ in range(iters if rows else 0):
-        k = torch.cdist(V, cur).argmin(1)
+        D2 = torch.cdist(V, cur).pow(2)
+        k = sinkhorn_assign(D2, tau) if balanced else D2.argmin(1)
         new = cur.clone()
         for c in rows:
             m = k == c
@@ -89,3 +113,60 @@ def kmeans_guides(V, base, rows, iters=30, anchor=0.0):
         if done:
             break
     return cur
+
+
+@torch.no_grad()
+def overcluster(V, init_labels, n_classes, per_class=3, iters=30, seed=0):
+    """K-means with per_class * n_classes free clusters; each cluster takes the majority label.
+
+    Centres start at random samples (seeded). After convergence each cluster is labelled by the
+    majority of `init_labels` among its members (e.g. the labels from kmeans_guides), so a class
+    may own several clusters and its boundary can bend. Returns per-sample labels. Label-free.
+    """
+    V = V.float()
+    g = torch.Generator().manual_seed(seed)
+    K = min(len(V), per_class * n_classes)
+    cur = V[torch.randperm(len(V), generator=g)[:K]].clone()
+    for _ in range(iters):
+        k = torch.cdist(V, cur).argmin(1)
+        new = torch.stack([V[k == j].mean(0) if (k == j).any() else cur[j] for j in range(K)])
+        done = torch.allclose(new, cur)
+        cur = new
+        if done:
+            break
+    k = torch.cdist(V, cur).argmin(1)
+    lab = torch.stack([torch.bincount(init_labels[k == j], minlength=n_classes).argmax() if (k == j).any()
+                       else torch.tensor(0) for j in range(K)])
+    return lab[k]
+
+
+@torch.no_grad()
+def label_propagation(V, G, knn=10, alpha=0.99, iters=50, balance=True):
+    """Label spreading (Zhou et al., NeurIPS 2004) from the guides over a kNN graph of the samples.
+
+    Nodes are the samples plus one node per guide (guide c carries label c). Edges: cosine kNN,
+    symmetrised, weights = cosine similarity clipped at 0, normalised D^-1/2 W D^-1/2. Iterates
+    F <- alpha S F + (1 - alpha) Y0. balance=True divides each class column by its total mass
+    (a uniform class prior). Returns (labels, confidence) for the samples. Label-free. Dense N x N,
+    meant for Office-sized targets.
+    """
+    X = F.normalize(torch.cat([V.float(), G.float()]), dim=1)
+    N, C = len(X), len(G)
+    sim = X @ X.T
+    sim.fill_diagonal_(-1)
+    val, idx = sim.topk(min(knn, N - 1), dim=1)
+    W = torch.zeros(N, N).scatter_(1, idx, val.clamp_min(0))
+    W = torch.maximum(W, W.T)
+    dinv = W.sum(1).clamp_min(1e-12).rsqrt()
+    S = dinv[:, None] * W * dinv[None]
+    Y0 = torch.zeros(N, C)
+    Y0[len(V) + torch.arange(C), torch.arange(C)] = 1
+    Fm = Y0.clone()
+    for _ in range(iters):
+        Fm = alpha * (S @ Fm) + (1 - alpha) * Y0
+    Fm = Fm[:len(V)]
+    if balance:
+        Fm = Fm / Fm.sum(0, keepdim=True).clamp_min(1e-12)
+    P = Fm / Fm.sum(1, keepdim=True).clamp_min(1e-12)
+    conf, lab = P.max(1)
+    return lab, conf

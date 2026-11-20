@@ -58,3 +58,25 @@ def test_kmeans_moves_private_guide_to_class_mean():
     ga = kmeans_guides(V, base, rows=[0, 1], anchor=0.5)  # anchored: halfway between start and member mean
     assert (ga[1] - base[1]).norm() > 0 and (ga[1] - m1).norm() > (g[1] - m1).norm()
     assert torch.equal(kmeans_guides(V, base, rows=[]), base)
+
+
+def test_sinkhorn_assign_balances_cluster_sizes():
+    from cida.rectify import sinkhorn_assign
+    D2 = torch.rand(300, 3)
+    D2[:, 0] -= 0.5  # cluster 0 is nearest for most samples
+    counts = torch.bincount(sinkhorn_assign(D2.clamp_min(0)), minlength=3)
+    assert counts.min() >= 80 and counts.max() <= 120
+    V, y, base, m1 = _toy()
+    g = kmeans_guides(V, base, rows=[0, 1], balanced=True)
+    assert (g[1] - m1).norm() < 1.0
+
+
+def test_overcluster_and_label_propagation_fix_private_labels():
+    from cida.rectify import label_propagation, overcluster
+    V, y, base, _ = _toy()
+    acc = lambda k: (k == y)[y == 1].float().mean()  # noqa: E731
+    k0 = torch.cdist(V, base).argmin(1)
+    k_over = overcluster(V, torch.cdist(V, kmeans_guides(V, base, rows=[0, 1])).argmin(1), 2)
+    assert k_over.shape == y.shape and acc(k_over) > acc(k0) + 0.1
+    k_lp, conf = label_propagation(V, base)
+    assert acc(k_lp) > acc(k0) + 0.1 and ((conf > 0) & (conf <= 1 + 1e-6)).all()

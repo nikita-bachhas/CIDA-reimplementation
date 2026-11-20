@@ -84,6 +84,9 @@ def test_guide_diag_script(out_dir):
         o = analyse(run, torch.device("cpu"), 0, stage=stage)
         assert set(VARIANTS) <= set(o) and 0 <= o["rect"]["priv"] <= 100
         assert (run / f"guide_diag_{stage}.json").exists()
+    o = analyse(run, torch.device("cpu"), 0, label_frac=0.5)
+    assert min(o["labelled_per_class"]) > 1 and (run / "guide_diag_final_few50.json").exists()
+    assert 0 <= o["lp"]["priv"] <= 100 and 0 <= o["km-over"]["priv"] <= 100
 
 
 def test_confusion_script(out_dir):
