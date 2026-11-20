@@ -104,6 +104,25 @@ Per-epoch means (`trajectory.py`; n = 4 up to epoch 3 because one seed resumed a
 - La1 then trains the whole network on these labels for every target sample. Shared accuracy falls from 37.3 to 0 within 10 epochs, and the private predictions merge into a single class.
 - This is the Digits failure (shared samples absorbed into private classes) taken to the end, made worse by the larger synthetic-to-real gap. We have no main-configuration VisDA run to compare with yet.
 
+**Vanilla results, VisDA Real→Syn (5 seeds, ALL / PRIV at epoch 10; paper in brackets):** 7.7 ± 1.4 / 13.9 ± 7.9 (55.8 / 55.7); ALL(cls) 8.4 ± 0.2. As in Syn→Real, every seed ends with a single predicted class. At epoch 10, shared_as_priv is 80.0 and priv_as_shared 20.0: four seeds put everything into one private class, and one seed puts everything into one shared class.
+Each Real→Syn seed takes about 6 h, so every seed was resumed after a requeue. `trajectory.py` therefore has only 1–2 seeds for epochs 0–8 (n in the table):
+
+| epoch | n | ALL | PRIV | shared | shared_as_priv | priv_as_shared | pl_acc_all | B_precision_priv |
+|---|---|---|---|---|---|---|---|---|
+| 0 | 1 | 29.5 | 0.0 | 56.3 | 0.0 | 100.0 | 34.2 | 38.4 |
+| 1 | 1 | 25.6 | 15.4 | 34.9 | 19.0 | 28.8 | 31.5 | 39.0 |
+| 2 | 1 | 27.2 | 18.5 | 35.2 | 18.1 | 22.7 | 30.2 | 40.1 |
+| 3 | 1 | 15.2 | 0.0 | 29.1 | 0.0 | 100.0 | 27.5 | 33.1 |
+| 5 | 1 | 10.3 | 0.0 | 19.7 | 0.0 | 100.0 | 19.4 | 14.2 |
+| 8 | 2 | 9.4 | 8.4 | 10.3 | 50.0 | 42.2 | 12.7 | 11.4 |
+| 10 | 5 | 7.7 | 13.9 | 2.1 | 80.0 | 20.0 | 9.5 | 18.4 |
+
+- The start is better than Syn→Real: the source model trained on real images gets 56.3 on the shared synthetic classes, and the pseudo-labels are 34.2% accurate (Syn→Real: 37.3 and 10.4).
+- It still collapses. PRIV rises for two epochs and then drops to 0 by epoch 3, when the seed predicts every image as shared. Pseudo-label accuracy falls from 34 to 10, and by epoch 10 each seed predicts a single class.
+- The paper reports 55.8 / 55.7 with the same architecture, so at least one of the choices the paper leaves open must differ from the authors' code. Our main suspects are the fully fine-tuned ResNet-50 (on Office A→D, freezing it took ALL from 49.8 to 70.3) and the fe/fd warm-up, which ends 24% away from identity (Syn→Real seed 0).
+
+**All vanilla runs are complete.** ALL / PRIV against the paper: Digits 33–47 / 47–61 (paper 46–73 / 46–72); Office-31 Table 3 21–56 / 3–27 (paper 62–88 / 62–88); Office-31 Table 2 10–60 / 1–21 (paper 64–90 / 63–88); VisDA 6–8 / 14–16 (paper 56 / 56).
+
 ## Inconsistencies in the paper
 
 1. **Office private classes.** Supp §5 says the private classes are those "ranked 21–31", which is 11 classes. Table 3 has |Ct| = 20, which means 10 private classes. We use indices 20–29 for Table 3 (`configs/office31.yaml`) and 20–30 for Table 2, where |Cs| = 20 and |Ct| = 31 (`configs/office20.yaml`).
