@@ -29,9 +29,10 @@ The paper doesn't report shared accuracy; its numbers imply about 71.8. Our ALL 
   - `a2318f7`: SPEC write-up of lp and the 3-shot results.
   - `3432a2d`: `scripts/confusion.py` prints a class × seed accuracy table for all classes, and `confusion.json` gains `per_class`.
   - `c719a33`: SPEC records section 7 below (class-averaged reading, class-wise accuracy).
-  - next commit: `scripts/posthoc.py` gains guide-relabelling prediction rules `nearest` / `km` / `km-bal` / `lp`, class-averaged metrics, and a class-wise table.
-- Tests: `python -m pytest -q` passes all **36** (about 2 min on a laptop CPU).
-- Local machine: Windows, RTX 3070. It has the trained Office A→D checkpoints under `runs/office_a2d/` (`source/`, the 5 main seeds and the 5 rect seeds, each with `final.pt` and `final_metrics.json`), but **not the Office-31 images**. Anything that runs a model over the DSLR images has to go to the cluster.
+  - `2b6fd33`: `scripts/posthoc.py` gains guide-relabelling prediction rules `nearest` / `km` / `km-bal` / `lp`, class-averaged metrics, and a class-wise table.
+- `68a7af6` + next commit: `adapt.fixed_shots`, `contact_sheet.py`, `shot_check.py`, `configs/office_a2d_fixedshot.yaml`.
+- Tests: `python -m pytest -q` passes all **39** (about 2 min on a laptop CPU).
+- Local machine: Windows, RTX 3070. It has the trained Office A→D checkpoints under `runs/office_a2d/` (`source/`, the 5 main seeds and the 5 rect seeds, each with `final.pt` and `final_metrics.json`) and, since 2026-11-21, the Office-31 images under `data/office31/`. The local PyTorch is CPU-only, so short evaluation scripts run here; training goes to the cluster.
 
 ## 4. Cluster workflow (NTU CCDS GPU TC2)
 - The cluster pulls from GitHub, so push first, then `git pull` there. Full setup and the cluster rules are in [README.md](README.md). In short: everything runs through `sbatch`, QoS `normal`, one GPU job at a time.
@@ -132,6 +133,7 @@ What the class-wise table shows:
    - `sbatch slurm/posthoc.sbatch runs/office_a2d` (main runs)
    - `sbatch slurm/posthoc.sbatch runs/office_a2d --runs adapt_1shot_abl-none_rect`
    Expect the rect `lp` row to reproduce guide_diag's 75.8 / 62.3 / 90.1 (same features and guides). Then check whether lp fixes speaker / projector and the punchers–stapler–tape_dispenser triangle, and record it in SPEC.
+2b. **Hand-picked one-shot images: set up, cluster run pending** (SPEC "Under test: hand-picked one-shot images"). The user asked for the best-looking DSLR image per private class. `adapt.fixed_shots` + `configs/office_a2d_fixedshot.yaml`; `scripts/contact_sheet.py` makes the review sheets (into the gitignored `oneshot_review/`); `scripts/shot_check.py` compares guides without training. The laptop now has `data/office31/` (all three domains, copied from the cluster), so image-only scripts run locally (CPU PyTorch, no CUDA). Run `sbatch slurm/run.sbatch configs/office_a2d_fixedshot.yaml`, then `aggregate.py`, `posthoc.sbatch`, `confusion.sbatch` with `--runs adapt_1shot_abl-none_fixedshot`. It is not the paper's protocol: report it separately from Table 3. With the shots fixed, the seed spread is the RNG alone, which also answers item 4.
 3. **Then: lp in the training refresh.** Use it as the pseudo-labeller for B_t / Lc / La1, which needs retraining. Note that lp's B_t private precision (82.3) is close to basic's (79.5), so a training gain isn't guaranteed.
 4. **Separating shot from RNG.** Add a way to fix the one-shot draw while changing the training seed (or vice versa) to settle what drives the seed spread.
 5. **Still to look at:**

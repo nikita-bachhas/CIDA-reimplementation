@@ -269,6 +269,45 @@ Class-averaged, the main runs' ALL (72.4) matches the paper's 72.2. PRIV is abou
 - **Rectification trades classes,** which is why ALL does not move. It helps stapler (+18), projector (+16) and punchers (+12), and hurts printer (−17), tape_dispenser (−9) and desktop_computer (−23).
 - **Open:** in the rect runs desktop_computer loses 43% of its images to *other shared* classes (21.3% correct, 36.0% to private), which accounts for most of the rise in shared → other shared (0.4 → 4.9). Not explained yet. The desktop_computer / speaker / projector images may be visually ambiguous on DSLR; not yet inspected.
 
+## Under test: hand-picked one-shot images (2026-11-21)
+
+**Idea.** Instead of a random one-shot image per private class, use the image that shows the object best. `adapt.fixed_shots` (`cida/data.py: fixed_labelled`) takes {class name: file name} and replaces the random draw; `--seed` then changes only the training RNG. This also separates the two things `--seed` normally changes together: with the shots fixed, the spread over seeds 0–4 is the training RNG alone.
+
+**Not the paper's protocol.** The paper averages 5 random draws (§4a). Choosing the best-looking image gives a best-case number, so these runs are a separate setting and are not compared with Table 3. The picks were made by looking at every DSLR image of each class, which uses the labels of the whole class.
+
+**Picks** (`configs/office_a2d_fixedshot.yaml`, made from `scripts/contact_sheet.py` sheets). Criteria: image quality, background, angle, visibility; within a class, the most common object model, shown from an angle that displays its distinctive parts.
+
+| Class | Image | Reason |
+| --- | --- | --- |
+| phone | frame_0002 | sharp 3/4 view, handset, display and keypad visible, plain dark desk |
+| printer | frame_0014 | boxy laser printer (the most common model), 3/4, output tray, plain wall |
+| projector | frame_0014 | tabletop silver model (13 of 23 images), lens front and centre |
+| punchers | frame_0003 | two-hole punch (11 of 18), arch handle and paper guide |
+| ring_binder | frame_0007 | lever-arch binder, ring mechanism and spine visible |
+| ruler | frame_0007 | wooden ruler, sharp tick marks, plain background |
+| scissors | frame_0018 | blue scissors (8 of 18), open, blades and handles visible |
+| speaker | frame_0011 | grille fills the view (what separates it from desktop_computer), 3/4 |
+| stapler | frame_0019 | black Swingline (11 of 21), throat and anvil visible |
+| tape_dispenser | frame_0020 | rectangular black model (7 of 22), roll and cutter visible |
+
+**Pre-check without training** (`scripts/shot_check.py`, run locally on the saved main runs). Nearest-guide and lp labelling with the private guides from each seed's random shot or from the picks. Scored on the same 275 DSLR images (every set's labelled images excluded), so the numbers are not comparable with the 317-image tables above. ALL / PRIV / shared:
+
+| Features | Rule | Random shots (seeds 0–4) | Picks |
+| --- | --- | --- | --- |
+| Start (fs + AdaBN, fe = id), identical for every set | nearest | 61.5 / 24.6 / 90.5 (PRIV 23.1–25.6) | **68.0 / 38.0 / 91.6** |
+| | lp | 62.4 / 28.8 / 88.8 (PRIV 24.8–32.2) | **66.5 / 40.5 / 87.0** |
+| Final (each seed's adapted ft, fe) | nearest | 72.7 / 47.3 / 92.6 | **77.7 / 65.8 / 87.1** |
+| | lp | 76.2 / 55.2 / 92.7 | **78.4 / 64.5 / 89.4** |
+
+Per seed on the final features, own shot → picks, PRIV: nearest 57.9 → 69.4, 48.8 → 71.1, 37.2 → 67.8, 53.7 → 66.1, 38.8 → 54.5; lp 71.1 → 76.0, 61.2 → 76.9, 39.7 → 51.2, 57.0 → 57.9, 47.1 → 60.3. ALL rises on every seed with nearest, and on 4 of 5 with lp (seed 3: 75.6 → 72.0).
+
+- **The picks are better guides than any of the five random draws** on identical features (start PRIV 38.0 against 23–26), and still better on the final features, which were trained around each seed's own shot and so favour it.
+- **They cut the private → shared leak** (nearest, final: priv_as_shared 24.8 → 9.6) and cost shared accuracy (92.6 → 87.1).
+- **Not uniform across classes.** At the start, the picks help phone, scissors, speaker and tape_dispenser most; the printer pick is weak (10% at the start, against 0–60% for the random shots).
+- **What it does not show:** whether training with the picks (B_t, Lc, La1, La2 built from them) ends higher. That needs the runs below.
+
+**Runs:** `sbatch slurm/run.sbatch configs/office_a2d_fixedshot.yaml` (source reused, seeds 0–4) → `runs/office_a2d/adapt_1shot_abl-none_fixedshot_seed<k>`. Compare seed by seed with the main runs, and use the spread over seeds as the RNG-only spread.
+
 ## Investigated, not adopted
 
 **Prediction-step changes for PRIV** (`scripts/posthoc.py`, re-evaluating the 15 saved Digits models; no target labels used). Mean change from the paper's rule (ALL / PRIV / shared):

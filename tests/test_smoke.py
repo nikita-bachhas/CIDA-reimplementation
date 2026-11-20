@@ -228,3 +228,14 @@ def test_contact_sheet(tmp_path):
             Image.new("RGB", (40, 30), (8 * c, 0, 0)).save(root / f"c{c:02d}" / f"frame_{k:04d}.jpg")
     main([str(Path(CFG).parent / "office_a2d.yaml"), "--data_root", str(tmp_path / "data"), "--out", str(tmp_path / "o")])
     assert len(list((tmp_path / "o" / "dslr").glob("*.png"))) == 10  # one sheet per private class (20-29)
+
+
+def test_shot_check_script(out_dir, tmp_path, capsys):
+    from scripts.shot_check import main
+    for seed in ("0", "1"):
+        adapt.main(["--config", CFG, "--seed", seed, "--set", f"out_dir={out_dir}"])
+    cfg = tmp_path / "fixed.yaml"
+    cfg.write_text(f"base: {Path(CFG).as_posix()}\nadapt:\n  fixed_shots: {{'5': 3, '6': 0, '7': 1, '8': 2, '9': 4}}\n")
+    main([str(out_dir), "--config", str(cfg), "--num_workers", "0"])
+    out = capsys.readouterr().out
+    assert "fix avg" in out and "rnd avg" in out and "seed0fx" in out
