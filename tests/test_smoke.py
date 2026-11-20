@@ -64,6 +64,28 @@ def test_adapt_la1_variants(out_dir):
     assert (out_dir / "adapt_1shot_abl-none_la1var_seed2" / "final_metrics.json").exists()
 
 
+@pytest.mark.parametrize("select,shared", [("distance", False), ("margin", True)])
+def test_adapt_rectify(out_dir, select, shared):
+    tag = f"rect{select[0]}{int(shared)}"
+    adapt.main(["--config", CFG, "--seed", "0", "--set", f"out_dir={out_dir}", "adapt.rectify.enabled=true",
+                f"adapt.rectify.select={select}", f"adapt.rectify.shared={shared}", f"adapt.tag={tag}"])
+    run = out_dir / f"adapt_1shot_abl-none_{tag}_seed0"
+    logs = [json.loads(l) for l in open(run / "log.jsonl")]
+    ep = [l for l in logs if "rect_w0" in l]
+    assert ep and all(0.3 - 1e-6 <= l["rect_w0"] <= 1 for l in ep) and "pl_acc_basic" in ep[0]
+    assert (run / "final_metrics.json").exists()
+
+
+def test_guide_diag_script(out_dir):
+    from scripts.guide_diag import VARIANTS, analyse
+    adapt.main(["--config", CFG, "--seed", "0", "--set", f"out_dir={out_dir}"])
+    run = out_dir / "adapt_1shot_abl-none_seed0"
+    for stage in ("final", "start"):
+        o = analyse(run, torch.device("cpu"), 0, stage=stage)
+        assert set(VARIANTS) <= set(o) and 0 <= o["rect"]["priv"] <= 100
+        assert (run / f"guide_diag_{stage}.json").exists()
+
+
 def test_confusion_script(out_dir):
     from scripts.confusion import analyse
     adapt.main(["--config", CFG, "--seed", "3", "--set", f"out_dir={out_dir}"])
@@ -82,6 +104,12 @@ def test_posthoc_script(out_dir):
     final = json.load(open(run / "final_metrics.json"))
     assert abs(o["paper"]["all"] - final["all"]) < 1e-6  # the paper's rule reproduces final_metrics
     assert 0 <= o["pi_private"] <= 1 and set(o) >= {"gate", "bias", "both"}
+    # Raising the gt offset only moves predictions from shared to private classes.
+    sw = o["sweep"]
+    assert len(sw) > 10 and all(a["offset"] <= b["offset"] for a, b in zip(sw, sw[1:]))
+    assert all(a["priv"] <= b["priv"] + 1e-6 and a["shared"] >= b["shared"] - 1e-6 for a, b in zip(sw, sw[1:]))
+    from scripts.posthoc import print_sweep
+    print_sweep([o, o])
 
 
 def test_feature_probe_script(out_dir, monkeypatch, capsys):

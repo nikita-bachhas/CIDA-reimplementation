@@ -35,3 +35,10 @@ adapt:
   cov_shrink: 0.1
   cov_eps: 1.0e-4
   iters_per_epoch: null    # default: len(target loader) * number of losses
+  rectify:                 # guide rectification (not in the paper; see SPEC.md, cida/rectify.py)
+    enabled: false
+    eps: 10.0              # softmax sharpness of the cosine weights (large = keep the one-shot guide)
+    anchor: 0.3            # minimum weight of the labelled image in its rectified guide
+    iters: 3               # re-assign / re-average rounds per refresh
+    select: distance       # distance (nearest members, as B_t) | margin (smallest d1/d2)
+    shared: false          # also rectify the shared guides fe(mu_c) with their target members

@@ -10,6 +10,8 @@ Round-robin (iter % 5) over [Lr1, Lr2, Lc, La1, La2], each with its own Adam:
   La1 (ft)          class separability w.r.t. target prototypes P_t, nearest-guide labels  Eq. 6
   La2 (fe, ft)      ||ft(x) - guide_c||^2 for x in B_t^c                     Eq. 6
 Guides: fe(mu_s^c) for shared classes, ft(one-shot sample) for private classes.
+Optional (adapt.rectify.enabled, not in the paper): private guides rectified with confident
+target samples at every refresh (cida/rectify.py).
 At the end of every epoch: pseudo-label all target samples, refit P_t, reselect B_t (top n%).
 
   python adapt.py --config configs/digits_m2u.yaml --seed 0 [--set adapt.ablation=b ...]
@@ -33,6 +35,7 @@ from cida.data import Relabeled, build_domain, sample_labelled
 from cida.metrics import cida_metrics
 from cida.models import build_classifier, build_feature_extractor, build_projection, freeze_backbone, param_groups
 from cida.prototypes import GaussianPrototypes
+from cida.rectify import rectify_guides
 
 LOSSES = ["Lr1", "Lr2", "Lc", "La1", "La2"]  # supp. Algo. 4 line 8
 ABLATIONS = {
@@ -223,17 +226,28 @@ def main(argv=None):
     def private_guides(v_lab, y_lab):
         return torch.stack([v_lab[y_lab == c].mean(0) for c in private_classes])
 
+    # Guide rectification (not in the paper; SPEC.md, cida/rectify.py). Off by default. At every
+    # refresh the basic guides g are rectified with the target features to g' = w0 * g + corr;
+    # during training the basic part stays differentiable: live guide = w0 * g_live + corr.
+    rcfg = acfg.get("rectify") or {}
+    rect_rows = [] if not rcfg.get("enabled") else (
+        list(range(n_total)) if rcfg.get("shared", False) else private_classes)
+    rect = {"w0": None, "corr": None}
+
     def ft_with_guides(x):
         """ft on a batch plus labelled samples in the same forward pass (shared BN batch)."""
         xl, yl = labelled_batch()
         v = model.ft(torch.cat([x, xl]))
         v, vl = v[: len(x)], v[len(x):]
-        return v, torch.cat([shared_guides(), private_guides(vl, yl)])
+        guides = torch.cat([shared_guides(), private_guides(vl, yl)])
+        if rect["w0"] is not None:
+            guides = rect["w0"][:, None] * guides + rect["corr"]
+        return v, guides
 
     @torch.no_grad()
     def refresh():
         """Pseudo-label D_t, fit P_t, pick confident sets B_t (Algo. 3, Algo. 4 lines 27-30)."""
-        V, Y, _ = extract(model.ft, plain_loader, device)
+        V, Y, I = extract(model.ft, plain_loader, device)
         model.ft.eval(), model.fe.eval()
         vl = []
         for k in range(0, len(lab_idx), 256):
@@ -242,6 +256,18 @@ def main(argv=None):
             vl.append(model.ft(xb.to(device)).cpu())
         guides = torch.cat([shared_guides().cpu(), private_guides(torch.cat(vl), torch.tensor(lab_y))])
         model.ft.train(), model.fe.train()
+        rdiag = {}
+        if rect_rows:
+            unlab = ~torch.isin(I, torch.tensor(lab_idx))  # the labelled images are not members
+            basic = guides
+            guides, w0, corr = rectify_guides(V[unlab], basic, rect_rows, acfg["n_percent"], rcfg.get("eps", 10.0),
+                                              rcfg.get("anchor", 0.3), rcfg.get("iters", 3),
+                                              rcfg.get("select", "distance"))
+            rect["w0"], rect["corr"] = w0.to(device), corr.to(device)
+            rows = torch.tensor(rect_rows)
+            rdiag = {"rect_w0": w0[rows].mean().item(),
+                     "rect_shift": (guides - basic)[rows].norm(dim=1).mean().item(),
+                     "pl_acc_basic": 100 * (torch.cdist(V, basic).argmin(1) == Y).float().mean().item()}
         dist = torch.cdist(V, guides)
         d, k = dist.min(1)
         protos_t = GaussianPrototypes.fit(V, k, n_total, acfg["cov_shrink"], acfg["cov_eps"]).to(device)
@@ -261,6 +287,7 @@ def main(argv=None):
             "B_precision": 100 * (Y[b_idx_t] == b_lab_t).float().mean().item(),
             "B_precision_priv": 100 * (Y[b_idx_t] == b_lab_t)[b_lab_t >= n_shared].float().mean().item(),
             "B_min_class": min((b_lab_t == c).sum().item() for c in range(n_total)),
+            **rdiag,
         }
         b_ds = Relabeled(tgt_aug, b_idx, b_lab)
         b_loader = DataLoader(b_ds, bs, shuffle=True, drop_last=len(b_ds) >= bs, num_workers=nw)

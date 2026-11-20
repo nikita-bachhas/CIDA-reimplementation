@@ -10,7 +10,13 @@ The paper predicts argmax over [gs.fd.ft restricted to Cs | gt.ft]. Two label-fr
   both   gate, then bias for the samples the gate leaves alone.
 
 Prints ALL / PRIV / shared per seed and the seed-paired change from the paper's rule.
+
+Sweep (diagnostic, uses labels only to score): the gt offset is swept so that a share q of the
+evaluation images is predicted private, q = 0.20 .. 0.80. The offset for each q is computed from the
+logits alone, so seeds are averaged at equal q. The curve shows the best PRIV each shared level allows
+by moving the shared/private boundary; the label-free "bias" point is marked by its predicted share.
   sbatch slurm/posthoc.sbatch runs/digits_m2u runs/digits_u2m runs/digits_s2m
+  sbatch slurm/posthoc.sbatch runs/office_a2d --runs adapt_1shot_abl-none_rect
 """
 import argparse
 import json
@@ -28,6 +34,7 @@ from cida.data import build_domain  # noqa: E402
 from cida.prototypes import GaussianPrototypes  # noqa: E402
 
 METHODS = ["paper", "gate", "bias", "both"]
+SWEEP_Q = [round(0.20 + 0.02 * k, 2) for k in range(31)]  # predicted-private share of the eval images
 
 
 @torch.no_grad()
@@ -86,8 +93,19 @@ def analyse(run_dir, device, nw):
     gate_rate = (S_tr[:, ns] > S_tr[:, :ns].max(1).values).float().mean().item()
 
     S, P, _, y = outputs(model, tgt_eval, device, nw, excl)
-    res = {m: scores(predict(S, P, ns, m, b), y, ns) for m in METHODS}
-    out = {"run": run_dir.name, "pi_private": pi, "offset": b, "gate_rate_train": gate_rate, **res}
+    res = {}
+    for m in METHODS:
+        pred = predict(S, P, ns, m, b)
+        res[m] = {**scores(pred, y, ns), "pred_priv_share": (pred >= ns).float().mean().item()}
+
+    # Sweep the offset over the predicted-private share q (labels only score the result).
+    d_ev = P.max(1).values - S[:, :ns].max(1).values
+    sweep = []
+    for q in SWEEP_Q:
+        bq = -torch.quantile(d_ev, 1 - q).item()
+        sweep.append({"q": q, "offset": bq, **scores(predict(S, P, ns, "bias", bq), y, ns)})
+    out = {"run": run_dir.name, "pi_private": pi, "offset": b, "gate_rate_train": gate_rate,
+           "true_priv_share": (y >= ns).float().mean().item(), **res, "sweep": sweep}
     with open(run_dir / "posthoc.json", "w") as f:
         json.dump(out, f, indent=2)
     return out
@@ -120,6 +138,30 @@ def main():
                 up = sum(x > 0 for x in dpriv)
                 print(f"  {m:5} vs paper, per seed: ALL {' '.join(f'{x:+5.1f}' for x in dall)} | "
                       f"PRIV {' '.join(f'{x:+5.1f}' for x in dpriv)}  (PRIV up on {up}/{len(rows)} seeds)")
+            print_sweep(rows)
+
+
+def print_sweep(rows):
+    """Seed-mean ALL / PRIV / shared against the predicted-private share q, with marked points."""
+    curve = [{k: st.mean(o["sweep"][j][k] for o in rows) for k in ("q", "all", "priv", "shared")}
+             for j in range(len(SWEEP_Q))]
+    share = {m: st.mean(o[m]["pred_priv_share"] for o in rows) for m in ("paper", "bias")}
+    true = st.mean(o["true_priv_share"] for o in rows)
+    best = max(curve, key=lambda c: c["all"])
+    bal = min(curve, key=lambda c: abs(c["priv"] - c["shared"]))
+    print(f"\n  Offset sweep (labels used to score only), seed mean. Predicted-private share: "
+          f"paper rule {100 * share['paper']:.1f}%, label-free bias {100 * share['bias']:.1f}%, "
+          f"true {100 * true:.1f}%")
+    print(f"  {'q':>5} {'ALL':>6} {'PRIV':>6} {'shared':>7}")
+    for c in curve:
+        tags = [t for t, hit in (("best ALL", c is best), ("PRIV~shared", c is bal),
+                                 ("~paper rule", abs(c["q"] - share["paper"]) < 0.01),
+                                 ("~bias", abs(c["q"] - share["bias"]) < 0.01),
+                                 ("~true share", abs(c["q"] - true) < 0.01)) if hit]
+        print(f"  {c['q']:5.2f} {c['all']:6.1f} {c['priv']:6.1f} {c['shared']:7.1f}  {', '.join(tags)}")
+    per_seed = [max(o["sweep"], key=lambda s: s["all"]) for o in rows]
+    print("  per-seed best-ALL point (q: ALL/PRIV/shared): "
+          + "  ".join(f"{s['q']:.2f}: {s['all']:.1f}/{s['priv']:.1f}/{s['shared']:.1f}" for s in per_seed))
 
 
 if __name__ == "__main__":

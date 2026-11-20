@@ -1,0 +1,6 @@
+# Office A->D with private-guide rectification (SPEC.md). Writes next to the main runs as
+# runs/office_a2d/adapt_1shot_abl-none_rect_seed<k>, reusing runs/office_a2d/source.
+base: office_a2d.yaml
+adapt:
+  tag: rect
+  rectify: {enabled: true}
