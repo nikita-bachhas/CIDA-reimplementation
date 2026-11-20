@@ -190,10 +190,24 @@ Not adopted: the main configuration keeps rectify off. eps, anchor and iters sta
 - **Asymmetry, off/tr = ‖g − m‖² / tr Σ.** At the start it is 0.90 (shared) and 0.95–2.02 (private), close to the theory (about 1 for a one-shot guide). After adaptation the private guides are 3.5–11.3 class spreads off their means, against 1.1–1.6 for shared: the offset grows during training. Rectification barely moves it (2.8–11.1), because it averages over members chosen by the current guide, a third of which are wrong.
 - **The seed spread is not set by the shot draw.** At the start, nearest-guide PRIV is 27.0–28.8 on every seed, and the shot's typicality does not track final PRIV (seeds 3 and 4 have the least typical shots, ratio about 2.0, and end at 56.4 and 41.1). The spread (38–58) arises during training. `--seed` sets both the one-shot images and the training RNG (`set_seed(1000 + seed)`), so seed-paired comparisons do not isolate the shot.
 
-**Under test: k-means re-centring** (`kmeans_guides` in `cida/rectify.py`, added to `scripts/guide_diag.py`). Lloyd's k-means over all unlabelled target samples, started at the basic guides, each cluster keeping its starting guide's label. Variants: `km` (every guide moves), `km-priv` (shared guides fixed), `km-anch` (the starting guide keeps weight `--anchor`), with `oracle-all` (every guide at its true class mean) as the ceiling. It asks how much of the 47.6 → 77.9 PRIV gap a label-free re-centring closes. If it closes a large part, it becomes the prediction step, then the refresh during training. To run:
-1. `sbatch slurm/py.sbatch scripts/guide_diag.py runs/office_a2d`
-2. `sbatch slurm/py.sbatch scripts/guide_diag.py runs/office_a2d --runs adapt_1shot_abl-none_rect`
-3. `sbatch slurm/py.sbatch scripts/guide_diag.py runs/office_a2d --stage start`
+**K-means re-centring** (`kmeans_guides` in `cida/rectify.py`, variants in `scripts/guide_diag.py`; logs 56326 / 56346 / 56347). Lloyd's k-means over all unlabelled target samples, started at the basic guides, each cluster keeping its starting guide's label (label-free, 30 rounds at most). Variants: `km` (every guide moves), `km-priv` (shared guides fixed at fe(μ_c)), `km-anch` (the starting guide keeps weight 0.3), and `oracle-all` (every guide at its true class mean, the ceiling for `km`). Nearest-guide labels on the unlabelled target, which on Office is also the evaluation set. Seed means, ALL / PRIV / shared:
+
+| Guides | Main, final | Rect, final | Main, start |
+| --- | --- | --- | --- |
+| basic | 69.5 / 47.6 / 92.6 | 70.3 / 51.3 / 90.5 | 57.2 / 28.2 / 87.8 |
+| rect-all | 70.3 / 49.4 / 92.5 | 70.4 / 51.8 / 90.1 | 59.1 / 31.5 / 88.2 |
+| **km** | **71.9 / 52.4 / 92.5** | **73.6 / 56.8 / 91.3** | 58.3 / 30.6 / 87.7 |
+| km-priv | 69.2 / 53.7 / 85.6 | 71.9 / 59.4 / 85.2 | 57.2 / 33.4 / 82.3 |
+| km-anch | 70.7 / 49.8 / 92.7 | 72.9 / 55.7 / 91.2 | 59.1 / 32.1 / 87.5 |
+| oracle (private means) | 81.1 / 77.9 / 84.4 | 79.2 / 76.1 / 82.5 | 76.8 / 69.1 / 85.1 |
+| oracle-all | 87.9 / 80.2 / 96.0 | 88.3 / 80.2 / 96.9 | 81.7 / 73.0 / 90.9 |
+
+- **`km` is the first label-free change that raises both ALL and PRIV on every seed.** On the final features: main runs +2.4 ALL / +4.8 PRIV (per seed PRIV +3.7 +4.9 +8.0 +1.8 +5.5), rect runs +3.3 / +5.5 (+5.5 +7.4 +6.7 +4.3 +3.7), with shared unchanged. Rect + km labelling gives 73.6 / 56.8 / 91.3, above the paper's ALL (72.2) though PRIV stays well below (72.6). B_t private precision rises from 64.0 to 74.3 (main) and from 79.5 to 86.1 (rect).
+- **Fixing the shared guides costs shared accuracy.** `km-priv` gets the most PRIV (59.4 on rect) but loses 5–7 points of shared, because private clusters take over shared samples that the fixed shared guides cannot win back.
+- **It closes only a sixth of the gap.** `oracle-all` reaches 88 / 80 / 96 on the same features, against 72–74 / 52–57 for `km`. K-means stops at a poor local optimum: on seeds 3 and 4 the private guides stay 9–10 class spreads off-centre after k-means (seeds 0 and 1: 0.8–1.5). Those are the seeds whose one-shot images were least typical at the start (ratio about 2.0 against 1.0), so shot quality matters for where k-means ends, even though it did not set the starting pseudo-label accuracy.
+- **It does nothing at the start** (58.3 / 30.6 against 57.2 / 28.2). Before adaptation the target classes are not yet compact enough for k-means to find them; it helps only on adapted features.
+
+Candidates for the remaining gap, all checkable without retraining: k-means with balanced cluster sizes (Sinkhorn assignment with uniform class marginals, the q = 0.5 prior of the sweep), k-means with more clusters than classes, each labelled by its nearest guide, and label propagation on a kNN graph of the target features. Then the best re-centring becomes the refresh during training, where cleaner B_t should also improve the features.
 
 ## Investigated, not adopted
 
