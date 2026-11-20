@@ -163,7 +163,9 @@ def build_domain(cfg, domain, split, train_aug, source_only=False):
     base, targets, names = base_dataset(cfg, domain, split, train_aug)
     shared = resolve_classes(cfg["shared"], names)
     private = [] if source_only else resolve_classes(cfg["private"], names)
-    return Remapped(base, targets, shared, private)
+    ds = Remapped(base, targets, shared, private)
+    ds.class_names = [str(names[c]) for c in list(shared) + list(private)]
+    return ds
 
 
 # ----------------------------------------------------------- labelled samples
@@ -178,4 +180,36 @@ def sample_labelled(labels, classes, shots=1, frac=None, seed=0):
         idx = [i for i, lab in enumerate(labels) if lab == c]
         k = max(1, round(frac * len(idx))) if frac else int(shots)
         out[c] = sorted(rng.sample(idx, min(k, len(idx))))
+    return out
+
+
+def fixed_labelled(ds, classes, spec):
+    """Hand-picked labelled samples instead of a random draw (`adapt.fixed_shots`).
+
+    ds      a Remapped dataset from build_domain (has .class_names)
+    spec    {class name: image} with image a file name inside the class folder (e.g. frame_0003.jpg)
+            or an int, the position among that class's images in dataset order (synthetic data);
+            a list of these gives several shots. Every class in `classes` must be listed.
+    Returns {class: [dataset indices]}, like sample_labelled.
+    """
+    names = {ds.class_names[c]: c for c in classes}
+    unknown = set(spec) - set(names)
+    missing = set(names) - set(spec)
+    if unknown or missing:
+        raise ValueError(f"fixed_shots: unknown classes {sorted(unknown)}, missing classes {sorted(missing)}")
+    samples = getattr(ds.base, "samples", None)  # ImageFolder: [(path, target)]
+    out = {}
+    for name, c in names.items():
+        idx = [j for j, lab in enumerate(ds.labels) if lab == c]
+        picks = spec[name] if isinstance(spec[name], (list, tuple)) else [spec[name]]
+        chosen = []
+        for p in picks:
+            if isinstance(p, int):
+                chosen.append(idx[p])
+                continue
+            hits = [j for j in idx if samples is not None and Path(samples[ds.indices[j]][0]).name == p]
+            if len(hits) != 1:
+                raise ValueError(f"fixed_shots: {name}/{p} matched {len(hits)} images")
+            chosen.append(hits[0])
+        out[c] = sorted(chosen)
     return out

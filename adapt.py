@@ -31,7 +31,7 @@ from torch.utils.data import DataLoader
 
 from cida.common import (Logger, Timer, extract, get_device, infinite, load_ckpt, load_config, rng_state,
                          save_ckpt, set_rng_state, set_seed)
-from cida.data import Relabeled, build_domain, sample_labelled
+from cida.data import Relabeled, build_domain, fixed_labelled, sample_labelled
 from cida.metrics import cida_metrics
 from cida.models import build_classifier, build_feature_extractor, build_projection, freeze_backbone, param_groups
 from cida.prototypes import GaussianPrototypes
@@ -127,8 +127,11 @@ def main(argv=None):
     n_total = n_shared + n_private
     private_classes = list(range(n_shared, n_total))
 
-    labelled = sample_labelled(tgt_plain.labels, private_classes, acfg.get("shots", 1), acfg.get("fewshot_frac"),
-                               seed=args.seed)
+    if acfg.get("fixed_shots"):  # hand-picked shots: --seed then only sets the training RNG
+        labelled = fixed_labelled(tgt_plain, private_classes, acfg["fixed_shots"])
+    else:
+        labelled = sample_labelled(tgt_plain.labels, private_classes, acfg.get("shots", 1),
+                                   acfg.get("fewshot_frac"), seed=args.seed)
     lab_idx = [i for c in private_classes for i in labelled[c]]
     lab_y = [c for c in private_classes for _ in labelled[c]]
     log.log(event="labelled", n=len(lab_idx), per_class={c: len(v) for c, v in labelled.items()})

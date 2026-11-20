@@ -197,3 +197,34 @@ def test_finished_run_deletes_resume_checkpoint(out_dir):
     adapt.main(["--config", CFG, "--seed", "4", "--set", f"out_dir={out_dir}"])
     run = out_dir / "adapt_1shot_abl-none_seed4"
     assert (run / "final.pt").exists() and not (run / "ckpt.pt").exists()
+
+
+def test_adapt_fixed_shots(out_dir):
+    """adapt.fixed_shots replaces the random one-shot draw; the seed then only sets the training RNG."""
+    from cida.common import load_config
+    from cida.data import build_domain, fixed_labelled
+    spec = "{'5': 3, '6': 0, '7': 1, '8': 2, '9': 4}"
+    sets = [f"out_dir={out_dir}", f"adapt.fixed_shots={spec}", "adapt.tag=fixed"]
+    for seed in ("0", "1"):
+        adapt.main(["--config", CFG, "--seed", seed, "--set", *sets])
+    cfg = load_config(CFG, sets)
+    ds = build_domain(cfg, cfg["tgt_domain"], cfg["tgt_train_split"], train_aug=False)
+    want = fixed_labelled(ds, range(5, 10), cfg["adapt"]["fixed_shots"])
+    assert want[5] == [[j for j, lab in enumerate(ds.labels) if lab == 5][3]]
+    for seed in (0, 1):
+        ck = torch.load(out_dir / f"adapt_1shot_abl-none_fixed_seed{seed}" / "final.pt", weights_only=False)
+        assert {int(c): v for c, v in ck["labelled"].items()} == want
+    with pytest.raises(ValueError, match="missing"):
+        fixed_labelled(ds, range(5, 10), {"5": 0})
+
+
+def test_contact_sheet(tmp_path):
+    from PIL import Image
+    from scripts.contact_sheet import main
+    root = tmp_path / "data" / "office31" / "dslr" / "images"
+    for c in range(31):
+        (root / f"c{c:02d}").mkdir(parents=True)
+        for k in range(3):
+            Image.new("RGB", (40, 30), (8 * c, 0, 0)).save(root / f"c{c:02d}" / f"frame_{k:04d}.jpg")
+    main([str(Path(CFG).parent / "office_a2d.yaml"), "--data_root", str(tmp_path / "data"), "--out", str(tmp_path / "o")])
+    assert len(list((tmp_path / "o" / "dslr").glob("*.png"))) == 10  # one sheet per private class (20-29)

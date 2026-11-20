@@ -24,6 +24,7 @@ adapt:
   epochs: 20
   shots: 1                 # [paper] one-shot target-private samples
   fewshot_frac: null       # 0.05 for the few-shot (Ours*) setting
+  fixed_shots: null        # {class name: file name} hand-picked one-shot images (not in the paper; SPEC.md)
   n_percent: 20            # [paper] confident samples per guide
   ablation: none           # none | a | b | c  (Ours-a/b/c) | nola1 (diagnostic)
   la1_samples: confident   # all (paper: x_t ~ q_X) | confident (draw La1 batches from B_t); see SPEC.md
