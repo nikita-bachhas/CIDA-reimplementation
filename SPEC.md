@@ -111,7 +111,7 @@ Per-epoch means (`trajectory.py`; n = 4 up to epoch 3 because one seed resumed a
 **Noise is the one-shot draw, not the run.** Across the 5 seeds of M→U main: ALL sd 10.5 (57.0–84.5), PRIV sd 17.4 (36.8–79.4), so the standard error of a 5-seed mean is about 4.7 (ALL) and 7.8 (PRIV). The private pseudo-label precision in B_t tracks this closely (seed 4: 99% → PRIV 79.4; seeds 0 and 1: 60–62% → PRIV 37–40). Each seed fixes the one-shot images, so compare variants **seed by seed** (paired differences) rather than mean against mean. Example: main minus vanilla on M→U is +8.7 to +39.3 ALL on every seed (mean +26.8).
 3. **Algo 1 line 9** writes P(u_s) where it means P(u_n).
 
-## Under test: private-guide rectification (2026-11-20; Office A→D trained, diagnostics not yet run)
+## Under test: private-guide rectification and guide placement (2026-11-20)
 
 **Hypothesis.** The two kinds of guide are built differently. A shared guide fe(μ_c) is a mean; a private guide is one labelled image, a random point of its class cloud. For a target class with mean m_c and spread tr Σ_c, a sample's expected squared distance to its own guide is tr Σ_c + ‖g_c − m_c‖², which is about 2 tr Σ_c for a one-shot guide and tr Σ_c + ‖δ_c‖² for a shared guide (δ_c = domain-shift offset of fe(μ_c)). With small δ (frozen ImageNet features, Office) private samples drift to the shared classes: priv_as_shared 26% on A→D, shared → private 6%. With large δ (MNIST → USPS) the drift reverses, which matches the Digits failure. Not yet measured on real runs.
 
@@ -161,11 +161,39 @@ What the results show:
 
 Not adopted: the main configuration keeps rectify off. eps, anchor and iters stay untuned; tuning them is not worth it while the private → shared drift is unchanged.
 
-**Still to run on the cluster:**
-1. `sbatch slurm/py.sbatch scripts/guide_diag.py runs/office_a2d` and the same command with `--stage start`. The asymmetry numbers test the hypothesis directly.
-2. `sbatch slurm/posthoc.sbatch runs/office_a2d`, and again with `--runs adapt_1shot_abl-none_rect`. The post-hoc offset was only tested on Digits, where errors ran both ways. Office errors are lopsided toward private → shared, the boundary the gate/bias variants act on. The script also sweeps the gt offset so that a share q = 0.20–0.80 of the evaluation images is predicted private. It prints the seed-mean ALL / PRIV / shared curve, marking the best-ALL point, the PRIV ≈ shared point, and where the paper rule, the label-free bias and the true private share (163 / 317 = 51% on DSLR) sit. Labels only score the curve, so it is a ceiling for boundary-moving methods, not a result.
+**Diagnostics on the Office A→D runs** (logs 56305 / 56309 / 56251 / 56253, no retraining).
 
-Why the boundary matters: the paper's A→D numbers (ALL 72.2, PRIV 72.6) imply shared ≈ 71.8 if ALL is per image. That is about 229 of 317 DSLR images correct, against about 223 for our main runs (ALL 70.3, PRIV 48.5, shared 93.4). Totals are close; the split differs.
+*Offset sweep* (`scripts/posthoc.py`). Seed means, ALL / PRIV / shared, with q the share of DSLR images predicted private:
+
+| Point | Main runs | Rect runs |
+| --- | --- | --- |
+| Paper rule (q = 0.41 / 0.37) | 70.3 / 48.5 / 93.4 | 70.3 / 50.8 / 91.0 |
+| Best ALL on the sweep | 69.4 / 47.4 / 92.7 (q 0.40) | 71.1 / 57.2 / 85.8 (q 0.46) |
+| q = 0.50 (balanced-class prior: 10 of 20 classes private) | 68.4 / 53.1 / 84.5 | 70.2 / 58.4 / 82.7 |
+| PRIV ≈ shared | 57.3 / 57.9 / 56.6 | 63.0 / 62.3 / 63.8 |
+| Paper (shared implied) | 72.2 / 72.6 / ≈ 71.8 | |
+
+- **The boundary alone cannot reach the paper.** If ALL is per image, the paper's numbers mean about 229 of 317 DSLR images correct against our 223, so totals are close and the split differs. But moving the boundary loses accuracy: it costs shared images faster than it rescues private ones. PRIV levels off at 59 (main) and 64 (rect) even at q = 0.80, because the remaining private errors go to other private classes.
+- **Rectification shifts the whole curve.** At equal shared accuracy, the rect runs get 4–5 more PRIV points (shared ≈ 85: 53 vs 57; shared ≈ 72: 56 vs 61). Their paper-rule boundary sits further toward shared (36.8% predicted private against 40.9%), which hides the gain at the default point.
+- **The label-free gate and bias barely help** (main: PRIV +0.3 / +0.6, rect: +0.6 / −0.4). The bias calibrates to the share of samples whose nearest guide is private, which is itself too low (36–42% against the true 51%).
+
+*Guide diagnostic* (`scripts/guide_diag.py`, main runs). Nearest-guide pseudo-labels on the unlabelled target, ALL / PRIV / B_t private precision:
+
+| Guides | Start (fs + AdaBN, fe = id) | Final (adapted ft, fe) |
+| --- | --- | --- |
+| basic | 57.2 / 28.2 / 69.3 | 69.5 / 47.6 / 64.0 |
+| rect | 57.7 / 29.8 / 72.0 | 70.1 / 48.8 / 65.0 |
+| rect-all | 59.1 / 31.5 / 67.0 | 70.3 / 49.4 / 64.6 |
+| oracle (true private class means) | 76.8 / 69.1 / 87.4 | 81.1 / 77.9 / 92.2 |
+
+- **The adapted features are good enough.** With the private guides at the true class means, nearest-guide labelling reaches PRIV 77.9 / ALL 81.1, above the paper. The method's guides reach 47.6. The gap is guide placement.
+- **Asymmetry, off/tr = ‖g − m‖² / tr Σ.** At the start it is 0.90 (shared) and 0.95–2.02 (private), close to the theory (about 1 for a one-shot guide). After adaptation the private guides are 3.5–11.3 class spreads off their means, against 1.1–1.6 for shared: the offset grows during training. Rectification barely moves it (2.8–11.1), because it averages over members chosen by the current guide, a third of which are wrong.
+- **The seed spread is not set by the shot draw.** At the start, nearest-guide PRIV is 27.0–28.8 on every seed, and the shot's typicality does not track final PRIV (seeds 3 and 4 have the least typical shots, ratio about 2.0, and end at 56.4 and 41.1). The spread (38–58) arises during training. `--seed` sets both the one-shot images and the training RNG (`set_seed(1000 + seed)`), so seed-paired comparisons do not isolate the shot.
+
+**Under test: k-means re-centring** (`kmeans_guides` in `cida/rectify.py`, added to `scripts/guide_diag.py`). Lloyd's k-means over all unlabelled target samples, started at the basic guides, each cluster keeping its starting guide's label. Variants: `km` (every guide moves), `km-priv` (shared guides fixed), `km-anch` (the starting guide keeps weight `--anchor`), with `oracle-all` (every guide at its true class mean) as the ceiling. It asks how much of the 47.6 → 77.9 PRIV gap a label-free re-centring closes. If it closes a large part, it becomes the prediction step, then the refresh during training. To run:
+1. `sbatch slurm/py.sbatch scripts/guide_diag.py runs/office_a2d`
+2. `sbatch slurm/py.sbatch scripts/guide_diag.py runs/office_a2d --runs adapt_1shot_abl-none_rect`
+3. `sbatch slurm/py.sbatch scripts/guide_diag.py runs/office_a2d --stage start`
 
 ## Investigated, not adopted
 

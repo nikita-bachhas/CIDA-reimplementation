@@ -1,6 +1,6 @@
 import torch
 
-from cida.rectify import rectify_guides
+from cida.rectify import kmeans_guides, rectify_guides
 
 
 def _toy(seed=0, n=400, d=20, sep=8.0):
@@ -47,3 +47,14 @@ def test_margin_selection_runs():
     V, y, base, m1 = _toy(seed=1)
     g, _, _ = rectify_guides(V, base, rows=[1], select="margin", eps=1.0, anchor=0.2)
     assert (g[1] - m1).norm() < (base[1] - m1).norm()
+
+
+def test_kmeans_moves_private_guide_to_class_mean():
+    V, y, base, m1 = _toy()
+    acc = lambda G: (torch.cdist(V, G).argmin(1) == y)[y == 1].float().mean()  # noqa: E731
+    g = kmeans_guides(V, base, rows=[1])
+    assert (g[1] - m1).norm() < 1.0 and acc(g) > acc(base) + 0.1
+    assert torch.equal(g[0], base[0])  # rows not listed are untouched
+    ga = kmeans_guides(V, base, rows=[0, 1], anchor=0.5)  # anchored: halfway between start and member mean
+    assert (ga[1] - base[1]).norm() > 0 and (ga[1] - m1).norm() > (g[1] - m1).norm()
+    assert torch.equal(kmeans_guides(V, base, rows=[]), base)

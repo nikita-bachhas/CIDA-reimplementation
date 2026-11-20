@@ -12,6 +12,8 @@ guide by a weighted mean of itself and the target samples it confidently claims:
 eps -> inf recovers the basic guide; eps -> 0 is a plain mean. Repeated `iters` times, each time
 re-assigning samples to the current guides (k-means started at, and anchored to, the basic guide).
 No target labels are used.
+
+kmeans_guides is the unrestricted version: all members, plain means, optional anchor.
 """
 from __future__ import annotations
 
@@ -61,3 +63,29 @@ def rectify_guides(V: torch.Tensor, base: torch.Tensor, rows, n_percent: float =
         cur = new
     corr = cur - w0[:, None] * base
     return cur, w0, corr
+
+
+@torch.no_grad()
+def kmeans_guides(V, base, rows, iters=30, anchor=0.0):
+    """Lloyd's k-means over all unlabelled samples, started at the guides; only `rows` move.
+
+    Unlike rectify_guides there is no top-n% member selection and no cosine weighting: each listed
+    guide becomes the plain mean of every sample nearest to it, mixed with its starting guide by
+    `anchor` (0 = free k-means). Cluster c keeps the label of the guide it started from. Stops
+    early once the guides no longer move; an empty cluster keeps its current guide. Label-free.
+    """
+    V, base = V.float(), base.float()
+    cur = base.clone()
+    rows = list(rows)
+    for _ in range(iters if rows else 0):
+        k = torch.cdist(V, cur).argmin(1)
+        new = cur.clone()
+        for c in rows:
+            m = k == c
+            if m.any():
+                new[c] = anchor * base[c] + (1 - anchor) * V[m].mean(0)
+        done = torch.allclose(new, cur)
+        cur = new
+        if done:
+            break
+    return cur

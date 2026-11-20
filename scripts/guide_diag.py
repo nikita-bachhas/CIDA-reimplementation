@@ -17,7 +17,11 @@ the unlabelled target train split (target labels used only to score), with guide
     rect       private guides rectified (cida/rectify.py, select=distance), label-free
     rect-m     same, members chosen by the d1/d2 margin
     rect-all   shared guides rectified too
+    km         k-means over all samples started at the basic guides, every guide moves (label-free)
+    km-priv    same, shared guides fixed at fe(mu_c)
+    km-anch    km with the starting guide keeping weight --anchor in each update
     oracle     private guides = true target class means (upper bound; uses labels)
+    oracle-all every guide = true target class mean (the ceiling for km; uses labels)
 Columns: pseudo-label accuracy ALL / PRIV / shared, priv->shared %, and B_t private precision
 (top n_percent of each guide's members, as adapt.py selects B_t).
 
@@ -27,6 +31,7 @@ Columns: pseudo-label accuracy ALL / PRIV / shared, priv->shared %, and B_t priv
 
   sbatch slurm/py.sbatch scripts/guide_diag.py runs/office_a2d
   sbatch slurm/py.sbatch scripts/guide_diag.py runs/office_a2d --stage start
+  sbatch slurm/py.sbatch scripts/guide_diag.py runs/office_a2d --runs adapt_1shot_abl-none_rect
 """
 import argparse
 import json
@@ -43,9 +48,10 @@ from adapt import CIDA, adabn  # noqa: E402
 from cida.common import get_device, load_ckpt  # noqa: E402
 from cida.data import build_domain  # noqa: E402
 from cida.prototypes import GaussianPrototypes  # noqa: E402
-from cida.rectify import rectify_guides  # noqa: E402
+from cida.rectify import kmeans_guides, rectify_guides  # noqa: E402
 
-VARIANTS = ["basic", "rect", "rect-m", "rect-all", "oracle"]
+VARIANTS = ["basic", "rect", "rect-m", "rect-all", "km", "km-priv", "km-anch", "oracle", "oracle-all"]
+ASYM = ("basic", "rect", "km")
 
 
 @torch.no_grad()
@@ -97,7 +103,7 @@ def pseudo_label_scores(V, Y, G, ns, n, n_percent):
 
 
 @torch.no_grad()
-def analyse(run_dir, device, nw, stage="final", eps=10.0, anchor=0.3, iters=3):
+def analyse(run_dir, device, nw, stage="final", eps=10.0, anchor=0.3, iters=3, km_iters=30):
     ck = load_ckpt(run_dir / "final.pt")
     cfg, labelled = ck["cfg"], ck["labelled"]
     acfg = cfg["adapt"]
@@ -131,11 +137,15 @@ def analyse(run_dir, device, nw, stage="final", eps=10.0, anchor=0.3, iters=3):
         "rect": rectify_guides(V, base, priv_rows, npct, eps, anchor, iters)[0],
         "rect-m": rectify_guides(V, base, priv_rows, npct, eps, anchor, iters, select="margin")[0],
         "rect-all": rectify_guides(V, base, all_rows, npct, eps, anchor, iters)[0],
-        "oracle": torch.cat([base[:ns], torch.stack([V[Y == c].mean(0) if (Y == c).any() else base[c]
-                                                     for c in range(ns, n)])]),
+        "km": kmeans_guides(V, base, all_rows, km_iters),
+        "km-priv": kmeans_guides(V, base, priv_rows, km_iters),
+        "km-anch": kmeans_guides(V, base, all_rows, km_iters, anchor=anchor),
     }
+    means = torch.stack([V[Y == c].mean(0) if (Y == c).any() else base[c] for c in range(n)])
+    guides["oracle"] = torch.cat([base[:ns], means[ns:]])
+    guides["oracle-all"] = means
     out = {"run": run_dir.name, "stage": stage,
-           "asym": {v: asymmetry(V, Y, guides[v], ns, n) for v in ("basic", "rect")},
+           "asym": {v: asymmetry(V, Y, guides[v], ns, n) for v in ASYM},
            **{v: pseudo_label_scores(V, Y, g, ns, n, npct) for v, g in guides.items()}}
     with open(run_dir / f"guide_diag_{stage}.json", "w") as f:
         json.dump(out, f, indent=2)
@@ -150,24 +160,24 @@ def main():
     ap.add_argument("--eps", type=float, default=10.0)
     ap.add_argument("--anchor", type=float, default=0.3)
     ap.add_argument("--iters", type=int, default=3)
+    ap.add_argument("--km_iters", type=int, default=30, help="max k-means rounds (km variants)")
     ap.add_argument("--num_workers", type=int, default=4)
     args = ap.parse_args()
     device = get_device("auto")
     for task in args.task_dirs:
         runs = sorted(p for p in Path(task).glob(f"{args.runs}_seed*") if (p / "final.pt").exists())
-        print(f"\n===== {task}  stage={args.stage}  ({len(runs)} runs)  eps={args.eps} anchor={args.anchor} "
-              f"iters={args.iters}")
+        print(f"\n===== {task}  runs={args.runs}  stage={args.stage}  ({len(runs)} runs)  eps={args.eps} "
+              f"anchor={args.anchor} iters={args.iters} km_iters={args.km_iters}")
         rows = [o for r in runs if (o := analyse(r, device, args.num_workers, args.stage, args.eps, args.anchor,
-                                                 args.iters)) is not None]
+                                                 args.iters, args.km_iters)) is not None]
         if not rows:
             print("  no runs (or --stage start on a run without residual fe)")
             continue
-        print("Guide asymmetry (basic guides | rectified):   off/tr shared  private    d_own shared  private")
+        print("Guide asymmetry  off/tr shared / private   d_own shared / private   (basic | rect | km)")
         for o in rows:
-            a, r = o["asym"]["basic"], o["asym"]["rect"]
-            print(f"  {o['run'][-5:]:6} basic {a['shared']['off/tr']:8.2f} {a['private']['off/tr']:8.2f}   "
-                  f"{a['shared']['d_own']:8.2f} {a['private']['d_own']:8.2f}   | rect "
-                  f"{r['private']['off/tr']:6.2f} {r['private']['d_own']:6.2f}")
+            print(f"  {o['run'][-5:]:6}" + " | ".join(
+                f"{o['asym'][v]['shared']['off/tr']:5.2f} /{o['asym'][v]['private']['off/tr']:6.2f}  "
+                f"{o['asym'][v]['shared']['d_own']:5.2f} /{o['asym'][v]['private']['d_own']:6.2f}" for v in ASYM))
         print("Nearest-guide pseudo-labels   ALL / PRIV / shared / priv->shared / B_t priv precision")
         for v in VARIANTS:
             for o in rows:
