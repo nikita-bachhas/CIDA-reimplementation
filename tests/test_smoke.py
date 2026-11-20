@@ -97,6 +97,12 @@ def test_confusion_script(out_dir):
     final = json.load(open(run / "final_metrics.json"))
     assert abs(o["priv"] - final["priv"]) < 1e-6 and o["priv_given_priv"] >= o["priv"]
     assert (run / "confusion.json").exists()
+    from scripts.confusion import print_class_table
+    pc = o["per_class"]
+    assert len(pc) == len(o["classes"]) and all(0 <= p["acc"] <= 100 for p in pc.values())
+    priv = [p for p in pc.values() if p["group"] == "private"]
+    assert abs(sum(p["acc"] for p in priv) / len(priv) - final["priv_cls"]) < 1e-3
+    print_class_table([o, o])
 
 
 def test_posthoc_script(out_dir):
