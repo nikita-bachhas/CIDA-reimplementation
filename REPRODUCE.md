@@ -123,6 +123,34 @@ sbatch slurm/posthoc.sbatch runs/office_a2d --runs adapt_1shot_abl-none_rect  # 
 
 `--runs` takes the run-name prefix before `_seed`, not a glob. Class-wise accuracy: `sbatch slurm/confusion.sbatch runs/office_a2d [--runs <prefix>]`. Guide diagnostics: `sbatch slurm/py.sbatch scripts/guide_diag.py runs/office_a2d [--runs <prefix>] [--stage start|final]`.
 
+### Report runs: every paper result, in priority order
+
+Main configuration, paper protocol (random one-shot draw per seed, paper prediction rule). One job at a time; each job requeues itself at the 6 h limit, skips finished runs and resumes unfinished ones, so a long job needs no babysitting. Times are rough A40 estimates.
+
+```bash
+# 0. Old Digits runs predate the deterministic pipeline: move them aside so they are re-run
+mv runs/digits_u2m runs/digits_u2m_old; mv runs/digits_s2m runs/digits_s2m_old
+# 1. Digits + Table 3 DSLR/Webcam targets (~15 h)
+sbatch --export=ALL,CONFIGS="configs/digits_u2m.yaml configs/digits_s2m.yaml configs/office_w2d.yaml configs/office_a2w.yaml configs/office_d2w.yaml" slurm/run.sbatch
+# 2. Table 2 DSLR/Webcam targets (~16 h)
+sbatch --export=ALL,CONFIGS="configs/office20_a2d.yaml configs/office20_w2d.yaml configs/office20_a2w.yaml configs/office20_d2w.yaml" slurm/run.sbatch
+# 3. Ablations on A->D (~15 h, two jobs)
+sbatch --export=ALL,STAGES=adapt,ABLATIONS="a b c" slurm/run.sbatch configs/office_a2d.yaml
+sbatch --export=ALL,CONFIGS="configs/office_a2d_nols1.yaml configs/office_a2d_noneg.yaml" slurm/run.sbatch
+# 4. Table 3 Amazon targets (~35 h)
+sbatch --export=ALL,CONFIGS="configs/office_d2a.yaml configs/office_w2a.yaml" slurm/run.sbatch
+# 5. Table 2 Amazon targets (~35 h)
+sbatch --export=ALL,CONFIGS="configs/office20_d2a.yaml configs/office20_w2a.yaml" slurm/run.sbatch
+# 6. Table 3 few-shot 5% (Ours*), Webcam/Amazon targets; reuses the source models from jobs 1 and 4 (~45 h)
+sbatch --export=ALL,STAGES=adapt,CONFIGS="configs/office_a2w.yaml configs/office_d2w.yaml configs/office_d2a.yaml configs/office_w2a.yaml" slurm/run.sbatch adapt.fewshot_frac=0.05
+# 7. VisDA Syn->Real (days)
+sbatch slurm/run.sbatch configs/visda_sy2re.yaml
+```
+
+- Ours* on the DSLR targets is not run: 5% of a DSLR class is one image, the same one the one-shot run draws (SPEC inconsistency 4).
+- The table for the report: `python scripts/aggregate.py runs/` (ours next to the paper) and `python scripts/aggregate.py runs_vanilla/` (the paper as written).
+- If the cluster accepts pending jobs, `sbatch --dependency=singleton ...` (all jobs are named `cida`) queues each job to start when the previous one ends.
+
 ### Hand-picked one-shot images
 
 `configs/office_a2d_fixedshot.yaml` sets `adapt.fixed_shots`, one DSLR file per private class, so every seed uses the same labelled images and `--seed` changes only the training RNG:

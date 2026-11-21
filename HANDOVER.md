@@ -129,6 +129,16 @@ What the class-wise table shows:
 - Shell heredocs with embedded Python failed in this environment. Write scripts to the scratchpad, or use the Edit tool.
 
 ## 9. Open decisions and next steps
+0. **Current goal (2026-11-21): reproduce the paper's tables for the report; everything else is out of scope.** Headline numbers = main configuration under the paper's protocol: a random one-shot draw per seed, the paper's prediction rule, last epoch. The vanilla rows already exist for every task. Hand-picked shots and `lp` are not used in the report. Status (commands and job order in REPRODUCE.md, "Report runs"):
+
+   | Paper result | Done, main config | To run | Rough cost per task, 5 seeds (A40) |
+   |---|---|---|---|
+   | Table 3 one-shot (Cs 10 / Ct 20) | A→D 70.3 / 48.5 | W→D, A→W, D→W, D→A, W→A | DSLR target ~3 h, Webcam ~5 h, Amazon ~15–20 h |
+   | Table 2 one-shot (Cs 20 / Ct 31) | none (the hand-picked A→D run is not the protocol) | all 6 | same |
+   | Digits | M→U 70.5 / 53.5 | U→M, S→M (old runs predate the deterministic pipeline) | short |
+   | Ablations on A→D: Ours-a / b / c, no Ls1, no negatives | none | 5 | ~3 h each |
+   | Table 3 few-shot 5% (Ours*) | DSLR targets = the one-shot runs (SPEC inconsistency 4) | A→W, D→W, D→A, W→A | as above |
+   | VisDA Syn→Real (Real→Syn last, if time) | none | 1 | days; not measured |
 1. ~~Record section 7 in SPEC.md~~ — done (`c719a33`).
 2. **lp as the prediction step: done** (logs 56471 main, 56472 rect; SPEC "Other label-free placements"). Rect `lp` reproduces guide_diag exactly (75.8 / 62.3 / 90.1); main `lp` 75.2 / 58.0 / 93.4. PRIV up on 5/5 seeds in both. Helps speaker, punchers, printer; does not fix desktop_computer, tape_dispenser, or phone in seeds 3–4 (0% under the paper rule and lp).
 2b. **Hand-picked one-shot images: trained** (job 56473, `logs/cida_56473.out`; SPEC "Under test: hand-picked one-shot images"). `configs/office_a2d_fixedshot.yaml`: **ALL 81.9 ± 1.9 / PRIV 69.8 ± 2.7 / shared 94.7; class-averaged 83.3 / 72.3**, against 70.3 / 48.5 / 93.4 for the main runs (PRIV +12 to +36 on every seed). Not the paper's protocol (picked by eye from all labelled images): report separately from Table 3. Still to run on the cluster: `posthoc.sbatch` and `confusion.sbatch` with `--runs adapt_1shot_abl-none_fixedshot` for the class-wise picture. Tools: `adapt.fixed_shots`, `scripts/contact_sheet.py` (sheets into the gitignored `oneshot_review/`), `scripts/shot_check.py`. The laptop has `data/office31/` (all three domains), CPU-only PyTorch.
