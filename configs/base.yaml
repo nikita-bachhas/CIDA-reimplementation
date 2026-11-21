@@ -29,6 +29,9 @@ adapt:
   ablation: none           # none | a | b | c  (Ours-a/b/c) | nola1 (diagnostic)
   la1_samples: confident   # all (paper: x_t ~ q_X) | confident (draw La1 batches from B_t); see SPEC.md
   la1_temp: 1.0            # La1 logits = log-density / la1_temp (1.0 = paper)
+  pseudo_label: nearest    # nearest (paper) | lp: label propagation for the refresh's labels, B_t, P_t, La1 (SPEC.md)
+  lp_knn: 10               # lp graph: cosine k nearest neighbours
+  lp_alpha: 0.99           # lp spreading weight
   tag: null                # appended to the run folder name, e.g. la1conf
   adabn: true              # re-estimate ft's BatchNorm stats on the target first (see SPEC.md)
   proj_pretrain_iters: 2000

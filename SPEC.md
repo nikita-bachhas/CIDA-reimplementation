@@ -381,6 +381,21 @@ Per seed on the final features, own shot → picks, PRIV: nearest 57.9 → 69.4,
 - **Not yet run:** posthoc / confusion on these runs (class-wise accuracy; whether `lp` adds anything on top).
 - **Reading.** One labelled image per class is enough for the method to reach the paper's private-class accuracy if that image is typical of its class. Which images get drawn is therefore the largest factor we have found in the gap between our random-shot runs and the paper. How the paper's 5 random draws reach 72.6 is still unexplained; we have not tested whether their draws, split or evaluation differ from ours.
 
+## Under test: lp pseudo-labels in training (2026-11-21)
+
+**Why.** In the Table 2 hand-picked runs, B_t holds about 90 images for 31 classes (smallest class 1), and 54.5% of private images are pseudo-labelled shared, so they never enter the private part of B_t and Lc / La1 / La2 rarely train on them. Label propagation as the *prediction* step on the same models moved PRIV from 43.1 to 68.0 and the private → shared leak from 54.5% to 26.3% (log 56528). The question is whether the same labels help *during* training.
+
+**Switch** (`adapt.pseudo_label`, default `nearest` = the paper; `lp_knn` 10, `lp_alpha` 0.99, the settings used post hoc, untuned). With `lp`, at every refresh:
+- every target image gets its label from `cida.rectify.label_propagation` (the guides as labelled nodes, cosine 10-NN graph, class-balanced);
+- B_t is the 20% of each class's members with the highest lp confidence (instead of the 20% nearest the guide);
+- P_t is fit on the lp labels, and La1 uses the image's lp label from the last refresh instead of the online nearest guide (otherwise La1 would pull images that lp moved to a private class back to their nearest, shared, guide);
+- the guides themselves, Lr1 / Lr2 / Lc / La2 and the prediction rule are unchanged.
+The log adds `pl_acc_nearest` (what nearest-guide labelling would have scored) next to `pl_acc_all`. Dense N × N graph, so it refuses targets above 20,000 images (VisDA would keep `nearest`).
+
+**Expected risk.** On the Table 3 random-shot runs, lp's B_t private precision was 82.3 against 79.5 for nearest guide (guide_diag), so wrong labels may still reinforce themselves; the gain may be large on Table 2 and small on Table 3.
+
+**Test** (random shots, seed-paired; adopt only if PRIV rises on most seeds in both settings without a large shared drop): `configs/office_a2d_lpref.yaml` against the main runs (70.3 / 48.5 / 93.4), and `configs/office20_a2d_lpref.yaml` against `configs/office20_a2d.yaml`. Not yet run.
+
 ## Investigated, not adopted
 
 **Prediction-step changes for PRIV** (`scripts/posthoc.py`, re-evaluating the 15 saved Digits models; no target labels used). Mean change from the paper's rule (ALL / PRIV / shared):

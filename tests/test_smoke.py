@@ -218,6 +218,21 @@ def test_adapt_fixed_shots(out_dir):
         fixed_labelled(ds, range(5, 10), {"5": 0})
 
 
+@pytest.mark.parametrize("la1", ["confident", "all"])
+def test_adapt_lp_pseudo_labels(out_dir, la1):
+    """adapt.pseudo_label=lp: label propagation labels the refresh (B_t, P_t, La1), with either La1 source."""
+    sets = [f"out_dir={out_dir}", "adapt.pseudo_label=lp", f"adapt.la1_samples={la1}", "adapt.tag=lp"]
+    adapt.main(["--config", CFG, "--seed", "0", "--set", *sets])
+    run = out_dir / "adapt_1shot_abl-none_lp_seed0"
+    rows = [json.loads(line) for line in open(run / "log.jsonl")]
+    refresh = [r for r in rows if "B_size" in r]
+    assert refresh and all("pl_acc_nearest" in r for r in refresh)
+    assert (run / "final.pt").exists()
+    with pytest.raises(ValueError, match="pseudo_label"):
+        adapt.main(["--config", CFG, "--seed", "0", "--set", f"out_dir={out_dir}", "adapt.pseudo_label=knn",
+                    "adapt.tag=bad"])
+
+
 def test_contact_sheet(tmp_path):
     from PIL import Image
     from scripts.contact_sheet import main
@@ -250,7 +265,8 @@ OFFICE31_CLASSES = [
 
 @pytest.mark.parametrize("name, n_shared, n_private", [
     ("office_a2d", 10, 10), ("office_a2d_fixedshot", 10, 10),
-    ("office20_a2d", 20, 11), ("office20_a2d_fixedshot", 20, 11), ("office20_w2d_fixedshot", 20, 11)])
+    ("office20_a2d", 20, 11), ("office20_a2d_fixedshot", 20, 11), ("office20_w2d_fixedshot", 20, 11),
+    ("office_a2d_lpref", 10, 10), ("office20_a2d_lpref", 20, 11)])
 def test_office_configs(tmp_path, name, n_shared, n_private):
     """Class splits of the Office configs, and fixed_shots resolving to one file per private class."""
     from PIL import Image

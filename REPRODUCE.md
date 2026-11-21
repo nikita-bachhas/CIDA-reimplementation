@@ -127,6 +127,14 @@ sbatch slurm/posthoc.sbatch runs/office_a2d --runs adapt_1shot_abl-none_rect  # 
 
 Main configuration, i.e. all five improvements from section 4 on (the configs below need no extra switch for that), under the paper's protocol (random one-shot draw per seed, paper prediction rule). One job at a time; each job requeues itself at the 6 h limit, skips finished runs and resumes unfinished ones, so a long job needs no babysitting. Times are rough A40 estimates.
 
+**Run first: the lp pseudo-label test** (SPEC "Under test: lp pseudo-labels in training", ~9 h). Its outcome decides whether `adapt.pseudo_label: lp` joins the main configuration before the queue below, since every report run would then need it:
+
+```bash
+sbatch --export=ALL,CONFIGS="configs/office_a2d_lpref.yaml configs/office20_a2d.yaml configs/office20_a2d_lpref.yaml" slurm/run.sbatch
+```
+
+(`office20_a2d.yaml` here is also job 2's first config, so job 2 will skip it.)
+
 ```bash
 # 0. Old Digits runs predate the deterministic pipeline: move them aside so they are re-run
 mv runs/digits_u2m runs/digits_u2m_old; mv runs/digits_s2m runs/digits_s2m_old

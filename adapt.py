@@ -12,6 +12,8 @@ Round-robin (iter % 5) over [Lr1, Lr2, Lc, La1, La2], each with its own Adam:
 Guides: fe(mu_s^c) for shared classes, ft(one-shot sample) for private classes.
 Optional (adapt.rectify.enabled, not in the paper): private guides rectified with confident
 target samples at every refresh (cida/rectify.py).
+Optional (adapt.pseudo_label=lp, not in the paper): label propagation instead of nearest guide
+for the refresh's pseudo-labels, B_t, P_t and La1's labels.
 At the end of every epoch: pseudo-label all target samples, refit P_t, reselect B_t (top n%).
 
   python adapt.py --config configs/digits_m2u.yaml --seed 0 [--set adapt.ablation=b ...]
@@ -35,9 +37,10 @@ from cida.data import Relabeled, build_domain, fixed_labelled, sample_labelled
 from cida.metrics import cida_metrics
 from cida.models import build_classifier, build_feature_extractor, build_projection, freeze_backbone, param_groups
 from cida.prototypes import GaussianPrototypes
-from cida.rectify import rectify_guides
+from cida.rectify import label_propagation, rectify_guides
 
 LOSSES = ["Lr1", "Lr2", "Lc", "La1", "La2"]  # supp. Algo. 4 line 8
+LP_MAX = 20000  # adapt.pseudo_label=lp: dense N x N graph, so at most this many target samples
 ABLATIONS = {
     "none": LOSSES,
     "a": ["Lr1", "Lc", "La1", "La2"],  # Ours-a: no fe/fd (fixed shared guides), no Lr2
@@ -237,6 +240,18 @@ def main(argv=None):
         list(range(n_total)) if rcfg.get("shared", False) else private_classes)
     rect = {"w0": None, "corr": None}
 
+    # Pseudo-labeller at each refresh (not in the paper; SPEC.md). "nearest" (paper): nearest guide,
+    # B_t = the n% of each class nearest its guide. "lp": label propagation from the guides over a kNN
+    # graph of all target features (class-balanced), B_t = the n% of each class with the highest lp
+    # confidence; P_t is fit on the lp labels and La1 uses them too (pl["by_idx"]), instead of the
+    # online nearest guide. Dense N x N, so limited to LP_MAX target samples.
+    pseudo = acfg.get("pseudo_label", "nearest")
+    if pseudo not in ("nearest", "lp"):
+        raise ValueError(f"adapt.pseudo_label must be 'nearest' or 'lp', got {pseudo!r}")
+    if pseudo == "lp" and len(tgt_plain) > LP_MAX:
+        raise ValueError(f"adapt.pseudo_label=lp builds a dense {len(tgt_plain)}^2 graph; limit is {LP_MAX}")
+    pl = {"by_idx": None}
+
     def ft_with_guides(x):
         """ft on a batch plus labelled samples in the same forward pass (shared BN batch)."""
         xl, yl = labelled_batch()
@@ -273,6 +288,16 @@ def main(argv=None):
                      "pl_acc_basic": 100 * (torch.cdist(V, basic).argmin(1) == Y).float().mean().item()}
         dist = torch.cdist(V, guides)
         d, k = dist.min(1)
+        if pseudo == "lp":
+            k_near = k
+            k, conf = label_propagation(V, guides, acfg.get("lp_knn", 10), acfg.get("lp_alpha", 0.99))
+            score = -conf  # B_t ranks by ascending score: highest confidence first
+            by_idx = torch.empty(len(tgt_plain), dtype=torch.long)
+            by_idx[I] = k
+            pl["by_idx"] = by_idx.to(device)
+            rdiag["pl_acc_nearest"] = 100 * (k_near == Y).float().mean().item()
+        else:
+            score = d
         protos_t = GaussianPrototypes.fit(V, k, n_total, acfg["cov_shrink"], acfg["cov_eps"]).to(device)
         b_idx, b_lab = [], []
         for c in range(n_total):
@@ -280,7 +305,7 @@ def main(argv=None):
             if len(members) == 0:
                 continue
             nb = max(1, int(acfg["n_percent"] / 100 * len(members)))
-            keep = members[d[members].argsort()[:nb]]
+            keep = members[score[members].argsort()[:nb]]
             b_idx += keep.tolist()
             b_lab += [c] * len(keep)
         b_idx_t, b_lab_t = torch.tensor(b_idx), torch.tensor(b_lab)
@@ -335,9 +360,12 @@ def main(argv=None):
                 loss = F.cross_entropy(model(x.to(device)), y.to(device))
             elif key == "La1":
                 # Paper: all target samples (x_t ~ q_X). Our default "confident" draws from B_t (see SPEC.md).
-                x, _, _ = next(b_iter if acfg.get("la1_samples", "all") == "confident" else t_iter)
+                x, _, i = next(b_iter if acfg.get("la1_samples", "all") == "confident" else t_iter)
                 v, guides = ft_with_guides(x.to(device))
-                k = torch.cdist(v.detach(), guides.detach()).argmin(1)  # nearest-guide pseudo-label
+                if pseudo == "lp":  # the refresh's lp label (never the true label t_iter carries)
+                    k = pl["by_idx"][torch.as_tensor(i).to(device)]
+                else:
+                    k = torch.cdist(v.detach(), guides.detach()).argmin(1)  # nearest-guide pseudo-label
                 loss = F.cross_entropy(protos_t.log_prob(v) / acfg.get("la1_temp", 1.0), k)
             else:  # La2
                 x, y, _ = next(b_iter)
