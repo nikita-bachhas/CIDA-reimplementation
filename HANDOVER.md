@@ -129,7 +129,7 @@ What the class-wise table shows:
 - Shell heredocs with embedded Python failed in this environment. Write scripts to the scratchpad, or use the Edit tool.
 
 ## 9. Open decisions and next steps
-0. **Current goal (2026-11-21): reproduce the paper's tables for the report; everything else is out of scope.** Headline numbers = main configuration under the paper's protocol: a random one-shot draw per seed, the paper's prediction rule, last epoch. The vanilla rows already exist for every task. Hand-picked shots and `lp` are not used in the report. Status (commands and job order in REPRODUCE.md, "Report runs"):
+0. **Current goal (2026-11-21): reproduce the paper's tables for the report; everything else is out of scope.** Headline numbers = main configuration, i.e. **with all five of our changes on** (frozen backbone, AdaBN, residual fe/fd, linear fe/fd last layer, La1 on B_t) plus the head fix, under the paper's protocol: a random one-shot draw per seed, the paper's prediction rule, last epoch. The vanilla runs (changes off) already exist for every task and serve as the "paper as written" comparison row. Hand-picked shots and `lp` are not part of the headline numbers. Status (commands and job order in REPRODUCE.md, "Report runs"):
 
    | Paper result | Done, main config | To run | Rough cost per task, 5 seeds (A40) |
    |---|---|---|---|

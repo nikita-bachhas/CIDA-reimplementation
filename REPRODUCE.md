@@ -125,7 +125,7 @@ sbatch slurm/posthoc.sbatch runs/office_a2d --runs adapt_1shot_abl-none_rect  # 
 
 ### Report runs: every paper result, in priority order
 
-Main configuration, paper protocol (random one-shot draw per seed, paper prediction rule). One job at a time; each job requeues itself at the 6 h limit, skips finished runs and resumes unfinished ones, so a long job needs no babysitting. Times are rough A40 estimates.
+Main configuration, i.e. all five improvements from section 4 on (the configs below need no extra switch for that), under the paper's protocol (random one-shot draw per seed, paper prediction rule). One job at a time; each job requeues itself at the 6 h limit, skips finished runs and resumes unfinished ones, so a long job needs no babysitting. Times are rough A40 estimates.
 
 ```bash
 # 0. Old Digits runs predate the deterministic pipeline: move them aside so they are re-run
