@@ -23,7 +23,83 @@
 \TODO{Datasets (Digits M/U/S, Office-31, VisDA) and class splits. ALL and PRIV accuracy. 5 seeds with different one-shot images. GPU and run times.}
 
 \subsection{The method as written}\label{sec:exp-vanilla}
-\TODO{Results of \texttt{preset=vanilla} against the paper on Digits and Office-31. Where accuracy is lost. Shared samples move to private classes on Digits, and private samples move to shared classes on Office. See SPEC.md, ``Vanilla preset''.}
+We first ran a reproduction of the method exactly as the paper describes it, with all four changes of \cref{sec:changes} switched off (\texttt{preset=vanilla}).
+Where the paper is silent, the reproduction keeps the choices of \cref{tab:choices}.
+\Cref{tab:vanilla} compares it with the numbers reported in the paper on every benchmark.
+The reproduction stays below the paper on every task.
+The gap in ALL ranges from 14 to 29 points on Digits, 11 to 54 points on Office-31 and about 50 points on VisDA.
+PRIV suffers most on Office-31, where it ends between 1.4 and 26.9 against 61.8 to 88.4 in the paper.
+The way accuracy is lost differs between the benchmarks, and each failure points to one of our changes.
+
+\begin{table}[t]
+  \centering
+  \small
+  \caption{Reproduction of the method as written (\texttt{preset=vanilla}) against the numbers reported in the paper. ALL and PRIV accuracy in \% at the last epoch, mean over 5 seeds. Office 10/20 is the setting $|\Cs|=10, |\Ct|=20$, and Office 20/31 is $|\Cs|=20, |\Ct|=31$. Runs are in \texttt{runs\_vanilla/}.}
+  \label{tab:vanilla}
+  \begin{tabular}{@{}llcccc@{}}
+    \toprule
+    & & \multicolumn{2}{c}{Reproduction} & \multicolumn{2}{c}{Paper (reported)} \\
+    \cmidrule(lr){3-4}\cmidrule(lr){5-6}
+    Setting & Task & ALL & PRIV & ALL & PRIV \\
+    \midrule
+    Digits & M$\to$U & 43.7 & 50.5 & 72.5 & 71.6 \\
+           & U$\to$M & 47.2 & 60.7 & 69.4 & 68.6 \\
+           & S$\to$M & 32.8 & 46.5 & 46.4 & 45.7 \\
+    \midrule
+    Office 10/20 & A$\to$D & 45.2 & 16.9 & 72.2 & 72.6 \\
+                 & A$\to$W & 51.3 & 26.9 & 62.1 & 62.0 \\
+                 & D$\to$A & 25.2 & 3.2  & 62.6 & 61.8 \\
+                 & D$\to$W & 56.1 & 17.8 & 78.5 & 78.7 \\
+                 & W$\to$A & 20.9 & 7.4  & 62.1 & 62.4 \\
+                 & W$\to$D & 54.3 & 19.6 & 87.8 & 87.6 \\
+    \midrule
+    Office 20/31 & A$\to$D & 47.7 & 16.3 & 73.3 & 73.1 \\
+                 & A$\to$W & 42.5 & 20.9 & 63.6 & 62.6 \\
+                 & D$\to$A & 9.9  & 4.4  & 64.1 & 64.3 \\
+                 & D$\to$W & 53.2 & 17.7 & 80.3 & 79.4 \\
+                 & W$\to$A & 14.7 & 1.4  & 63.7 & 62.8 \\
+                 & W$\to$D & 60.0 & 12.7 & 89.5 & 88.4 \\
+    \midrule
+    VisDA & Syn$\to$Real & 6.2 & 16.1 & 56.4 & 56.3 \\
+          & Real$\to$Syn & 7.7 & 13.9 & 55.8 & 55.7 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\paragraph{Digits.}
+On Digits, shared samples move into the private classes.
+On M$\to$U, accuracy on the shared classes is already 47.2 before any adaptation loss is applied.
+At that point the only differences from the source model are the pretrained projections and the source BatchNorm statistics.
+During the first epoch, the nearest-guide pseudo-labels are only 37.5 to 43.9\% accurate.
+Without target BatchNorm statistics, shared target samples lie closer to the one-shot private guides than to the shared guides.
+$\mathcal{L}_{a1}$ then trains $f_t$ on these labels for every target sample.
+By epoch 30, 57 to 60\% of the shared samples are predicted as private, and shared accuracy falls to 20.0 on S$\to$M.
+PRIV stays at 46.5 to 60.7 only because most samples are predicted as private.
+
+\paragraph{Office-31.}
+On Office-31 the failure runs the other way, and private samples move into the shared classes.
+PRIV peaks within the first 10 epochs and then decays steadily.
+On A$\to$D it peaks at 35.6 in epoch 10 and ends at 16.9, and on D$\to$A it falls from 36.9 in epoch 2 to 3.2.
+At epoch 60, 53 to 94\% of the private samples are predicted as shared in the 10/20 setting.
+$\mathcal{L}_{a1}$ fine-tunes the whole ResNet-50 on noisy labels for every target sample, so the features drift towards the shared guides.
+With Amazon as the target, shared accuracy collapses as well, which brings ALL on D$\to$A in the 20/31 setting down to 9.9.
+Even the best epoch, chosen with target labels that the setting does not allow, stays below the paper.
+On W$\to$D in the 10/20 setting, ALL peaks at 72.6 against 87.8 in the paper.
+
+\paragraph{VisDA.}
+On VisDA the model collapses onto a single class in both directions.
+Class-averaged ALL is 8.5 on Syn$\to$Real and 8.4 on Real$\to$Syn, close to the 8.3 of a constant prediction over 12 classes.
+The pipeline itself works, since the source model reaches 37.3 on the shared real images before adaptation, against 16.7 for chance.
+The nearest-guide pseudo-labels, however, are only 10.4\% accurate at that point.
+The shared guides are built from synthetic features, while the private guides come from real one-shot images.
+In seed 0, the pretrained projections also remain 24\% away from the identity, so the shared guides are misplaced from the start.
+By epoch 10, shared accuracy on Syn$\to$Real is 0.0, and every target image is assigned to one private class.
+
+\paragraph{Summary.}
+The three failures share one mechanism.
+Wrong pseudo-labels in the first epochs are reinforced by $\mathcal{L}_{a1}$, which trains on every target sample.
+Source BatchNorm statistics and imperfect projections make these early labels worse, and fine-tuning the whole backbone lets the errors reshape the features.
+Each of these causes corresponds to one change in \cref{sec:changes}.
 
 \subsection{Effect of our changes}\label{sec:exp-changes}
 \TODO{Evidence for each change in \cref{sec:changes}. A table with one change removed at a time, and a figure of shared accuracy per epoch. See SPEC.md, ``Our choices''.}
