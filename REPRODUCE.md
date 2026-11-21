@@ -127,14 +127,15 @@ sbatch slurm/posthoc.sbatch runs/office_a2d --runs adapt_1shot_abl-none_rect  # 
 
 Main configuration, i.e. all five improvements from section 4 on (the configs below need no extra switch for that), under the paper's protocol (random one-shot draw per seed, paper prediction rule). One job at a time; each job requeues itself at the 6 h limit, skips finished runs and resumes unfinished ones, so a long job needs no babysitting. Times are rough A40 estimates.
 
-**Run first: the lp pseudo-label test** (SPEC "Under test: lp pseudo-labels in training", ~9 h). Its outcome decides whether `adapt.pseudo_label: lp` joins the main configuration before the queue below, since every report run would then need it:
+**Run first: the backbone and lp pseudo-label tests**, seeds 0–2 only (SPEC "Under test: lp pseudo-labels in training"). Its outcome decides whether `adapt.pseudo_label: lp` joins the main configuration before the queue below, since every report run would then need it:
 
 ```bash
-sbatch --export=ALL,CONFIGS="configs/office_a2d_ft.yaml configs/office20_a2d.yaml configs/office20_a2d_lpref.yaml" slurm/run.sbatch
+sbatch --export=ALL,SEEDS="0 1 2",CONFIGS="configs/office_a2d_ft.yaml configs/office20_a2d.yaml configs/office20_a2d_lpref.yaml" slurm/run.sbatch
 ```
 
-- `office_a2d_ft.yaml`: Table 3 A→D with the ResNet-50 **not frozen** (whole network at Adam 1e-4 in both stages, the natural reading of the paper), every other improvement on. It trains its own source model (`runs/office_a2d_ft/`) and is compared seed by seed with the main runs, to measure what freezing alone is worth. Slower than the frozen runs (gradients through the backbone); not timed.
-- `office20_a2d.yaml` against `office20_a2d_lpref.yaml`: the lp pseudo-label test on Table 2. `office20_a2d.yaml` is also job 2's first config, so job 2 will skip it.
+- `SEEDS="0 1 2"`: 3 seeds per config (3 × 3 = 9 adaptation runs), so the comparisons are seed-paired over seeds 0–2 only.
+- `office_a2d_ft.yaml`: Table 3 A→D (|Cs| = 10, |Ct| = 20) with the ResNet-50 **not frozen** (whole network at Adam 1e-4 in both stages, the natural reading of the paper), every other improvement on. It trains its own source model (`runs/office_a2d_ft/`) and is compared seed by seed with main seeds 0–2 (76.3 / 57.7, 69.1 / 49.1, 64.4 / 38.0; mean 69.9 / 48.3 / 92.9), to measure what freezing alone is worth. Slower than the frozen runs (gradients through the backbone); not timed.
+- `office20_a2d.yaml` against `office20_a2d_lpref.yaml`: the lp pseudo-label test on Table 2. `office20_a2d.yaml` is also job 2's first config: job 2 skips seeds 0–2 and runs only seeds 3–4.
 - The Table 3 lp test (`configs/office_a2d_lpref.yaml`, `STAGES=adapt`) is not in this job; run it before making lp the default everywhere.
 
 ```bash
