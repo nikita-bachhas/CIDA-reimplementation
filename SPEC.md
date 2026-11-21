@@ -231,7 +231,20 @@ Seed means, ALL / PRIV / shared, with the per-seed PRIV change from basic:
 - **Re-centring helps bad guides and hurts good ones.** With 3-shot guides, every k-means variant lowers PRIV on average (−2 to −2.5) and `lp` adds only +2.0, with 2 of 5 seeds down. K-means pulls well-placed guides toward the wrong clusters.
 - **Caveat.** The variant was chosen after seeing scores that use labels, on 5 seeds of one task. lp's settings (10 neighbours, alpha 0.99) were not tuned.
 
-Next: use `lp` as the prediction step (transductive, no retraining; the numbers above already are its scores on the evaluation set), then as the pseudo-labeller in the refresh during training. lp's B_t private precision (82.3) is close to basic's (79.5) and below `km` (86.1), so the training gain is not guaranteed. `scripts/posthoc.py` now scores `nearest` / `km` / `km-bal` / `lp` as prediction rules next to the paper's rule, with class-averaged and class-wise output; cluster results pending.
+Next: use `lp` as the prediction step (transductive, no retraining; the numbers above already are its scores on the evaluation set), then as the pseudo-labeller in the refresh during training. lp's B_t private precision (82.3) is close to basic's (79.5) and below `km` (86.1), so the training gain is not guaranteed. 
+
+**lp as the prediction rule** (`scripts/posthoc.py`, logs 56471 main / 56472 rect; ALL / PRIV / shared, class-averaged in brackets). The rect `lp` row reproduces the guide_diag numbers above exactly, as it should (same features, same guides).
+
+| Rule | Main runs | Rect runs |
+| --- | --- | --- |
+| paper (trained classifiers) | 70.3 / 48.5 / 93.4 (72.4 / 51.9) | 70.3 / 50.8 / 91.0 (71.9 / 53.2) |
+| nearest guide | 69.5 / 47.6 / 92.6 | 70.3 / 51.3 / 90.5 |
+| km | 71.9 / 52.4 / 92.5 | 73.6 / 56.8 / 91.3 |
+| km-bal | 72.7 / 56.9 / 89.4 | 73.4 / 60.0 / 87.7 |
+| **lp** | **75.2 / 58.0 / 93.4 (76.9 / 60.6)** | **75.8 / 62.3 / 90.1 (76.9 / 64.2)** |
+
+- `lp` raises PRIV on every seed of both configs (main +3.1 to +17.8, rect +3.7 to +19.6), without losing shared accuracy on the main runs.
+- Class-wise (main, paper → lp): speaker 21.6 → 44.8, punchers 32.9 → 54.1, printer 48.6 → 60.0, stapler 55.0 → 66.0. Not fixed: desktop_computer (44.0 → 40.0), tape_dispenser (39.0 → 41.0), projector (42.7 → 44.5), and phone stays at 0% on seeds 3 and 4 under both the paper rule and `lp`. Those errors are in the features or the one-shot guide itself, not in how labels are assigned.
 
 **Per-image or class-averaged ALL / PRIV?** The paper reports "mean target accuracy over Ct (ALL) and C′t (PRIV)" and does not say how it averages. Supp §4 computes its precision class-averaged, so the paper's ALL / PRIV may be class-averaged too. Our runs, both readings (`final_metrics.json`, epoch 60, mean of 5 seeds):
 
@@ -304,9 +317,24 @@ Per seed on the final features, own shot → picks, PRIV: nearest 57.9 → 69.4,
 - **The picks are better guides than any of the five random draws** on identical features (start PRIV 38.0 against 23–26), and still better on the final features, which were trained around each seed's own shot and so favour it.
 - **They cut the private → shared leak** (nearest, final: priv_as_shared 24.8 → 9.6) and cost shared accuracy (92.6 → 87.1).
 - **Not uniform across classes.** At the start, the picks help phone, scissors, speaker and tape_dispenser most; the printer pick is weak (10% at the start, against 0–60% for the random shots).
-- **What it does not show:** whether training with the picks (B_t, Lc, La1, La2 built from them) ends higher. That needs the runs below.
+**Training results** (`configs/office_a2d_fixedshot.yaml`, job 56473, `runs/office_a2d/adapt_1shot_abl-none_fixedshot_seed0-4`, epoch 60, paper prediction rule, scored on the usual 317 images):
 
-**Runs:** `sbatch slurm/run.sbatch configs/office_a2d_fixedshot.yaml` (source reused, seeds 0–4) → `runs/office_a2d/adapt_1shot_abl-none_fixedshot_seed<k>`. Compare seed by seed with the main runs, and use the spread over seeds as the RNG-only spread.
+| Seed | Main (random shot): ALL / PRIV / shared | Picks: ALL / PRIV / shared | Picks, class-averaged ALL / PRIV | PRIV change |
+| --- | --- | --- | --- | --- |
+| 0 | 76.3 / 57.7 / 96.1 | 82.0 / 69.9 / 94.8 | 83.6 / 72.8 | +12.3 |
+| 1 | 69.1 / 49.1 / 90.3 | 80.4 / 67.5 / 94.2 | 81.7 / 69.6 | +18.4 |
+| 2 | 64.4 / 38.0 / 92.2 | 84.9 / 74.2 / 96.1 | 86.1 / 76.3 | +36.2 |
+| 3 | 72.9 / 56.4 / 90.3 | 82.0 / 69.3 / 95.5 | 83.5 / 72.1 | +12.9 |
+| 4 | 68.8 / 41.1 / 98.1 | 80.1 / 68.1 / 92.9 | 81.7 / 70.8 | +27.0 |
+| **Mean ± sd** | 70.3 ± 4.5 / 48.5 ± 8.8 / 93.4 ± 3.5 | **81.9 ± 1.9 / 69.8 ± 2.7 / 94.7 ± 1.2** | **83.3 / 72.3** | **+21.3** |
+
+- **Large gain on every seed:** ALL +5.7 to +20.5, PRIV +12.3 to +36.2, shared unchanged on average (+1.3). Unlike the no-training pre-check, shared accuracy does not drop.
+- **The private → shared leak shrinks:** priv_as_shared 15.6 against 26.4; shared_as_priv 1.0 against 6.2.
+- **Against the paper (different protocol, so not a like-for-like comparison):** ALL 81.9 is above its 72.2; class-averaged PRIV 72.3 matches its 72.6, per-image PRIV 69.8 is just below.
+- **No late drift.** Seed-mean PRIV at epochs 5 / 10 / 20 / 30 / 60: 56.1 / 67.9 / 71.4 / 71.8 / 69.8; the peak (epoch 26: ALL 83.8, PRIV 72.8) is within 2 points of the last epoch. B_t private precision is 100% from epoch 5 on (main runs: 93 → 70). With clean B_t, La1 / Lc reinforce correct labels instead of errors.
+- **The one-shot image drives most of the seed spread.** With the shots fixed, only the training RNG varies, and PRIV sd is 2.7 (67.5–74.2) against 8.8 (38.0–57.7) with a random shot per seed. This is measured for one good set of shots; whether a poor fixed set is equally stable is not tested.
+- **Not yet run:** posthoc / confusion on these runs (class-wise accuracy; whether `lp` adds anything on top).
+- **Reading.** One labelled image per class is enough for the method to reach the paper's private-class accuracy if that image is typical of its class. Which images get drawn is therefore the largest factor we have found in the gap between our random-shot runs and the paper. How the paper's 5 random draws reach 72.6 is still unexplained; we have not tested whether their draws, split or evaluation differ from ours.
 
 ## Investigated, not adopted
 

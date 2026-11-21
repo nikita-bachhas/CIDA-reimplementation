@@ -9,6 +9,7 @@ This is a from-scratch PyTorch reimplementation of *Class-Incremental Domain Ada
 |---|---|---|---|
 | Paper | 72.2 | 72.6 | – |
 | Our main runs | 70.3 ± 4.5 | 48.5 ± 8.8 | 93.4 ± 3.5 |
+| Hand-picked one-shot images (not the paper's protocol) | 81.9 ± 1.9 | 69.8 ± 2.7 | 94.7 ± 1.2 |
 
 The paper doesn't report shared accuracy; its numbers imply about 71.8. Our ALL matches the paper, but the shared/private split is very different: we are far too good on shared classes and far too weak on private ones.
 
@@ -123,19 +124,16 @@ What the class-wise table shows:
 
 ## 8. Mistakes to avoid repeating
 - I first said the PRIV gap was "just the operating point" of the private/shared boundary. The offset sweep disproved that: boundary moves lose accuracy.
-- I said the one-shot draw drives the seed spread. That isn't supported, because seed confounds shot and RNG, and start-stage nearest-guide PRIV is flat (27–29) across seeds. The class-wise flips repeating across configs is suggestive, but it isn't proof either.
+- I said the one-shot draw drives the seed spread before there was evidence for it (seed confounds shot and RNG). The fixed-shot runs (2026-11-21) now support it: with the shots fixed, PRIV sd falls from 8.8 to 2.7. The lesson stands: say "not yet shown" until an experiment separates the causes.
 - The user once suspected the rect runs were just the baseline. Check with evidence before agreeing or disagreeing: config path, logged `rect_w0`, timestamps.
 - Shell heredocs with embedded Python failed in this environment. Write scripts to the scratchpad, or use the Edit tool.
 
 ## 9. Open decisions and next steps
 1. ~~Record section 7 in SPEC.md~~ — done (`c719a33`).
-2. **lp as the prediction step: implemented, cluster run pending.** `scripts/posthoc.py` now scores `nearest` / `km` / `km-bal` / `lp` (same functions as guide_diag) next to the paper's rule, with per-seed, class-averaged and class-wise output. Run on the cluster:
-   - `sbatch slurm/posthoc.sbatch runs/office_a2d` (main runs)
-   - `sbatch slurm/posthoc.sbatch runs/office_a2d --runs adapt_1shot_abl-none_rect`
-   Expect the rect `lp` row to reproduce guide_diag's 75.8 / 62.3 / 90.1 (same features and guides). Then check whether lp fixes speaker / projector and the punchers–stapler–tape_dispenser triangle, and record it in SPEC.
-2b. **Hand-picked one-shot images: set up, cluster run pending** (SPEC "Under test: hand-picked one-shot images"). The user asked for the best-looking DSLR image per private class. `adapt.fixed_shots` + `configs/office_a2d_fixedshot.yaml`; `scripts/contact_sheet.py` makes the review sheets (into the gitignored `oneshot_review/`); `scripts/shot_check.py` compares guides without training. The laptop now has `data/office31/` (all three domains, copied from the cluster), so image-only scripts run locally (CPU PyTorch, no CUDA). Run `sbatch slurm/run.sbatch configs/office_a2d_fixedshot.yaml`, then `aggregate.py`, `posthoc.sbatch`, `confusion.sbatch` with `--runs adapt_1shot_abl-none_fixedshot`. It is not the paper's protocol: report it separately from Table 3. With the shots fixed, the seed spread is the RNG alone, which also answers item 4.
+2. **lp as the prediction step: done** (logs 56471 main, 56472 rect; SPEC "Other label-free placements"). Rect `lp` reproduces guide_diag exactly (75.8 / 62.3 / 90.1); main `lp` 75.2 / 58.0 / 93.4. PRIV up on 5/5 seeds in both. Helps speaker, punchers, printer; does not fix desktop_computer, tape_dispenser, or phone in seeds 3–4 (0% under the paper rule and lp).
+2b. **Hand-picked one-shot images: trained** (job 56473, `logs/cida_56473.out`; SPEC "Under test: hand-picked one-shot images"). `configs/office_a2d_fixedshot.yaml`: **ALL 81.9 ± 1.9 / PRIV 69.8 ± 2.7 / shared 94.7; class-averaged 83.3 / 72.3**, against 70.3 / 48.5 / 93.4 for the main runs (PRIV +12 to +36 on every seed). Not the paper's protocol (picked by eye from all labelled images): report separately from Table 3. Still to run on the cluster: `posthoc.sbatch` and `confusion.sbatch` with `--runs adapt_1shot_abl-none_fixedshot` for the class-wise picture. Tools: `adapt.fixed_shots`, `scripts/contact_sheet.py` (sheets into the gitignored `oneshot_review/`), `scripts/shot_check.py`. The laptop has `data/office31/` (all three domains), CPU-only PyTorch.
 3. **Then: lp in the training refresh.** Use it as the pseudo-labeller for B_t / Lc / La1, which needs retraining. Note that lp's B_t private precision (82.3) is close to basic's (79.5), so a training gain isn't guaranteed.
-4. **Separating shot from RNG.** Add a way to fix the one-shot draw while changing the training seed (or vice versa) to settle what drives the seed spread.
+4. **Separating shot from RNG: partly answered by 2b.** With the shots fixed, PRIV spread over seeds is sd 2.7 (67.5–74.2), against 8.8 (38.0–57.7) with a random shot per seed, so the shot drives most of the spread. Measured for one (good) set of shots only; a fixed *random* set (e.g. seed 2's shots with seeds 0–4) would show whether bad shots are also stable.
 5. **Still to look at:**
    - The desktop_computer / speaker / projector cluster: inspect the DSLR images, which may be ambiguous.
    - In the rect runs, desktop_computer loses about 43% of its images to *other shared* classes. Not explained yet.
