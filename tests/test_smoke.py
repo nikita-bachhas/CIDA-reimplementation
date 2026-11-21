@@ -239,3 +239,31 @@ def test_shot_check_script(out_dir, tmp_path, capsys):
     main([str(out_dir), "--config", str(cfg), "--num_workers", "0"])
     out = capsys.readouterr().out
     assert "fix avg" in out and "rnd avg" in out and "seed0fx" in out
+
+
+OFFICE31_CLASSES = [
+    "back_pack", "bike", "bike_helmet", "bookcase", "bottle", "calculator", "desk_chair", "desk_lamp",
+    "desktop_computer", "file_cabinet", "headphones", "keyboard", "laptop_computer", "letter_tray",
+    "mobile_phone", "monitor", "mouse", "mug", "paper_notebook", "pen", "phone", "printer", "projector",
+    "punchers", "ring_binder", "ruler", "scissors", "speaker", "stapler", "tape_dispenser", "trash_can"]
+
+
+@pytest.mark.parametrize("name, n_shared, n_private", [
+    ("office_a2d", 10, 10), ("office_a2d_fixedshot", 10, 10),
+    ("office20_a2d", 20, 11), ("office20_a2d_fixedshot", 20, 11), ("office20_w2d_fixedshot", 20, 11)])
+def test_office_configs(tmp_path, name, n_shared, n_private):
+    """Class splits of the Office configs, and fixed_shots resolving to one file per private class."""
+    from PIL import Image
+    from cida.common import load_config
+    from cida.data import build_domain, fixed_labelled
+    cfg = load_config(Path(CFG).parent / f"{name}.yaml", [f"data_root={tmp_path}"])
+    root = tmp_path / cfg["domain_paths"][cfg["tgt_domain"]]
+    for c in OFFICE31_CLASSES:
+        (root / c).mkdir(parents=True)
+        for k in range(1, 26):
+            Image.new("RGB", (8, 8)).save(root / c / f"frame_{k:04d}.jpg")
+    ds = build_domain(cfg, cfg["tgt_domain"], "all", False)
+    assert (ds.n_shared, ds.n_private) == (n_shared, n_private)
+    if cfg["adapt"].get("fixed_shots"):
+        lab = fixed_labelled(ds, range(n_shared, n_shared + n_private), cfg["adapt"]["fixed_shots"])
+        assert all(len(v) == 1 for v in lab.values()) and len(lab) == n_private

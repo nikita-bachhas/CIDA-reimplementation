@@ -81,7 +81,33 @@ Run one job at a time (QoS `normal` allows one GPU job). `run.sbatch` trains the
 | **Hand-picked one-shot images** (not the paper's protocol) | `sbatch slurm/run.sbatch configs/office_a2d_fixedshot.yaml` | **ALL 81.9 ± 1.9 / PRIV 69.8 ± 2.7 / shared 94.7; class-averaged 83.3 / 72.3** |
 | Vanilla baseline | append `preset=vanilla` to any command | section 3 |
 
-The other Office tasks (`configs/office_{a2w,d2a,d2w,w2a,w2d}.yaml`), the Table 2 setting (`configs/office20_*.yaml`) and VisDA (`configs/visda_sy2re.yaml`) run the same way; we have only run them with `preset=vanilla` so far.
+The other Office tasks (`configs/office_{a2w,d2a,d2w,w2a,w2d}.yaml`) and VisDA (`configs/visda_sy2re.yaml`) run the same way; we have only run them with `preset=vanilla` so far.
+
+### Table 2 setting: 20 shared + 11 private classes
+
+`configs/office20_*.yaml`: |Cs| = 20 (indices 0–19), |Ct| = 31 (the 20 shared + private indices 20–30, i.e. Table 3's 10 private classes plus trash_can). All 31 Office classes are used. Images per task:
+
+| Task | Source (20 classes) | Target shared / private |
+|---|---|---|
+| A→D, W→D | Amazon 1805 / Webcam 528 | DSLR 310 / 188 |
+| A→W, D→W | Amazon 1805 / DSLR 310 | Webcam 528 / 267 |
+| D→A, W→A | DSLR 310 / Webcam 528 | Amazon 1805 / 1012 |
+
+The main configuration (section 4) applies unchanged. Each task trains its own 20-class source model the first time. `CONFIGS` runs several configs in one job, one after another, which keeps to one job in the queue:
+
+```bash
+# A->D: random one-shot draws (the paper's protocol), then the hand-picked images; the second reuses the source model
+sbatch --export=ALL,CONFIGS="configs/office20_a2d.yaml configs/office20_a2d_fixedshot.yaml" slurm/run.sbatch
+# W->D, the other DSLR-target task, with the same picks
+sbatch --export=ALL,CONFIGS="configs/office20_w2d.yaml configs/office20_w2d_fixedshot.yaml" slurm/run.sbatch
+# all six tasks, random draws
+sbatch --export=ALL,CONFIGS="configs/office20_a2d.yaml configs/office20_a2w.yaml configs/office20_d2a.yaml configs/office20_d2w.yaml configs/office20_w2a.yaml configs/office20_w2d.yaml" slurm/run.sbatch
+```
+
+- Paper (Table 2, ALL / PRIV): A→D 73.3 / 73.1, A→W 63.6 / 62.6, D→A 64.1 / 64.3, D→W 80.3 / 79.4, W→A 63.7 / 62.8, W→D 89.5 / 88.4. Our vanilla baseline is in SPEC.md; the main configuration has not been run in this setting yet.
+- Hand-picked configs exist only for the DSLR-target tasks (`office20_a2d_fixedshot.yaml`, `office20_w2d_fixedshot.yaml`): the same DSLR picks as Table 3 plus `trash_can: frame_0004.jpg`. Webcam and Amazon targets would need their own picks.
+- Amazon-target tasks adapt on 2817 images and take much longer per seed; `run.sbatch` requeues itself at the 6 h limit and resumes from the checkpoint.
+- Results: `python scripts/aggregate.py runs/` (it lists the paper's Table 2 numbers next to ours); class-wise: `sbatch slurm/confusion.sbatch runs/office20_a2d [--runs adapt_1shot_abl-none_fixedshot]`.
 
 **Post-hoc prediction rules (no retraining)** on finished runs, `scripts/posthoc.py`. Label propagation from the guides (`lp`) is the best label-free rule:
 

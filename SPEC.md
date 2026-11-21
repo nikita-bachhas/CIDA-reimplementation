@@ -317,6 +317,8 @@ Per seed on the final features, own shot → picks, PRIV: nearest 57.9 → 69.4,
 - **The picks are better guides than any of the five random draws** on identical features (start PRIV 38.0 against 23–26), and still better on the final features, which were trained around each seed's own shot and so favour it.
 - **They cut the private → shared leak** (nearest, final: priv_as_shared 24.8 → 9.6) and cost shared accuracy (92.6 → 87.1).
 - **Not uniform across classes.** At the start, the picks help phone, scissors, speaker and tape_dispenser most; the printer pick is weak (10% at the start, against 0–60% for the random shots).
+**Table 2 setting.** `configs/office20_a2d_fixedshot.yaml` and `office20_w2d_fixedshot.yaml` use the same DSLR picks plus `trash_can: frame_0004.jpg` (a single dark bin with a liner, the most common kind; 7 of 15 images are dark lined bins, 6 blue recycling bins). Not run yet.
+
 **Training results** (`configs/office_a2d_fixedshot.yaml`, job 56473, `runs/office_a2d/adapt_1shot_abl-none_fixedshot_seed0-4`, epoch 60, paper prediction rule, scored on the usual 317 images):
 
 | Seed | Main (random shot): ALL / PRIV / shared | Picks: ALL / PRIV / shared | Picks, class-averaged ALL / PRIV | PRIV change |
