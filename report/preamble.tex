@@ -1,0 +1,105 @@
+%% This file contains a number of tweaks that are typically applied to the main document.
+%% They are not enabled by default, but can be enabled by uncommenting the relevant lines.
+
+
+%%
+%% Official support for 2-column teaser figure
+%%
+\usepackage{cuted} %< for strip environment
+
+%%
+%% For auto-referencing of figures (see fig/teaser.tex and \label{} therein) 
+%%
+\usepackage{currfile} %< for \currfilebase macro
+
+%%
+%% caption and (global) spacing overrides
+%%
+\usepackage{caption} %< for "\captionof" commands (teaser)
+% \setlength{\abovecaptionskip}{.5em} % space above caption
+% \setlength{\belowcaptionskip}{1em} % space below caption
+
+%%
+%% Inline annotations; for predefined colors, refer to "dvipsnames" in the xcolor package:
+%% https://tinyurl.com/overleaf-colors
+%%
+\newcommand{\red}[1]{{\color{red}#1}}
+\newcommand{\todo}[1]{{\color{red}#1}}
+\newcommand{\TODO}[1]{\textbf{\color{red}[TODO: #1]}}
+%%
+%% Disable for camera ready / submission by uncommenting these lines:
+%%
+% \renewcommand{\TODO}[1]{}
+% \renewcommand{\todo}[1]{#1}
+
+%%
+%% Work harder in optimizing text layout. Typically shrinks text by 1/6 of page, enable
+%% it at the very end of the writing process, when you are just above the page limit.
+%%
+% \usepackage{microtype}
+
+%%
+%% Fine-tune paragraph spacing.
+%%
+% \renewcommand{\paragraph}[1]{\vspace{.5em}\noindent\textbf{#1.}}
+
+%%
+%% Globally adjusts space between figure and caption.
+%%
+% \setlength{\abovecaptionskip}{.5em}
+
+%%
+%% Allows "the use of \paper to refer to the project name"
+%% with automatic management of space at the end of the word.
+%%
+% \usepackage{xspace}
+% \newcommand{\paper}{ProjectName\xspace}
+
+%%
+%% Commonly used math definitions.
+%%
+% \DeclareMathOperator*{\argmin}{arg\,min}
+% \DeclareMathOperator*{\argmax}{arg\,max}
+
+%%
+%% Tighten underline.
+%%
+% \usepackage{soul}
+% \setuldepth{foobar}
+
+%%
+%% Reconfigure paragraph (tweaks spacing)
+%%
+
+
+%%
+%% ----------------------------------------------------------------------------
+%% Additions for the CIDA report (everything above is the unchanged author-kit preamble).
+%% cvpr.sty already loads times, amsmath, amssymb, graphicx, xcolor, booktabs,
+%% natbib, caption, enumitem and cleveref, so they are not repeated here.
+%% ----------------------------------------------------------------------------
+%%
+\usepackage[T1]{fontenc} %< Times (ptm) also under XeTeX/tectonic; harmless under pdfLaTeX
+\usepackage{bm}         %< bold math symbols
+\usepackage{tabularx}   %< Table 2
+\usepackage{tikz}       %< Figure 1 (fig/arch.tex)
+\usetikzlibrary{positioning,arrows.meta,calc,fit,backgrounds,shapes.geometric}
+
+%% Notation
+\newcommand{\Cs}{\mathcal{C}_s}
+\newcommand{\Ct}{\mathcal{C}_t}
+\newcommand{\Cp}{\mathcal{C}'_t}
+\newcommand{\U}{\mathcal{U}}
+\newcommand{\V}{\mathcal{V}}
+\newcommand{\Ps}{\mathcal{P}_s}
+\newcommand{\Pt}{\mathcal{P}_t}
+\newcommand{\Bt}{\mathcal{B}_t}
+\newcommand{\Ds}{\mathcal{D}_s}
+\newcommand{\Dt}{\mathcal{D}_t}
+\newcommand{\lce}{\ell_{\mathrm{ce}}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\vg}{\mathbf{v}_g}
+\newcommand{\x}{\mathbf{x}}
+\newcommand{\uu}{\mathbf{u}}
+\newcommand{\fv}{\mathbf{v}}
+\newcommand{\unk}{\varnothing}

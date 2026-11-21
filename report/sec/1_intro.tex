@@ -1,0 +1,32 @@
+\section{Introduction}\label{sec:intro}
+
+A deployed classifier often meets data that differ from its training data, and two kinds of change can happen at once.
+The images may look different, which is known as \emph{domain shift}.
+The new domain may also contain classes the model has never seen, which we call \emph{target-private classes}.
+For example, an object recogniser trained on city scenes may be deployed in rural areas, where both the scenes and the objects differ~\citep{kundu2020cida}.
+
+Existing methods handle only one of these changes.
+Unsupervised domain adaptation (DA) aligns the two domains, but it assumes that both share one label set~\citep{ganin2016dann}.
+Open-set and universal DA methods do detect new classes, but they merge all of them into a single ``unknown'' class~\citep{saito2018osbp,liu2019sta,you2019uan}.
+Class-incremental (CI) learning adds new classes over time, yet it ignores domain shift and usually needs labelled data or the source data~\citep{li2017lwf,rebuffi2017icarl,castro2018e2e,dhar2019lwm}.
+
+Kundu et~al.~\citep{kundu2020cida} define the CIDA setting to cover both changes under three constraints.
+The first is that the source data are not available during adaptation, which makes the method \emph{source-free}.
+The second is that the target images are unlabelled.
+The third is that each target-private class has exactly one labelled image, which the paper calls the \emph{one-shot} setting.
+Under these constraints, the goal is to classify both the shared and the new classes in the target domain.
+
+Their method works in two stages.
+The first stage trains the source model so that each class forms a compact Gaussian cluster in feature space.
+It also trains the classifier on synthetic negative samples, which reserves room for classes the model has not yet seen.
+The second stage adapts the model in a new feature space for the target, where learnable class centres called \emph{guides} provide the pseudo-labels.
+
+We chose this paper under Option~1 of the assignment, which asks for the reimplementation of a paper without public code.
+CIDA was published at ECCV 2020, and its authors did not release their code.
+Our work makes four contributions.
+\begin{itemize}
+  \item \textbf{An implementation from scratch.} It has approximately 940 lines of Python for the method and 410 for analysis tools, not counting blank and comment lines. It also comes with 23 tests and job scripts for a SLURM cluster.
+  \item \textbf{A reproduction of the method as written.} A configuration preset switches off all of our changes, so we can run the method exactly as the paper describes it. We use this reproduction to locate where accuracy is lost.
+  \item \textbf{Four changes to the method.} Each change addresses one cause of the accuracy loss (\cref{sec:changes}).
+  \item \textbf{Checks on unclear parts of the paper.} We list the settings the paper leaves open and three inconsistencies in it. The most important is a $3\sigma$ rule for negative samples that fails in high dimensions (\cref{sec:inconsistencies}).
+\end{itemize}

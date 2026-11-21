@@ -1,0 +1,69 @@
+% Figure 1: CIDA architecture (simplified from docs/cida_architecture.drawio).
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[
+  font=\small,
+  >={Stealth[length=2mm]},
+  net/.style={draw, rounded corners=2pt, minimum width=9mm, minimum height=6mm, fill=blue!10},
+  frz/.style={draw, dashed, rounded corners=2pt, minimum width=9mm, minimum height=6mm, fill=gray!20},
+  sp/.style={draw, ellipse, minimum width=15mm, minimum height=10mm, fill=orange!12},
+  io/.style={inner sep=1pt, font=\footnotesize, align=center},
+  loss/.style={font=\footnotesize, text=red!70!black},
+  note/.style={font=\scriptsize, text=black!70},
+  ttl/.style={font=\small\bfseries, anchor=west},
+  ar/.style={->, thick},
+]
+% ---------------------------------------------------------------- (a) Stage 1
+\node[ttl] at (-0.3,2.05) {(a) Stage 1: source training};
+\node[io] (xs) at (0,0) {$\x_s$};
+\node[net] (fs) at (1.1,0) {$f_s$};
+\node[sp] (U) at (2.75,0) {$\U$};
+\node[note] at (2.75,-0.72) {prototypes $\Ps^c$, $\Ps$};
+\node[net] (gs) at (4.4,0) {$g_s$};
+\node[io] (os) at (5.55,0) {$\Cs\cup\{\unk\}$};
+\node[io] (neg) at (2.75,-1.35) {negatives $\uu_n\sim\Ps$, label $\unk$};
+\draw[ar] (xs) -- (fs);
+\draw[ar] (fs) -- (U);
+\draw[ar] (U) -- (gs);
+\draw[ar] (gs) -- (os);
+\draw[ar] (neg.east) -| (gs.south);
+\node[loss, above=1mm of U] {$\mathcal{L}_{s1}$};
+\node[loss, above=1mm of gs] {$\mathcal{L}_{s2}$};
+
+% divider
+\draw[black!30, dashed] (6.45,-1.6) -- (6.45,2.2);
+
+% ---------------------------------------------------------------- (b) Stage 2
+\begin{scope}[xshift=7.6cm]
+\node[ttl] at (-0.9,2.05) {(b) Stage 2: source-free adaptation};
+\node[io] (px) at (0,0.95) {proxy-source\\$\uu_s^c\sim\Ps^c$};
+\node[net] (fe) at (1.5,0.95) {$f_e$};
+\node[io] (xt) at (0,-0.45) {$\x_t$, one-shot $\tilde{\x}_t^c$};
+\node[net] (ft) at (1.5,-0.95) {$f_t$};
+\node[note] at (1.5,-1.45) {initialised from $f_s$};
+\node[sp, minimum width=17mm, minimum height=13mm, align=center] (V) at (3.3,0.0) {$\V$\\[-1pt]{\scriptsize guides $\vg^c$}};
+\node[net] (fd) at (5.0,0.95) {$f_d$};
+\node[frz] (gs2) at (6.2,0.95) {$g_s$};
+\node[note] at (6.2,0.43) {frozen};
+\node[net] (gt) at (5.6,-0.95) {$g_t$};
+\node[io] (yh) at (8.3,0.0) {$\hat{y}$\\{\scriptsize $|\Ct|$ logits}};
+\draw[ar] (px) -- (fe);
+\draw[ar] (fe.east) -- (V.north west);
+\draw[ar] (xt.south) |- (ft.west);
+\draw[ar] (ft.east) -- (V.south west);
+\draw[ar] (V.north east) -- (fd.west);
+\draw[ar] (fd) -- (gs2);
+\draw[ar] (V.south east) -- (gt.west);
+\draw[ar] (gs2.east) -- node[above, note, pos=0.55] {$\Cs$} (yh.north west);
+\draw[ar] (gt.east) -- node[below, note, pos=0.55] {$\Cp$} (yh.south west);
+\node[loss, above=1mm of fd] {$\mathcal{L}_{r2}$: $f_d(f_e(\uu))\approx\uu$};
+\node[loss, above=0.5mm of V] {$\mathcal{L}_{a1}$, $\mathcal{L}_{a2}$};
+\node[loss, below=0.5mm of yh] {$\mathcal{L}_{r1}$, $\mathcal{L}_{c}$};
+\end{scope}
+\end{tikzpicture}
+\caption{CIDA architecture. The source data never enter Stage~2, where Gaussian prototypes replace them.
+(a)~Stage~1 trains $f_s$ and $g_s$. $\mathcal{L}_{s1}$ makes each class a compact cluster around its prototype, and $\mathcal{L}_{s2}$ teaches $g_s$ to assign synthetic negatives to the extra class $\unk$.
+(b)~Stage~2 trains a target extractor $f_t$, a classifier $g_t$ for the new classes and two projections $f_e$ and $f_d$ between $\U$ and $\V$, while $g_s$ stays frozen.
+Red labels show where each loss is computed, and \cref{tab:losses} lists the networks each loss updates.}
+\label{fig:arch}
+\end{figure*}
