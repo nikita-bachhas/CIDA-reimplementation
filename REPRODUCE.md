@@ -130,10 +130,12 @@ Main configuration, i.e. all five improvements from section 4 on (the configs be
 **Run first: the lp pseudo-label test** (SPEC "Under test: lp pseudo-labels in training", ~9 h). Its outcome decides whether `adapt.pseudo_label: lp` joins the main configuration before the queue below, since every report run would then need it:
 
 ```bash
-sbatch --export=ALL,CONFIGS="configs/office_a2d_lpref.yaml configs/office20_a2d.yaml configs/office20_a2d_lpref.yaml" slurm/run.sbatch
+sbatch --export=ALL,CONFIGS="configs/office_a2d_ft.yaml configs/office20_a2d.yaml configs/office20_a2d_lpref.yaml" slurm/run.sbatch
 ```
 
-(`office20_a2d.yaml` here is also job 2's first config, so job 2 will skip it.)
+- `office_a2d_ft.yaml`: Table 3 A→D with the ResNet-50 **not frozen** (whole network at Adam 1e-4 in both stages, the natural reading of the paper), every other improvement on. It trains its own source model (`runs/office_a2d_ft/`) and is compared seed by seed with the main runs, to measure what freezing alone is worth. Slower than the frozen runs (gradients through the backbone); not timed.
+- `office20_a2d.yaml` against `office20_a2d_lpref.yaml`: the lp pseudo-label test on Table 2. `office20_a2d.yaml` is also job 2's first config, so job 2 will skip it.
+- The Table 3 lp test (`configs/office_a2d_lpref.yaml`, `STAGES=adapt`) is not in this job; run it before making lp the default everywhere.
 
 ```bash
 # 0. Old Digits runs predate the deterministic pipeline: move them aside so they are re-run

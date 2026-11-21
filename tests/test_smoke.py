@@ -266,7 +266,7 @@ OFFICE31_CLASSES = [
 @pytest.mark.parametrize("name, n_shared, n_private", [
     ("office_a2d", 10, 10), ("office_a2d_fixedshot", 10, 10),
     ("office20_a2d", 20, 11), ("office20_a2d_fixedshot", 20, 11), ("office20_w2d_fixedshot", 20, 11),
-    ("office_a2d_lpref", 10, 10), ("office20_a2d_lpref", 20, 11)])
+    ("office_a2d_lpref", 10, 10), ("office20_a2d_lpref", 20, 11), ("office_a2d_ft", 10, 10)])
 def test_office_configs(tmp_path, name, n_shared, n_private):
     """Class splits of the Office configs, and fixed_shots resolving to one file per private class."""
     from PIL import Image
