@@ -396,7 +396,7 @@ The log adds `pl_acc_nearest` (what nearest-guide labelling would have scored) n
 
 **Test** (random shots, seed-paired; adopt only if PRIV rises on most seeds in both settings without a large shared drop): `configs/office_a2d_lpref.yaml` against the main runs (70.3 / 48.5 / 93.4), and `configs/office20_a2d_lpref.yaml` against `configs/office20_a2d.yaml`. Not yet run. The first test job runs only the Table 2 pair; the Table 3 one is deferred.
 
-**Backbone freezing, isolated** (`configs/office_a2d_ft.yaml`, in the same job). The 49.8 → 70.3 jump on A→D (row "ResNet backbone frozen" above) came from freezing *and* the head fix together. This config keeps the fixed head and every other change of the main configuration, but trains the whole ResNet-50 at Adam 1e-4 in both stages (its own source model), so the seed-paired difference with the main runs (70.3 / 48.5 / 93.4) is the effect of freezing alone. Not yet run.
+**Backbone freezing, isolated** (`configs/office20_a2d_ft.yaml`, Table 2 setting, in the same job). The 49.8 → 70.3 jump on Table 3 A→D (row "ResNet backbone frozen" above) came from freezing *and* the head fix together. This config keeps the fixed head and every other change of the main configuration, but trains the whole ResNet-50 at Adam 1e-4 in both stages (its own 20-class source model), so the seed-paired difference with `configs/office20_a2d.yaml` (frozen, same job, seeds 0–2) is the effect of freezing alone. Not yet run.
 
 ## Investigated, not adopted
 

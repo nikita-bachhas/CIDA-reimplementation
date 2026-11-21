@@ -130,12 +130,13 @@ Main configuration, i.e. all five improvements from section 4 on (the configs be
 **Run first: the backbone and lp pseudo-label tests**, seeds 0–2 only (SPEC "Under test: lp pseudo-labels in training"). Its outcome decides whether `adapt.pseudo_label: lp` joins the main configuration before the queue below, since every report run would then need it:
 
 ```bash
-sbatch --export=ALL,SEEDS="0 1 2",CONFIGS="configs/office_a2d_ft.yaml configs/office20_a2d.yaml configs/office20_a2d_lpref.yaml" slurm/run.sbatch
+sbatch --export=ALL,SEEDS="0 1 2",CONFIGS="configs/office20_a2d_ft.yaml configs/office20_a2d.yaml configs/office20_a2d_lpref.yaml" slurm/run.sbatch
 ```
 
 - `SEEDS="0 1 2"`: 3 seeds per config (3 × 3 = 9 adaptation runs), so the comparisons are seed-paired over seeds 0–2 only.
-- `office_a2d_ft.yaml`: Table 3 A→D (|Cs| = 10, |Ct| = 20) with the ResNet-50 **not frozen** (whole network at Adam 1e-4 in both stages, the natural reading of the paper), every other improvement on. It trains its own source model (`runs/office_a2d_ft/`) and is compared seed by seed with main seeds 0–2 (76.3 / 57.7, 69.1 / 49.1, 64.4 / 38.0; mean 69.9 / 48.3 / 92.9), to measure what freezing alone is worth. Slower than the frozen runs (gradients through the backbone); not timed.
-- `office20_a2d.yaml` against `office20_a2d_lpref.yaml`: the lp pseudo-label test on Table 2. `office20_a2d.yaml` is also job 2's first config: job 2 skips seeds 0–2 and runs only seeds 3–4.
+- All three configs are the Table 2 setting: |Cs| = 20 (indices 0–19), |Ct| = 31 (20 shared + 11 private, indices 20–30). Source Amazon 1,805 images; target DSLR 498, evaluated on 487.
+- `office20_a2d_ft.yaml` against `office20_a2d.yaml`: the ResNet-50 **not frozen** (whole network at Adam 1e-4 in both stages, the natural reading of the paper) against frozen, every other improvement on in both, so the seed-paired difference is what freezing alone is worth. It trains its own 20-class source model (`runs/office20_a2d_ft/`). Slower than the frozen runs (gradients through the backbone); not timed.
+- `office20_a2d.yaml` against `office20_a2d_lpref.yaml`: the lp pseudo-label test. `office20_a2d.yaml` is also job 2's first config: job 2 skips seeds 0–2 and runs only seeds 3–4.
 - The Table 3 lp test (`configs/office_a2d_lpref.yaml`, `STAGES=adapt`) is not in this job; run it before making lp the default everywhere.
 
 ```bash
