@@ -317,7 +317,26 @@ Per seed on the final features, own shot → picks, PRIV: nearest 57.9 → 69.4,
 - **The picks are better guides than any of the five random draws** on identical features (start PRIV 38.0 against 23–26), and still better on the final features, which were trained around each seed's own shot and so favour it.
 - **They cut the private → shared leak** (nearest, final: priv_as_shared 24.8 → 9.6) and cost shared accuracy (92.6 → 87.1).
 - **Not uniform across classes.** At the start, the picks help phone, scissors, speaker and tape_dispenser most; the printer pick is weak (10% at the start, against 0–60% for the random shots).
-**Table 2 setting.** `configs/office20_a2d_fixedshot.yaml` and `office20_w2d_fixedshot.yaml` use the same DSLR picks plus `trash_can: frame_0004.jpg` (a single dark bin with a liner, the most common kind; 7 of 15 images are dark lined bins, 6 blue recycling bins). Not run yet.
+**Table 2 setting.** `configs/office20_a2d_fixedshot.yaml` and `office20_w2d_fixedshot.yaml` use the same DSLR picks plus `trash_can: frame_0004.jpg` (a single dark bin with a liner, the most common kind; 7 of 15 images are dark lined bins, 6 blue recycling bins).
+
+*A→D results* (job 56508, `runs/office20_a2d/adapt_1shot_abl-none_fixedshot_seed0-4`, epoch 60, 487 evaluation images: 310 shared + 177 private; 20-class source model, source accuracy 98.3). No random-shot main-configuration runs exist for this setting, so the effect of the picks here is not measured.
+
+| Seed | ALL / PRIV / shared | ALL / PRIV (cls) | priv_as_shared |
+| --- | --- | --- | --- |
+| 0 | 77.4 / 49.2 / 93.5 | 76.6 / 45.4 | 45.2 |
+| 1 | 74.3 / 47.5 / 89.7 | 72.5 / 44.7 | 47.5 |
+| 2 | 73.5 / 40.7 / 92.3 | 72.5 / 40.6 | 58.2 |
+| 3 | 72.5 / 42.4 / 89.7 | 72.6 / 41.4 | 57.6 |
+| 4 | 72.1 / 35.6 / 92.9 | 72.4 / 35.1 | 63.8 |
+| **Mean ± sd** | **74.0 ± 2.1 / 43.1 ± 5.4 / 91.6 ± 1.8** | **73.3 / 41.4** | **54.5** |
+| Paper (Table 2, random shots) | 73.3 / 73.1 | | |
+| Our vanilla baseline | 47.7 / 16.3 | | |
+
+- **ALL matches the paper, PRIV is 30 points short.** ALL is carried by the shared classes (64% of the evaluation images, 91.6% correct). Half of the private images (54.5%) are predicted as shared classes; shared → private is 0.2%.
+- **The same picks do much worse than in Table 3** (PRIV 43.1 against 69.8). Table 2 has twice as many shared guides, including classes close to the private ones (mobile_phone, laptop_computer, monitor, keyboard, letter_tray), so more private images are nearer a shared guide.
+- **B_t starves the private classes.** B_t holds about 90 images for 31 classes, and the smallest class has 1 throughout. Its private part is 100% correct but tiny, so Lc, La1 and La2 see few private images. PRIV rises to 45 by epoch 10, peaks at 47.0 (epoch 30), ends at 43.1; priv_as_shared falls from 99 (epoch 0, untrained gt) to about 50 by epoch 15 and stays there.
+- **The seed spread is larger than in Table 3** with fixed shots (PRIV sd 5.4 against 2.7), so the training RNG matters more in this setting.
+- **To do:** `confusion.sbatch` / `posthoc.sbatch` on these runs (which private classes go where; whether `lp` recovers PRIV), and `configs/office20_a2d.yaml` with random shots for the comparison.
 
 **Training results** (`configs/office_a2d_fixedshot.yaml`, job 56473, `runs/office_a2d/adapt_1shot_abl-none_fixedshot_seed0-4`, epoch 60, paper prediction rule, scored on the usual 317 images):
 
