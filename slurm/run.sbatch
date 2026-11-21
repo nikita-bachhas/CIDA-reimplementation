@@ -31,11 +31,18 @@
 #SBATCH --requeue
 #SBATCH --signal=B:USR1@180
 
-# Conda setup as in the cluster guide (activate before `set -u`: conda's scripts use unset variables).
-module load anaconda/25.5.1
-eval "$(conda shell.bash hook)"
-conda activate cida
+# Reuse an existing uv/venv interpreter when supplied; otherwise retain the original setup.
+# export CIDA_PYTHON=/absolute/path/to/existing/project/.venv/bin/python
+if [ -n "${CIDA_PYTHON:-}" ]; then
+    [ -x "$CIDA_PYTHON" ] || { echo "Python interpreter is not executable: $CIDA_PYTHON" >&2; exit 1; }
+else
+    # Activate before `set -u`: Conda's scripts use unset variables.
+    module load anaconda/25.5.1
+    eval "$(conda shell.bash hook)"
+    conda activate cida
+fi
 set -euo pipefail
+PYTHON_BIN=${CIDA_PYTHON:-python}
 
 if [ -n "${CONFIGS:-}" ]; then read -r -a CONFIG_LIST <<< "$CONFIGS"; else CONFIG_LIST=("$1"); shift; fi
 for c in "${CONFIG_LIST[@]}"; do [ -f "$c" ] || { echo "no such config: $c" >&2; exit 1; }; done
@@ -61,7 +68,7 @@ run() {  # run one step; on failure say which one, with its exit code, in both .
 for CONFIG in "${CONFIG_LIST[@]}"; do
 echo "=== $CONFIG"
 if [[ " $STAGES " == *" source "* ]]; then
-    run python train_source.py --config "$CONFIG" --set num_workers=6 "$@"
+    run "$PYTHON_BIN" train_source.py --config "$CONFIG" --set num_workers=6 "$@"
 fi
 if [[ " $STAGES " == *" adapt "* ]]; then
     for v in ${VARIANTS:-__default__}; do
@@ -69,7 +76,7 @@ if [[ " $STAGES " == *" adapt "* ]]; then
         for a in ${ABLATIONS:-__default__}; do
             abl=(); [ "$a" != "__default__" ] && abl=("adapt.ablation=$a")
             for s in $SEEDS; do
-                run python adapt.py --config "$CONFIG" --seed "$s" --set num_workers=6 "$@" \
+                run "$PYTHON_BIN" adapt.py --config "$CONFIG" --seed "$s" --set num_workers=6 "$@" \
                     ${var[@]+"${var[@]}"} ${abl[@]+"${abl[@]}"}
             done
         done

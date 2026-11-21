@@ -1,6 +1,18 @@
 # Siddharth's MNIST -> USPS runs
 
-Use the existing `cida` Conda environment. Commands below run from this repository root.
+Reuse your existing uv-created environment; no Conda or package reinstall is needed.
+Run these exports in the cluster shell before the commands below:
+
+```bash
+export CIDA_OLD=/home/msai/siddhart022/CIDA_Class-Incremental-Domain-Adaptation
+export CIDA_PYTHON="$CIDA_OLD/.venv/bin/python"
+export CIDA_DATA="$CIDA_OLD/data"
+"$CIDA_PYTHON" -c 'import torch; print(torch.__version__)'
+```
+
+Commands below run from the NEW repository root. `slurm/run.sbatch` inherits
+`CIDA_PYTHON` and uses it for both stages, bypassing its original Conda setup. Existing
+`digits.slurm` belongs to your old codebase; use the new job script for this checkout.
 The target is USPS: shared digits 0-4 and private digits 5-9. Target training uses the
 train split; final accuracy is measured on the test split. One-shot means five labelled
 target images total, one for each private digit.
@@ -9,7 +21,7 @@ target images total, one for each private digit.
 
 ```bash
 mkdir -p logs
-sbatch slurm/run.sbatch configs/digits_m2u_improved.yaml data_root=/absolute/path/to/existing/data
+sbatch slurm/run.sbatch configs/digits_m2u_improved.yaml "data_root=$CIDA_DATA"
 ```
 
 This trains one source model (seed 0, one warm-up plus ten epochs), then five target
@@ -22,7 +34,7 @@ nearest-guide pseudo-labels; guide rectification and label propagation are off.
 ## 2. Review support images, then fix one clear image per private digit
 
 ```bash
-python scripts/choose_digit_supports.py --data-root /absolute/path/to/existing/data
+"$CIDA_PYTHON" scripts/choose_digit_supports.py --data-root "$CIDA_DATA"
 ```
 
 Open `oneshot_review/digits_m2u_support_preview.png`. Choose images by legibility and a
@@ -31,7 +43,7 @@ rows are digits 5,6,7,8,9; each column is a support-selection seed. It is fine t
 different columns for different digits. The numbers below are examples, not recommended picks:
 
 ```bash
-python scripts/choose_digit_supports.py --data-root /absolute/path/to/existing/data --picks 0,1,2,3,4
+"$CIDA_PYTHON" scripts/choose_digit_supports.py --data-root "$CIDA_DATA" --picks 0,1,2,3,4
 sbatch slurm/run.sbatch configs/digits_m2u_clearshot.yaml
 ```
 
@@ -46,7 +58,7 @@ completed results. Keep the source checkpoint and environment unchanged between 
 ## 3. Read results
 
 ```bash
-python scripts/aggregate.py runs/
+"$CIDA_PYTHON" scripts/aggregate.py runs/
 ```
 
 Compare random and hand-picked runs separately; aggregate.py groups run variants by tag.
