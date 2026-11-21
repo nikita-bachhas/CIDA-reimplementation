@@ -117,7 +117,7 @@ def main(argv=None):
     if (out / "final_metrics.json").exists() and not args.force:
         print(f"[skip] already finished: {out / 'final_metrics.json'} (use --force to rerun)", flush=True)
         return
-    set_seed(1000 + args.seed)
+    set_seed(acfg.get("seed_offset", 1000) + args.seed)
     device = get_device(cfg.get("device", "auto"))
     log = Logger(out)
 
