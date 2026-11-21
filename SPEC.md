@@ -338,8 +338,28 @@ Per seed on the final features, own shot → picks, PRIV: nearest 57.9 → 69.4,
 - **The seed spread is larger than in Table 3** with fixed shots (PRIV sd 5.4 against 2.7), so the training RNG matters more in this setting.
 - **Where the errors go** (`scripts/confusion.py`, log 56525). Private-class accuracy, seed mean, with its main error destination: phone 90.0, scissors 91.8, speaker 62.4 (desktop_computer, mobile_phone), projector 47.3 (desktop_computer), tape_dispenser 39.0 (letter_tray, mobile_phone; 5–76 across seeds), ruler 36.7 (pen, 50–83%), trash_can 31.4 (back_pack, file_cabinet), printer 27.1 (letter_tray, file_cabinet, desktop_computer), stapler 14.0 (letter_tray, 60–75%), punchers 11.8 (letter_tray, 53–94%), ring_binder 4.4 (monitor, laptop_computer; 96% to shared). Shared classes almost never go private (0–4%); the weak shared classes lose to other shared classes (bookcase 46.7, desktop_computer 53.3, keyboard 60.0).
 - **The private classifier works; the shared/private decision does not.** PRIV|priv (argmax over the private logits only) is 78.5 / 75.1 / 79.7 / 77.4 / 80.8, mean **78.3**, above the paper's 73.1, against 43.1 with the paper's rule. In Table 3 the same cap was 60–65 (random shots), so there the private classes were also confused with each other; here nearly all the loss is private → shared. letter_tray alone takes most of punchers, stapler and (in seeds 2–3) tape_dispenser; pen takes ruler; monitor / laptop_computer take ring_binder. Most of these are new shared classes, absent from the Table 3 data, and they match the nearest classes in ImageNet feature space.
-- **Implication.** With a 54.5% / 0.2% leak this lopsided, a prediction-step correction (the offset `bias` or the boundary sweep in `scripts/posthoc.py`), which cost too much shared accuracy in Table 3, may pay here. `lp` and a class-balanced B_t are the other candidates.
-- **To do:** `posthoc.sbatch` on these runs (offset sweep, bias, lp), and `configs/office20_a2d.yaml` with random shots for the comparison.
+*Prediction rules on the same models* (`scripts/posthoc.py`, log 56528; no retraining; ALL / PRIV / shared, seed mean; class-averaged ALL / PRIV; priv_as_shared). Only the label-free rules are candidates; the offset sweep picks q with labels and is shown for reference.
+
+| Rule | ALL / PRIV / shared | cls ALL / PRIV | p→s | PRIV change per seed |
+| --- | --- | --- | --- | --- |
+| paper | 74.0 / 43.1 / 91.6 | 73.3 / 41.4 | 54.5 | – |
+| gate | 76.5 / 54.0 / 89.3 | 75.6 / 52.5 | 40.0 | +9.0 to +12.4 (5/5) |
+| bias | 74.5 / 44.7 / 91.5 | 73.8 / 43.1 | 52.5 | −1.1 to +4.5 (3/5) |
+| km | 77.7 / 53.8 / 91.4 | 77.4 / 53.1 | 42.1 | +5.1 to +18.1 (5/5) |
+| km-bal | 79.3 / 68.2 / 85.7 | 80.8 / 69.8 | 22.8 | +22.0 to +30.5 (5/5) |
+| **lp** | **82.1 ± 0.8 / 68.0 ± 2.8 / 90.1** | **81.2 / 65.9** | **26.3** | **+22.0 to +30.5 (5/5)** |
+| offset q = 0.36 (≈ equal class shares, 11/31) | 78.4 / 68.0 / 84.4 | | | |
+| offset, best q per seed (uses labels) | 79.5 / 61.8 / 89.6 | | | |
+
+- **`lp` is adopted as the stated post-hoc step for this setting,** reported beside the paper-rule numbers. It raises PRIV by 22–31 points and ALL by 5.7–9.7 on every seed, for −1.5 shared. Per seed, lp ALL / PRIV: 83.2 / 71.2, 82.5 / 70.6, 81.1 / 65.0, 82.1 / 67.2, 81.5 / 66.1.
+- **lp beats the label-chosen boundary on every seed** (ALL 83.2 / 82.5 / 81.1 / 82.1 / 81.5 against the per-seed best offset 81.9 / 79.9 / 79.1 / 76.6 / 79.9). The equal-share offset reaches the same PRIV (68.0) but loses 5.7 more shared accuracy, so it is not added as a named rule.
+- **Less selection bias than in Table 3.** `lp` and its settings (10 neighbours, alpha 0.99, class-balanced) were chosen on the Table 3 runs and named as the candidate before this log was read; nothing was tuned on these scores. Still one task, 5 seeds, scored on the images it adapts on.
+- **Against the paper (73.3 / 73.1):** ALL is 8.8 above, PRIV 5.1 below (class-averaged 65.9). PRIV|priv, the cap with a perfect shared/private decision, is 78.3; lp recovers 25 of the 35 points the paper rule loses.
+- **The label-free `bias` under-corrects, as expected.** It predicts 17.4% of images private (true 36.3%), because the nearest-guide shares it calibrates to leak to the shared classes too.
+- **The gate works here, unlike in Table 3** (+10.9 PRIV, 5/5 seeds; Table 3 +0.3). gs's "unknown" class now flags 21–28% of target images. Still below `lp`.
+- **Class-wise, paper → lp:** trash_can 31.4 → 88.6, punchers 11.8 → 62.4, ring_binder 4.4 → 53.3, printer 27.1 → 68.6, tape_dispenser 39.0 → 67.6, speaker 62.4 → 77.6, projector 47.3 → 63.6. Still weak: stapler 30.0 and ruler 20.0 (n = 6; 36.7 under the paper rule, 76.7 under km-bal). Shared classes that pay: monitor 93.6 → 85.5, desktop_computer 53.3 → 40.0, letter_tray 92.5 → 86.2, mobile_phone 92.9 → 88.4.
+- **km-bal** has the highest class-averaged PRIV (69.8; it fixes ruler and stapler) but costs 5.9 shared, so ALL is 2.8 below lp.
+- **To do:** `configs/office20_a2d.yaml` with random shots for the comparison; lp as the B_t pseudo-labeller in training (B_t starvation is a training-side problem lp at prediction cannot fix); posthoc on the Table 3 fixed-shot runs.
 
 **Training results** (`configs/office_a2d_fixedshot.yaml`, job 56473, `runs/office_a2d/adapt_1shot_abl-none_fixedshot_seed0-4`, epoch 60, paper prediction rule, scored on the usual 317 images):
 

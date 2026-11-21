@@ -108,6 +108,11 @@ sbatch --export=ALL,CONFIGS="configs/office20_a2d.yaml configs/office20_a2w.yaml
 - Hand-picked configs exist only for the DSLR-target tasks (`office20_a2d_fixedshot.yaml`, `office20_w2d_fixedshot.yaml`): the same DSLR picks as Table 3 plus `trash_can: frame_0004.jpg`. Webcam and Amazon targets would need their own picks.
 - Amazon-target tasks adapt on 2817 images and take much longer per seed; `run.sbatch` requeues itself at the 6 h limit and resumes from the checkpoint.
 - Results: `python scripts/aggregate.py runs/` (it lists the paper's Table 2 numbers next to ours); class-wise: `sbatch slurm/confusion.sbatch runs/office20_a2d [--runs adapt_1shot_abl-none_fixedshot]`.
+- Expected, A→D hand-picked (5 seeds, ALL / PRIV / shared): paper rule **74.0 / 43.1 / 91.6**; with the `lp` post-hoc step **82.1 / 68.0 / 90.1**:
+
+```bash
+sbatch slurm/posthoc.sbatch runs/office20_a2d --runs adapt_1shot_abl-none_fixedshot
+```
 
 **Post-hoc prediction rules (no retraining)** on finished runs, `scripts/posthoc.py`. Label propagation from the guides (`lp`) is the best label-free rule:
 
@@ -148,5 +153,5 @@ They were picked by eye (image quality, background, angle, visibility; the most 
 | chi-square threshold for negatives | `src_train.neg_mode: chi2` (`*_chi2.yaml`) | identical checkpoints: both rules accept every global-Gaussian sample |
 | Backbone at 0.1× lr instead of frozen | `configs/office_a2d_bb01.yaml` | alternative kept for comparison; frozen is the main setting |
 | La1 temperature | `adapt.la1_temp` | logits / 100 peaks early then decays; default stays 1 (paper) |
-| Gate / bias / boundary offset at prediction | `scripts/posthoc.py` | moves images between shared and private without raising ALL |
+| Gate / bias / boundary offset at prediction | `scripts/posthoc.py` | Table 3: moves images between shared and private without raising ALL. Table 2: gate +2.5 ALL, bias +0.5; both below `lp` |
 | k-means re-centring of guides | `scripts/posthoc.py`, `guide_diag.py` (`km`, `km-bal`) | +2 to +3 ALL; below `lp` |
