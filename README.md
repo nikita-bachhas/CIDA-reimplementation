@@ -1,6 +1,6 @@
 # CIDA reimplementation
 
-A from-scratch PyTorch reimplementation of *Class-Incremental Domain Adaptation* (Kundu et al., ECCV 2020). The paper has no official code. See [SPEC.md](SPEC.md) for what the paper specifies and what we chose ourselves.
+A from-scratch PyTorch reimplementation of *Class-Incremental Domain Adaptation* (Kundu et al., ECCV 2020). The paper has no official code. See [SPEC.md](SPEC.md) for what the paper specifies and what we chose ourselves. To reproduce our runs exactly, see [REPRODUCE.md](REPRODUCE.md).
 
 ## Layout
 ```
