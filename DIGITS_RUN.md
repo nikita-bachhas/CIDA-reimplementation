@@ -72,6 +72,22 @@ clarity alone does not guarantee a representative guide or high private accuracy
 The unmodified vanilla reference is `configs/digits_m2u.yaml preset=vanilla`; do not append
 `preset=vanilla` to the improved config, as that would switch its training settings back.
 
+## Best-epoch diagnostic summary
+
+For a diagnostic best-epoch summary from existing logs (no retraining):
+
+```bash
+"$CIDA_PYTHON" scripts/best_epoch_summary.py runs/ --csv best_epochs.csv
+```
+
+This chooses the epoch with highest test ALL accuracy independently for each seed,
+then reports ALL, SHARED, PRIV and ALL(cls) from that same epoch, plus final-epoch
+results for comparison. Epoch 0 is excluded; ties use the earliest epoch. Only
+completed runs are included. This is explicitly test-selected diagnostic reporting,
+not a validation-selected checkpoint or an unbiased benchmark result. Add
+`--select-by priv` only when you explicitly want selection by private test accuracy.
+The script summarises logged scores; it cannot restore unsaved epoch weights.
+
 ## Local GPU instead of Slurm
 
 With the same environment active, use these commands if this machine has a CUDA GPU:
