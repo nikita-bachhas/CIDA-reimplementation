@@ -19,7 +19,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
-from cida.common import (Logger, Timer, extract, get_device, load_ckpt, load_config, rng_state, save_ckpt,
+from cida.common import (CheckpointOnSignal, Logger, Timer, extract, get_device, load_ckpt, load_config, rng_state, save_ckpt,
                          set_rng_state, set_seed)
 from cida.data import build_domain
 from cida.models import build_classifier, build_feature_extractor, freeze_backbone, param_groups
@@ -63,6 +63,7 @@ def main(argv=None):
     set_seed(cfg.get("source_seed", 0))
     device = get_device(cfg.get("device", "auto"))
     log = Logger(out)
+    stop = CheckpointOnSignal()
 
     # ---- data (source classes Cs only)
     dom = cfg["src_domain"]
@@ -140,18 +141,21 @@ def main(argv=None):
             opts[key].step()
             sums[key] += loss.item()
             counts[key] += 1
+            stop.exit_if_requested(lambda: checkpoint(epoch))
             if timer.due():
                 checkpoint(epoch)  # mid-epoch save: a resume restarts this epoch
         protos = fit_prototypes(fs, feat_loader, n_shared, device, scfg)  # end-of-epoch refit
         metrics = evaluate(fs, gs, eval_loader, protos, device, n_shared, scfg)
         log.log(epoch=epoch + 1, iter=it, **{f"loss_{k}": sums[k] / counts[k] for k in sums if counts[k]}, **metrics)
         checkpoint(epoch + 1)
+        stop.exit_if_requested(lambda: checkpoint(epoch + 1))
 
     save_ckpt({"fs": fs.state_dict(), "gs": gs.state_dict(), "protos": protos.state_dict(), "cfg": cfg,
                "n_shared": n_shared}, out / "final.pt")
     if not cfg.get("keep_ckpt", False):  # the resume checkpoint (model + optimiser states) is no longer needed
         ckpt_path.unlink(missing_ok=True)
     log.log(event="done", path=str(out / "final.pt"))
+    stop.close()
 
 
 if __name__ == "__main__":

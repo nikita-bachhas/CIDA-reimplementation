@@ -19,6 +19,50 @@ target images total, one for each private digit.
 
 ## 1. Improved baseline with random supports
 
+### Automatic restart near the Slurm time limit (all three transfers)
+
+Use the existing environment exports above, then choose one transfer:
+
+```bash
+mkdir -p logs
+sbatch --export=ALL,SEEDS="0 1 2 3 4",STAGES="source adapt" slurm/run.sbatch configs/digits_m2u.yaml preset=digits_random_confident "data_root=$CIDA_DATA"
+sbatch --export=ALL,SEEDS="0 1 2 3 4",STAGES="source adapt" slurm/run.sbatch configs/digits_u2m.yaml preset=digits_random_confident "data_root=$CIDA_DATA"
+sbatch --export=ALL,SEEDS="0 1 2 3 4",STAGES="source adapt" slurm/run.sbatch configs/digits_s2m.yaml preset=digits_random_confident "data_root=$CIDA_DATA"
+```
+
+Each job trains one source model and adaptation seeds 0-4 sequentially. For each seed,
+one target-training image per private digit (5-9) is selected randomly with that seed;
+there is no hand-picked support set or label propagation. Actual training RNG seeds
+are also 0-4. The source is shared across seeds. The LeNet trains normally; source
+training is one warm-up plus ten epochs and adaptation is thirty epochs per seed.
+The Gaussian logits retain the existing log-density implementation.
+
+Outputs are isolated under `runs_digits_random_confident/digits_m2u`, `digits_u2m`
+or `digits_s2m`. Checkpoints are saved every five minutes and after every epoch.
+Three minutes before the 5h55 allocation ends, Slurm signals the batch shell, which
+requests a fresh checkpoint from Python, waits for its safe exit, and calls
+`scontrol requeue`. The same job then waits for another allocation and resumes:
+finished source/seed stages are skipped and the unfinished stage reloads its model,
+Adam states and RNG checkpoint. Logs append across allocations.
+
+An unfinished epoch is replayed from its checkpointed weights; minibatch position
+and worker-prefetch state are not restored, so this is not bitwise identical to an
+uninterrupted run. Requeue needs the cluster to permit owner requeue requests. If
+Slurm rejects it, the job prints an error and retains its checkpoint; submitting the
+same command resumes manually. A manual cancellation is not automatically resubmitted.
+
+For example, monitor and summarise U->M with:
+
+```bash
+squeue -u "$USER"
+tail -f logs/cida_JOBID.out
+"$CIDA_PYTHON" scripts/aggregate.py runs_digits_random_confident/
+```
+
+Do not change the preset, output folder or seed list when resuming an experiment.
+
+### Original random-support configuration
+
 ```bash
 mkdir -p logs
 sbatch slurm/run.sbatch configs/digits_m2u_improved.yaml "data_root=$CIDA_DATA"

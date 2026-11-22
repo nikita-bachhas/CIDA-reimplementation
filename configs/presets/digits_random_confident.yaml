@@ -1,0 +1,20 @@
+# Digits: five training/support seeds 0-4 via slurm/run.sbatch (no hand-picked images).
+# Use with configs/digits_m2u.yaml, digits_u2m.yaml or digits_s2m.yaml.
+# Writes separately to runs_digits_random_confident/<task>/.
+ckpt_every_minutes: 5
+keep_ckpt: true
+source_seed: 0
+model:
+  proj_residual: true
+  proj_final_act: false
+adapt:
+  seed_offset: 0
+  tag: random_la1conf
+  shots: 1
+  fewshot_frac: null
+  fixed_shots: null
+  la1_samples: confident
+  la1_temp: 1.0
+  pseudo_label: nearest
+  adabn: true
+  rectify: {enabled: false}

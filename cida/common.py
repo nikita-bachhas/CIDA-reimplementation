@@ -5,6 +5,7 @@ import copy
 import json
 import os
 import random
+import signal
 import time
 from pathlib import Path
 
@@ -146,3 +147,28 @@ class Timer:
             self.last = time.time()
             return True
         return False
+
+
+class CheckpointOnSignal:
+    """Defer Slurm's USR1 checkpoint request to a safe point between updates."""
+
+    exit_code = 99
+
+    def __init__(self):
+        self.requested = False
+        self.signum = getattr(signal, "SIGUSR1", None)
+        self.previous = signal.signal(self.signum, self._request) if self.signum is not None else None
+
+    def _request(self, signum, frame):
+        self.requested = True  # no filesystem/CUDA work inside a signal handler
+
+    def close(self):
+        if self.signum is not None:
+            signal.signal(self.signum, self.previous)
+
+    def exit_if_requested(self, checkpoint):
+        if self.requested:
+            checkpoint()
+            print("[checkpoint] USR1 received: saved safely; ready for Slurm requeue", flush=True)
+            self.close()
+            raise SystemExit(self.exit_code)

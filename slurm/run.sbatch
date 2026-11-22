@@ -28,6 +28,7 @@
 #SBATCH --job-name=cida
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
+#SBATCH --open-mode=append
 #SBATCH --requeue
 #SBATCH --signal=B:USR1@180
 
@@ -54,7 +55,27 @@ echo "job ${SLURM_JOB_ID:-local} on $(hostname): ${CONFIG_LIST[*]} | stages: $ST
 nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader || true
 
 PID=""
-trap 'echo "6 h limit near: requeueing; work resumes from checkpoints"; [ -n "$PID" ] && kill -TERM "$PID"; scontrol requeue "$SLURM_JOB_ID"; exit 0' USR1
+requeue_for_time_limit() {
+    trap '' USR1
+    echo "Time limit near: requesting a safe checkpoint before requeue"
+    local rc=0
+    if [ -n "$PID" ]; then
+        if kill -0 "$PID" 2>/dev/null; then
+            kill -USR1 "$PID" || true
+        fi
+        wait "$PID" || rc=$?
+    fi
+    if [ "$rc" -ne 0 ] && [ "$rc" -ne 99 ]; then
+        echo "Training exited with code $rc during checkpoint request; not requeueing a failed run" >&2
+        exit "$rc"
+    fi
+    if ! scontrol requeue "$SLURM_JOB_ID"; then
+        echo "Requeue failed. Checkpoints are saved; resubmit the same sbatch command to resume." >&2
+        exit 1
+    fi
+    exit 0
+}
+trap requeue_for_time_limit USR1
 run() {  # run one step; on failure say which one, with its exit code, in both .out and .err
     local rc=0
     "$@" & PID=$!; wait "$PID" || rc=$?; PID=""
