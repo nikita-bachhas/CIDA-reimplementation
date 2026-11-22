@@ -1,4 +1,7 @@
-"""Guide asymmetry and guide rectification on finished runs (no retraining).
+"""Guide asymmetry and guide rectification on saved checkpoints (no retraining).
+
+By default, use final.pt when available, otherwise the stopped run's ckpt.pt.
+--checkpoint final / resume restricts analysis to one checkpoint type.
 
 Question 1: are private samples farther from their own guide than shared samples are from theirs?
 A private guide is one labelled image, so for a target class with mean m_c and spread tr(S_c)
@@ -58,6 +61,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from adapt import CIDA, adabn  # noqa: E402
 from cida.common import get_device, load_ckpt  # noqa: E402
 from cida.data import build_domain  # noqa: E402
+from cida.metrics import cida_metrics  # noqa: E402
 from cida.prototypes import GaussianPrototypes  # noqa: E402
 from cida.rectify import kmeans_guides, label_propagation, overcluster, rectify_guides  # noqa: E402
 
@@ -137,16 +141,26 @@ def run_seed(run_dir):
     return int(run_dir.name.rsplit("seed", 1)[1]) if "seed" in run_dir.name else 0
 
 
+def select_checkpoint(run_dir, checkpoint="auto"):
+    """Prefer the completed model; accept a resume snapshot for unfinished runs."""
+    names = {"auto": ("final.pt", "ckpt.pt"), "final": ("final.pt",), "resume": ("ckpt.pt",)}
+    return next((run_dir / name for name in names[checkpoint] if (run_dir / name).is_file()), None)
+
+
 @torch.no_grad()
 def analyse(run_dir, device, nw, stage="final", eps=10.0, anchor=0.3, iters=3, km_iters=30, label_frac=None,
-            shots=None):
-    ck = load_ckpt(run_dir / "final.pt")
+            shots=None, checkpoint="auto"):
+    checkpoint_path = select_checkpoint(run_dir, checkpoint)
+    if checkpoint_path is None:
+        raise FileNotFoundError(f"No {checkpoint} checkpoint in {run_dir}")
+    ck = load_ckpt(checkpoint_path)
     cfg, labelled = ck["cfg"], ck["labelled"]
     acfg = cfg["adapt"]
     tgt_plain = build_domain(cfg, cfg["tgt_domain"], cfg["tgt_train_split"], train_aug=False)
     ns, n = tgt_plain.n_shared, tgt_plain.n_shared + tgt_plain.n_private
     model = CIDA(cfg, ns, n - ns, acfg.get("ablation", "none")).to(device)
     model.load_state_dict(ck["model"])
+    model.eval()
     src = load_ckpt(run_dir.parent / "source" / "final.pt")
     mu_s = GaussianPrototypes.from_state_dict(src["protos"], device).means
     if stage == "start":
@@ -169,6 +183,10 @@ def analyse(run_dir, device, nw, stage="final", eps=10.0, anchor=0.3, iters=3, k
     keep = torch.ones(len(Y_all), dtype=torch.bool)
     keep[lab] = False  # labelled images are neither members nor scored
     V, Y = V_all[keep], Y_all[keep]
+    classifier = None
+    if stage == "final":
+        pred = torch.cat([model.logits_v(batch.to(device)).argmax(1).cpu() for batch in V.split(256)])
+        classifier = cida_metrics(pred, Y, ns, n)
     base = torch.cat([fe(mu_s).float().cpu(), g_priv])
     npct = acfg.get("n_percent", 20)
     priv_rows, all_rows = range(ns, n), range(n)
@@ -194,8 +212,15 @@ def analyse(run_dir, device, nw, stage="final", eps=10.0, anchor=0.3, iters=3, k
         scores["lp"] = label_scores(k_lp, c_lp, Y, ns, n, npct)
     else:
         scores["lp"] = {k: float("nan") for k in scores["basic"]}
-    out = {"run": run_dir.name, "stage": stage, "labelled_per_class": [len(labelled[c]) for c in range(ns, n)],
+    out = {"run": run_dir.name, "stage": stage, "checkpoint": checkpoint_path.name,
+           "completed_epochs": ck.get("state", {}).get("epoch"),
+           "iterations": ck.get("state", {}).get("iter"),
+           "settings": {"backbone_lr_mult": acfg.get("backbone_lr_mult", 1.0),
+                        "lr": acfg.get("lr", cfg["lr"]), "la1_samples": acfg.get("la1_samples", "all")},
+           "classifier": classifier, "labelled_per_class": [len(labelled[c]) for c in range(ns, n)],
            "asym": {v: asymmetry(V, Y, guides[v], ns, n) for v in ASYM}, **{v: scores[v] for v in VARIANTS}}
+    if checkpoint_path.name == "ckpt.pt":
+        suffix += "_resume"
     with open(run_dir / f"guide_diag_{stage}{suffix}.json", "w") as f:
         json.dump(out, f, indent=2)
     return out
@@ -206,6 +231,8 @@ def main():
     ap.add_argument("task_dirs", nargs="+")
     ap.add_argument("--runs", default="adapt_1shot_abl-none", help="run-name prefix before _seed<k>")
     ap.add_argument("--stage", choices=["final", "start"], default="final")
+    ap.add_argument("--checkpoint", choices=["auto", "final", "resume"], default="auto",
+                    help="auto: final.pt if present, otherwise ckpt.pt (unfinished run)")
     ap.add_argument("--eps", type=float, default=10.0)
     ap.add_argument("--anchor", type=float, default=0.3)
     ap.add_argument("--iters", type=int, default=3)
@@ -216,18 +243,26 @@ def main():
     args = ap.parse_args()
     device = get_device("auto")
     for task in args.task_dirs:
-        runs = sorted(p for p in Path(task).glob(f"{args.runs}_seed*") if (p / "final.pt").exists())
+        runs = sorted(p for p in Path(task).glob(f"{args.runs}_seed*")
+                      if select_checkpoint(p, args.checkpoint) is not None)
         print(f"\n===== {task}  runs={args.runs}  stage={args.stage}  ({len(runs)} runs)  eps={args.eps} "
               f"anchor={args.anchor} iters={args.iters} km_iters={args.km_iters}  private guides: "
               + (f"label_frac={args.label_frac}" if args.label_frac else
                  f"shots={args.shots}" if args.shots else "the run's one-shot"))
         rows = [o for r in runs if (o := analyse(r, device, args.num_workers, args.stage, args.eps, args.anchor,
-                                                 args.iters, args.km_iters, args.label_frac, args.shots)) is not None]
+                                                 args.iters, args.km_iters, args.label_frac, args.shots,
+                                                 args.checkpoint)) is not None]
         if not rows:
             print("  no runs (or --stage start on a run without residual fe)")
             continue
         for o in rows:
+            print(f"  {o['run']}: {o['checkpoint']}, completed epochs={o['completed_epochs']}, "
+                  f"iterations={o['iterations']}, settings={o['settings']}")
             print(f"  {o['run'][-5:]:6} labelled images per private class: {o['labelled_per_class']}")
+            if o["classifier"] is not None:
+                s = o["classifier"]
+                print(f"  classifier ALL / PRIV / shared / priv->shared: "
+                      f"{s['all']:.2f} / {s['priv']:.2f} / {s['shared']:.2f} / {s['priv_as_shared']:.2f}")
         print("Guide asymmetry  off/tr shared / private   d_own shared / private   (basic | rect | km)")
         for o in rows:
             print(f"  {o['run'][-5:]:6}" + " | ".join(
