@@ -20,15 +20,21 @@ ORDER = ["digits_m2u", "digits_u2m", "digits_s2m",
 
 
 def load(task_dir):
-    """variant -> epoch -> list of (all, priv), one entry per seed, from each seed's last (re)start."""
+    """variant -> epoch -> list of (all, priv), one entry per seed.
+
+    A seed resumed from its checkpoint after a requeue logs "labelled" again but keeps its earlier
+    epochs, so each epoch takes its last logged value over the whole log (a rerun overwrites it).
+    """
     variants = defaultdict(lambda: defaultdict(list))
     for log in sorted(task_dir.glob("adapt_*/log.jsonl")):
         variant = re.sub(r"^adapt_|_seed\d+$", "", log.parent.name)
-        rows = [json.loads(l) for l in open(log) if l.strip()]
-        starts = [i for i, r in enumerate(rows) if r.get("event") == "labelled"]
-        for r in rows[starts[-1] if starts else 0:]:
+        per_epoch = {}
+        for l in open(log):
+            r = json.loads(l) if l.strip() else {}
             if "epoch" in r and "all" in r:
-                variants[variant][r["epoch"]].append((r["all"], r["priv"]))
+                per_epoch[r["epoch"]] = (r["all"], r["priv"])
+        for e, v in per_epoch.items():
+            variants[variant][e].append(v)
     return variants
 
 
