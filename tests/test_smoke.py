@@ -64,6 +64,53 @@ def test_adapt_la1_variants(out_dir):
     assert (out_dir / "adapt_1shot_abl-none_la1var_seed2" / "final_metrics.json").exists()
 
 
+def test_adapt_share_peak_stop(out_dir):
+    """adapt.stop=share_peak keeps the first epoch with the highest predicted private share, stops `patience`
+    epochs later, and a resumed job neither trains further nor changes the result."""
+    sets = ["--set", f"out_dir={out_dir}", "keep_ckpt=true", "adapt.epochs=6", "adapt.stop=share_peak",
+            "adapt.stop_patience=1", "adapt.tag=sharestop"]
+    adapt.main(["--config", CFG, "--seed", "0", *sets])
+    run = out_dir / "adapt_1shot_abl-none_sharestop_seed0"
+    res = json.load(open(run / "final_metrics.json"))
+    ep = {l["epoch"]: l for l in map(json.loads, open(run / "log.jsonl")) if "epoch" in l and l["epoch"] > 0}
+    shares = [ep[e]["pred_priv_share"] for e in sorted(ep)]
+    assert sorted(ep) == list(range(1, res["epochs_trained"] + 1))
+    assert res["stop_epoch"] == 1 + shares.index(max(shares))  # first epoch at the maximum: strict rises only
+    assert res["epochs_trained"] == min(6, res["stop_epoch"] + 1)
+    assert abs(res["all"] - ep[res["stop_epoch"]]["all"]) < 1e-3  # final.pt is the stop-epoch model
+    assert abs(res["pred_priv_share"] - res["stop_share"]) < 1e-3
+    assert [f.name for f in run.glob("best_e*.pt")] == [f"best_e{res['stop_epoch']}.pt"]
+    adapt.main(["--config", CFG, "--seed", "0", "--force", *sets])
+    logs = [json.loads(l) for l in open(run / "log.jsonl")]
+    after = logs[max(i for i, l in enumerate(logs) if l.get("event") == "resumed"):]
+    assert not any("epoch" in l and "event" not in l for l in after)  # the "resumed" line carries state["epoch"]
+    res2 = json.load(open(run / "final_metrics.json"))
+    assert res2["stop_epoch"] == res["stop_epoch"] and abs(res2["all"] - res["all"]) < 1e-6
+
+
+def test_adapt_share_peak_cleans_up(out_dir):
+    adapt.main(["--config", CFG, "--seed", "1", "--set", f"out_dir={out_dir}", "adapt.stop=share_peak",
+                "adapt.tag=sharestop"])
+    run = out_dir / "adapt_1shot_abl-none_sharestop_seed1"
+    res = json.load(open(run / "final_metrics.json"))
+    assert 1 <= res["stop_epoch"] <= 2 and 0 <= res["pred_priv_share"] <= 100
+    assert (run / "final.pt").exists() and not list(run.glob("best_e*.pt")) and not (run / "ckpt.pt").exists()
+
+
+def test_adapt_balanced_b_sampler(out_dir):
+    adapt.main(["--config", CFG, "--seed", "0", "--set", f"out_dir={out_dir}", "adapt.b_sampler=balanced",
+                "adapt.tag=bbal"])
+    res = json.load(open(out_dir / "adapt_1shot_abl-none_bbal_seed0" / "final_metrics.json"))
+    assert 0 <= res["all"] <= 100 and "stop_epoch" not in res
+
+
+@pytest.mark.parametrize("key", ["stop", "b_sampler"])
+def test_adapt_rejects_unknown_options(out_dir, key):
+    with pytest.raises(ValueError, match=f"adapt.{key}"):
+        adapt.main(["--config", CFG, "--seed", "0", "--set", f"out_dir={out_dir}", f"adapt.{key}=bogus",
+                    f"adapt.tag=bad{key}"])
+
+
 def test_confusion_script(out_dir):
     from scripts.confusion import analyse
     adapt.main(["--config", CFG, "--seed", "3", "--set", f"out_dir={out_dir}"])

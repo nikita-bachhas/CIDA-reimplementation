@@ -17,6 +17,9 @@ def cida_metrics(pred: torch.Tensor, y: torch.Tensor, n_shared: int, n_total: in
     # Where the errors go: shared samples predicted as a private class, and vice versa.
     out["shared_as_priv"] = (pred[~priv] >= n_shared).float().mean().item() if (~priv).any() else float("nan")
     out["priv_as_shared"] = (pred[priv] < n_shared).float().mean().item() if priv.any() else float("nan")
+    # Share of samples predicted as any private class. It counts predictions only, so it needs no labels
+    # and may drive training choices (adapt.stop=share_peak).
+    out["pred_priv_share"] = (pred >= n_shared).float().mean().item()
     per_class = torch.tensor([correct[y == c].mean().item() if (y == c).any() else float("nan") for c in range(n_total)])
     out["all_cls"] = per_class.nanmean().item()
     out["priv_cls"] = per_class[n_shared:].nanmean().item()
