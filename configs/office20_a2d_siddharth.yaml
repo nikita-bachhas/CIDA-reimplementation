@@ -1,0 +1,19 @@
+# Siddharth's Amazon -> DSLR baseline: 20 shared classes and 11 private classes.
+# Reuse Office's ResNet, augmentations and 50/60 source/target epoch budgets.
+base: office20_a2d.yaml
+name: office20_a2d_siddharth
+out_dir: runs/office20_a2d_siddharth
+model:
+  proj_residual: true
+  proj_final_act: false
+adapt:
+  seed_offset: 0
+  tag: improved_seed0to4_la1conf
+  shots: 1
+  fewshot_frac: null
+  fixed_shots: null
+  la1_samples: confident
+  la1_temp: 1.0
+  adabn: true
+  pseudo_label: nearest
+  rectify: {enabled: false}

@@ -1,0 +1,19 @@
+# Alternative Amazon -> DSLR baseline: repo's 10 shared / 10 private class split.
+# Use office20_a2d_siddharth.yaml for the 20 shared / 11 private class setting.
+base: office_a2d.yaml
+name: office_a2d_siddharth
+out_dir: runs/office_a2d_siddharth
+model:
+  proj_residual: true
+  proj_final_act: false
+adapt:
+  seed_offset: 0
+  tag: improved_seed0to4_la1conf
+  shots: 1
+  fewshot_frac: null
+  fixed_shots: null
+  la1_samples: confident
+  la1_temp: 1.0
+  adabn: true
+  pseudo_label: nearest
+  rectify: {enabled: false}
