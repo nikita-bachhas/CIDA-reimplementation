@@ -479,6 +479,16 @@ Per seed, ALL / PRIV / shared:
 - Time: about 11.7 min per adaptation seed on the A40, about 2 h for the job.
 - Still not the paper's protocol (hand-picked shots; the epoch count read off test curves): report apart from Table 2.
 
+### Under test: W→D source model with the ResNet unfrozen, 100 epochs (2026-11-23)
+
+`configs/office20_w2d_srcft100.yaml`: `office20_w2d_fixedshot_lp20.yaml` with `src_train: {epochs: 100, backbone_lr_mult: 1.0}`, its own folder `runs/office20_w2d_srcft100/` and tag `fixedshot_lp20_srcft100`. Adaptation is unchanged: `adapt.backbone_lr_mult: 0.0`, so ft's ResNet stays fixed at the *fine-tuned* source weights (BatchNorm statistics still follow DSLR via AdaBN). No earlier run unfroze the source stage alone: `office20_a2d_ft` (job 56572) unfroze both stages.
+
+- **Why:** the Table 3 feature probe shows source training costs most of the private separability (one-shot priv|priv 72.4 with ImageNet features → 46.3 with the frozen fs), so the source model is a candidate cause of the PRIV gap. On W→D the frozen 50-epoch source model has not finished its objectives: Ls2 ends at 2.17 (Amazon: 0.61) with 38.9% of negatives detected (Amazon: 97.6%), because Webcam's 528 images give only 16 source steps per epoch. 100 epochs doubles the steps so that Ls1 and Ls2 can settle.
+- **Two changes against job 56686 W→D, not one:** unfrozen backbone and 100 instead of 50 source epochs. A difference cannot be attributed to either alone.
+- **Watch:** `loss_ls1` (on A→D, unfrozen source training never settled: median 38 in epochs 41–51 against 5.8 frozen), `loss_ls2` and `neg_detected`; then PRIV and priv_as_shared against job 56686 seed by seed.
+- **Compare with:** job 56686 W→D (85.4 / 69.0 / 94.8; seed 0: 82.3 / 62.1 / 93.9).
+- **Plan:** seed 0 first, then seeds 1–4 reusing the source model (REPRODUCE.md). Not yet run.
+
 ## Investigated, not adopted
 
 **Prediction-step changes for PRIV** (`scripts/posthoc.py`, re-evaluating the 15 saved Digits models; no target labels used). Mean change from the paper's rule (ALL / PRIV / shared):

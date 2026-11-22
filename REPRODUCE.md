@@ -166,6 +166,14 @@ sbatch slurm/run.sbatch configs/office20_w2a_lpref.yaml
 sbatch --export=ALL,STAGES=adapt,CONFIGS="configs/office20_a2d_fixedshot_lp20.yaml configs/office20_w2d_fixedshot_lp20.yaml" slurm/run.sbatch
 ```
 
+**W→D with an unfrozen-backbone source model, 100 source epochs** (2026-11-23; SPEC "Under test: W→D source model with the ResNet unfrozen, 100 epochs"). `configs/office20_w2d_srcft100.yaml`: the W→D lp20 run above with a new source model (ResNet-50 trained at Adam 1e-4, 100 epochs + 1 warm-up) in its own folder `runs/office20_w2d_srcft100/`; adaptation unchanged (ResNet frozen at the new source weights). Seed 0 first (source ~10 min + adaptation ~12 min on the A40); add seeds 1–4 with `STAGES=adapt` once it looks sane:
+
+```bash
+sbatch --export=ALL,SEEDS="0" slurm/run.sbatch configs/office20_w2d_srcft100.yaml
+# later, reusing that source model:
+sbatch --export=ALL,STAGES=adapt,SEEDS="1 2 3 4" slurm/run.sbatch configs/office20_w2d_srcft100.yaml
+```
+
 ```bash
 # 0. Old Digits runs predate the deterministic pipeline: move them aside so they are re-run
 mv runs/digits_u2m runs/digits_u2m_old; mv runs/digits_s2m runs/digits_s2m_old
