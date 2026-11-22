@@ -424,6 +424,31 @@ The log adds `pl_acc_nearest` (what nearest-guide labelling would have scored) n
 - Cost: about 38 min per seed and 10 min for the source model, against 33–34 min frozen.
 - **Conclusion:** keep the backbone frozen.
 
+### Table 2 with lp pseudo-labels: W→D, A→W, D→W (2026-11-22)
+
+Jobs 56614 (W→D) and 56615 (A→W, D→W), `logs/cida_56614.out` and `logs/cida_56615.out`; `configs/office20_<task>_lpref.yaml` (main configuration + `adapt.pseudo_label: lp`), random one-shot draws, seeds 0–4, epoch 60, paper prediction rule. Each task trained its own 20-class source model (source accuracy W 100.0, A 98.3, D 100.0). A→D keeps its 3 seeds from job 56572; D→A and W→A are not run (about 17 h each).
+
+Per seed, ALL / PRIV / shared:
+
+| Seed | A→D (3 seeds) | A→W | D→W | W→D |
+| --- | --- | --- | --- | --- |
+| 0 | 75.2 / 51.4 / 88.7 | 71.8 / 45.3 / 84.7 | 75.4 / 59.0 / 83.3 | 81.5 / 58.2 / 94.8 |
+| 1 | 72.9 / 52.5 / 84.5 | 75.5 / 59.4 / 83.3 | 73.7 / 45.7 / 87.3 | 85.0 / 71.2 / 92.9 |
+| 2 | 80.1 / 66.7 / 87.7 | 75.9 / 52.0 / 87.5 | 79.7 / 51.2 / 93.6 | 84.0 / 65.5 / 94.5 |
+| 3 | | 68.4 / 43.8 / 80.3 | 77.0 / 54.3 / 88.1 | 81.3 / 57.6 / 94.8 |
+| 4 | | 77.7 / 59.0 / 86.7 | 80.7 / 70.7 / 85.6 | 75.2 / 63.3 / 81.9 |
+| **Mean** | **76.0 / 56.9 / 87.0** | **73.9 / 51.9 / 84.5** | **77.3 / 56.2 / 87.6** | **81.4 / 63.2 / 91.8** |
+| sd ALL / PRIV | 3.7 / 8.5 | 3.7 / 7.3 | 2.9 / 9.4 | 3.8 / 5.6 |
+| Class-averaged ALL / PRIV | 76.3 / 58.7 | 72.5 / 52.4 | 76.5 / 57.6 | 81.2 / 61.8 |
+| Paper (Table 2) ALL / PRIV | 73.3 / 73.1 | 63.6 / 62.6 | 80.3 / 79.4 | 89.5 / 88.4 |
+| Vanilla (5 seeds) ALL / PRIV | 47.7 / 16.3 | 42.5 / 20.9 | 53.2 / 17.7 | 60.0 / 12.7 |
+
+- **ALL against the paper:** above it on A→D (+2.7) and A→W (+10.3), below on D→W (−3.0) and W→D (−8.1). The paper's ALL and PRIV are almost equal on every task; ours have PRIV 29–33 points under shared.
+- **PRIV is the gap everywhere:** 52–63 against the paper's 63–88; short by 10.7 (A→W) to 25.2 (W→D). The leak is private → shared (priv_as_shared: A→W 36.4, D→W 30.5, W→D 21.5 on average); shared → private stays small (3.5 / 5.6 / 4.1); the worst seed is W→D seed 4 (13.5, B_t smallest class 0, B_t precision 73.9).
+- **Against vanilla:** +21 to +31 ALL and +31 to +51 PRIV on every task.
+- **Late drift remains on these tasks.** Seed-mean ALL / PRIV at epoch 20 against epoch 60: A→W 75.7 / 54.5 → 73.9 / 51.9; D→W 81.0 / 60.1 → 77.3 / 56.2 (ALL peaks at 82.5 at epoch 5); W→D 83.1 / 66.9 → 81.4 / 63.2. PRIV peaks between epochs 9 and 27 on 12 of 15 seeds. Stopping earlier would gain 2–4 points, but the epoch would be chosen with target labels, so we keep the last epoch.
+- Time: 26–34 min per adaptation seed.
+
 ## Investigated, not adopted
 
 **Prediction-step changes for PRIV** (`scripts/posthoc.py`, re-evaluating the 15 saved Digits models; no target labels used). Mean change from the paper's rule (ALL / PRIV / shared):
