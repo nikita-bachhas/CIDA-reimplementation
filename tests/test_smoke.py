@@ -76,6 +76,23 @@ def test_adapt_rectify(out_dir, select, shared):
     assert (run / "final_metrics.json").exists()
 
 
+def test_adapt_lp_pseudo_labels(out_dir):
+    adapt.main(["--config", CFG, "--seed", "0", "--set", f"out_dir={out_dir}", "adapt.pseudo_label=lp",
+                "adapt.tag=lp"])
+    run = out_dir / "adapt_1shot_abl-none_lp_seed0"
+    logs = [json.loads(l) for l in open(run / "log.jsonl")]
+    ep = [l for l in logs if "pl_acc_nearest" in l]
+    assert ep and all(0 <= l["pl_acc_all"] <= 100 and l["B_size"] > 0 for l in ep)
+    res = json.load(open(run / "final_metrics.json"))
+    assert all(0 <= res[k] <= 100 for k in ("all", "priv", "shared"))
+
+
+def test_adapt_lp_needs_confident_la1(out_dir):
+    with pytest.raises(ValueError, match="la1_samples=confident"):
+        adapt.main(["--config", CFG, "--seed", "0", "--set", f"out_dir={out_dir}", "adapt.pseudo_label=lp",
+                    "adapt.la1_samples=all", "adapt.tag=lpall"])
+
+
 def test_guide_diag_script(out_dir):
     from scripts.guide_diag import VARIANTS, analyse
     adapt.main(["--config", CFG, "--seed", "0", "--set", f"out_dir={out_dir}"])
