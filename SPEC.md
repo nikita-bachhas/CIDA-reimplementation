@@ -396,7 +396,33 @@ The log adds `pl_acc_nearest` (what nearest-guide labelling would have scored) n
 
 **Test** (random shots, seed-paired; adopt only if PRIV rises on most seeds in both settings without a large shared drop): `configs/office_a2d_lpref.yaml` against the main runs (70.3 / 48.5 / 93.4), and `configs/office20_a2d_lpref.yaml` against `configs/office20_a2d.yaml`. Not yet run. The first test job runs only the Table 2 pair; the Table 3 one is deferred.
 
-**Backbone freezing, isolated** (`configs/office20_a2d_ft.yaml`, Table 2 setting, in the same job). The 49.8 → 70.3 jump on Table 3 A→D (row "ResNet backbone frozen" above) came from freezing *and* the head fix together. This config keeps the fixed head and every other change of the main configuration, but trains the whole ResNet-50 at Adam 1e-4 in both stages (its own 20-class source model), so the seed-paired difference with `configs/office20_a2d.yaml` (frozen, same job, seeds 0–2) is the effect of freezing alone. Not yet run.
+**Backbone freezing, isolated** (`configs/office20_a2d_ft.yaml`, Table 2 setting, in the same job; results below: freezing is worth +8.4 ALL). The 49.8 → 70.3 jump on Table 3 A→D (row "ResNet backbone frozen" above) came from freezing *and* the head fix together. This config keeps the fixed head and every other change of the main configuration, but trains the whole ResNet-50 at Adam 1e-4 in both stages (its own 20-class source model), so the seed-paired difference with `configs/office20_a2d.yaml` (frozen, same job, seeds 0–2) is the effect of freezing alone. Not yet run.
+
+**Results** (job 56572, `logs/cida_56572.out`; Table 2 A→D, random one-shot draws, seeds 0–2, epoch 60, 487 evaluation images, paper prediction rule; ALL / PRIV / shared):
+
+| Seed | `office20_a2d` (frozen, nearest) | `office20_a2d_lpref` (frozen, lp) | `office20_a2d_ft` (not frozen, nearest) |
+| --- | --- | --- | --- |
+| 0 | 69.4 / 32.8 / 90.3 | 75.2 / 51.4 / 88.7 | 56.7 / 26.6 / 73.9 |
+| 1 | 64.7 / 34.5 / 81.9 | 72.9 / 52.5 / 84.5 | 56.7 / 24.9 / 74.8 |
+| 2 | 64.1 / 17.5 / 90.6 | 80.1 / 66.7 / 87.7 | 59.8 / 28.8 / 77.4 |
+| **Mean** | **66.1 / 28.2 / 87.6** | **76.0 / 56.9 / 87.0** | **57.7 / 26.7 / 75.4** |
+| Class-averaged ALL / PRIV | 66.2 / 30.5 | 76.3 / 58.7 | 60.1 / 26.3 |
+| priv_as_shared / shared_as_priv | 68.7 / 1.3 | 38.6 / 5.3 | 58.9 / 5.4 |
+| Paper (Table 2) | 73.3 / 73.1 | | |
+
+*lp pseudo-labels (lpref − frozen nearest, per seed):* ALL +5.8 / +8.2 / +16.0, PRIV +18.6 / +18.0 / +49.2, shared −1.6 / +2.6 / −2.9.
+- **PRIV rises on 3 of 3 seeds, shared unchanged on average (−0.6).** This passes the adoption rule for Table 2. Seed 2 (a bad draw: PRIV 17.5 with nearest) gains the most, so lp also reduces the seed spread of ALL's lower end; PRIV sd stays large (8.5 against 9.3) with 3 seeds.
+- **The training gain is in the features, not only the labels.** At epoch 60 nearest-guide labelling on the lpref features scores 76.0 (`pl_acc_nearest`) against 67.9 on the frozen-nearest features; lp labels themselves reach 80.2. B_t private precision is 84.6 (85.0 with nearest), and B_t still has about 86 images with a smallest class of 1, so lp fixes *which* images enter B_t, not its size.
+- **No late drift:** seed-mean PRIV 45.2 / 52.5 / 56.5 / 56.1 / 56.9 at epochs 5 / 10 / 20 / 30 / 60, against nearest's peak of 35.6 at epoch 20 falling to 28.2.
+- **Against the paper:** ALL 76.0 is above 73.3; PRIV 56.9 (class-averaged 58.7) is still 16 points short.
+- **Against the hand-picked shots** (frozen, nearest, 5 seeds: 74.0 / 43.1 / 91.6): lp with random shots is higher on ALL and PRIV, without picking images by hand.
+- **Still to check:** the Table 3 pair (`configs/office_a2d_lpref.yaml` against main seeds 0–2) before lp becomes the default; whether post-hoc `lp` adds anything on top of the lpref models (`scripts/posthoc.py`).
+
+*Backbone not frozen (ft − frozen, per seed):* ALL −12.7 / −8.0 / −4.3, PRIV −6.2 / −9.6 / +11.3, shared −16.4 / −7.1 / −13.2.
+- **Freezing is worth +8.4 ALL here, mostly through shared accuracy** (+12.2 on average, all 3 seeds); PRIV is mixed (2 of 3 seeds better frozen, mean +1.5). This isolates freezing from the head fix: the head is identical in both runs.
+- The fine-tuned source model reaches 99.9% source accuracy (frozen: 98.3), and its target pseudo-labels start lower (epoch 0: 52.7 against 64.9) and stay lower (59.1 against 67.9 at epoch 60), with classes missing from B_t (smallest class 0 from epoch 1). Fine-tuning on the 20 Amazon classes fits the source and damages the target features, as the Table 3 feature probe showed.
+- Cost: about 38 min per seed and 10 min for the source model, against 33–34 min frozen.
+- **Conclusion:** keep the backbone frozen.
 
 ## Investigated, not adopted
 
