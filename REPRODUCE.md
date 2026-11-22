@@ -141,11 +141,20 @@ sbatch --export=ALL,SEEDS="0 1 2",CONFIGS="configs/office20_a2d_ft.yaml configs/
 
 **Table 2 with lp pseudo-labels, all six tasks, 5 seeds** (after job 56572 showed lp +9.9 ALL / +28.7 PRIV on A→D). One `office20_<task>_lpref.yaml` per task: main configuration plus `adapt.pseudo_label: lp`, run dirs tagged `lpref` so they never collide with the nearest-guide runs. Each job trains the task's 20-class source model if it is missing, then seeds 0–4 (A→D skips its finished seeds 0–2). The four jobs are independent:
 
+Submitted first (2026-11-22): the DSLR/Webcam targets. A→D keeps its 3 seeds from job 56572; the Amazon targets are deferred for time.
+
 ```bash
-# DSLR targets (~4 h): A->D seeds 3-4, W->D seeds 0-4
-sbatch --export=ALL,CONFIGS="configs/office20_a2d_lpref.yaml configs/office20_w2d_lpref.yaml" slurm/run.sbatch
+# W->D (~3 h)
+sbatch slurm/run.sbatch configs/office20_w2d_lpref.yaml
 # Webcam targets (~6 h)
 sbatch --export=ALL,CONFIGS="configs/office20_a2w_lpref.yaml configs/office20_d2w_lpref.yaml" slurm/run.sbatch
+```
+
+Deferred:
+
+```bash
+# A->D seeds 3-4 (~1 h)
+sbatch --export=ALL,STAGES=adapt,SEEDS="3 4" slurm/run.sbatch configs/office20_a2d_lpref.yaml
 # Amazon targets (~17 h each; the jobs requeue themselves at 6 h)
 sbatch slurm/run.sbatch configs/office20_d2a_lpref.yaml
 sbatch slurm/run.sbatch configs/office20_w2a_lpref.yaml
