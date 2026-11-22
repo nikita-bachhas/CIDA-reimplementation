@@ -1,4 +1,5 @@
 import importlib.util
+import csv
 import json
 from pathlib import Path
 
@@ -60,3 +61,50 @@ def test_cli_handles_task_root_and_csv(tmp_path, capsys):
     assert 'TEST-SELECTED DIAGNOSTIC' in text and 'BEST' in text and 'FINAL' in text
     assert '67.70' in text and '53.26' in text
     assert 'selected_epoch' in csv.read_text()
+
+
+def test_epoch15_uses_exact_epoch_and_sample_std(tmp_path, capsys):
+    for seed, score in enumerate((70, 74)):
+        run = tmp_path / 'digits_u2m' / f'adapt_1shot_abl-none_test_seed{seed}'
+        run.mkdir(parents=True)
+        records = [metric(9, 90, 85), metric(15, score, score - 10), metric(30, 60, 50)]
+        (run / 'log.jsonl').write_text('\n'.join(map(json.dumps, records)), encoding='utf-8')
+        (run / 'final_metrics.json').write_text(json.dumps(records[-1]), encoding='utf-8')
+    csv_path = tmp_path / 'summary.csv'
+    summary.main([str(tmp_path), '--csv', str(csv_path)])
+    text = capsys.readouterr().out
+    epoch15_line = next(line for line in text.splitlines() if line.strip().startswith('EPOCH 15'))
+    assert '72.00 +/- 2.83' in epoch15_line
+    assert '62.00 +/- 2.83' in epoch15_line
+    assert 'Epoch 15 coverage: 2/2 seeds.' in text
+    with csv_path.open(newline='', encoding='utf-8') as stream:
+        rows = list(csv.DictReader(stream))
+    assert [r['epoch15_all'] for r in rows] == ['70', '74']
+    assert all(r['selected_epoch'] == '9' for r in rows)
+    assert all(r['final_all'] == '60' for r in rows)
+
+
+def test_missing_epoch15_is_reported_without_substitution(tmp_path, capsys):
+    run = tmp_path / 'digits_u2m' / 'adapt_1shot_abl-none_test_seed0'
+    run.mkdir(parents=True)
+    records = [metric(14, 80, 70), metric(16, 75, 65)]
+    (run / 'log.jsonl').write_text('\n'.join(map(json.dumps, records)), encoding='utf-8')
+    (run / 'final_metrics.json').write_text(json.dumps(records[-1]), encoding='utf-8')
+    rows = next(iter(summary.collect(tmp_path).values()))
+    assert all(rows[0]['epoch15_' + key] is None for key in summary.METRICS)
+    summary.main([str(tmp_path)])
+    text = capsys.readouterr().out
+    assert 'Epoch 15 coverage: 0/1 seeds. Missing seeds: 0' in text
+    epoch15_line = next(line for line in text.splitlines() if line.strip().startswith('EPOCH 15'))
+    assert epoch15_line.count('n/a') == len(summary.METRICS)
+
+
+def test_best_epoch_filter_does_not_remove_fixed_epoch15(tmp_path):
+    run = tmp_path / 'digits_u2m' / 'adapt_1shot_abl-none_test_seed0'
+    run.mkdir(parents=True)
+    records = [metric(15, 90, 85), metric(25, 75, 65)]
+    (run / 'log.jsonl').write_text('\n'.join(map(json.dumps, records)), encoding='utf-8')
+    (run / 'final_metrics.json').write_text(json.dumps(records[-1]), encoding='utf-8')
+    row = next(iter(summary.collect(tmp_path, min_epoch=20).values()))[0]
+    assert row['selected_epoch'] == 25
+    assert row['epoch15_all'] == 90

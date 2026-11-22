@@ -81,8 +81,13 @@ For a diagnostic best-epoch summary from existing logs (no retraining):
 ```
 
 This chooses the epoch with highest test ALL accuracy independently for each seed,
-then reports ALL, SHARED, PRIV and ALL(cls) from that same epoch, plus final-epoch
-results for comparison. Epoch 0 is excluded; ties use the earliest epoch. Only
+then reports ALL, SHARED, PRIV and ALL(cls) from that same epoch, plus fixed epoch-15
+and final-epoch results for comparison. All three rows use mean and sample standard
+deviation across seeds. Epoch-15 coverage is shown explicitly; missing epoch-15
+records are excluded from that row, with no other epoch substituted. Per-seed epoch-15
+scores are also included in the optional CSV. `--min-epoch` filters BEST selection
+only; it does not remove the fixed epoch-15 comparison.
+Epoch 0 is excluded from BEST by default; ties use the earliest epoch. Only
 completed runs are included. This is explicitly test-selected diagnostic reporting,
 not a validation-selected checkpoint or an unbiased benchmark result. Add
 `--select-by priv` only when you explicitly want selection by private test accuracy.

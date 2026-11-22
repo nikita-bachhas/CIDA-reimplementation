@@ -1,4 +1,4 @@
-"""Summarise test-selected best epochs from existing logs; no training or Torch needed.
+"""Summarise best, epoch 15 and final scores from existing logs; no training or Torch needed.
 
   python scripts/best_epoch_summary.py runs/
   python scripts/best_epoch_summary.py runs/digits_u2m --csv best_epochs.csv
@@ -57,15 +57,18 @@ def collect(root, select_by='all', min_epoch=1):
         log = file.parent / 'log.jsonl'
         if not match or not log.is_file():
             continue
-        best = choose_epoch(read_epochs(log, min_epoch), select_by)
+        epochs = read_epochs(log, min(min_epoch, 15))
+        best = choose_epoch([r for r in epochs if r['epoch'] >= min_epoch], select_by)
         if best is None:
             print(f'Skipped: no eligible epoch metrics: {log}', file=sys.stderr)
             continue
         final = json.loads(file.read_text(encoding='utf-8'))
+        epoch15 = next((r for r in epochs if r['epoch'] == 15), {})
         row = {'task': file.parent.parent.name, 'variant': match[1],
                'seed': int(match[2]), 'selected_epoch': best['epoch'], 'select_by': select_by}
         for key in METRICS:
             row['best_' + key], row['final_' + key] = number(best, key), number(final, key)
+            row['epoch15_' + key] = number(epoch15, key)
         groups[(row['task'], row['variant'])].append(row)
     return groups
 
@@ -99,8 +102,11 @@ def main(argv=None):
         for r in rows:
             print(f'{r["seed"]:5d} {r["selected_epoch"]:6d}' + ''.join(
                 f'{fmt([r["best_" + k]]):>20}' for k in METRICS))
-        for prefix, label in (('best_', 'BEST'), ('final_', 'FINAL')):
+        for prefix, label in (('best_', 'BEST'), ('epoch15_', 'EPOCH 15'), ('final_', 'FINAL')):
             print(f'{label:>12}' + ''.join(f'{fmt([r[prefix + k] for r in rows]):>20}' for k in METRICS))
+        missing = [str(r['seed']) for r in rows if r['epoch15_all'] is None]
+        print(f'Epoch 15 coverage: {len(rows) - len(missing)}/{len(rows)} seeds.' +
+              (f' Missing seeds: {", ".join(missing)}; no other epoch substituted.' if missing else ''))
         output.extend(rows)
     if args.csv:
         with args.csv.open('w', newline='', encoding='utf-8') as stream:
