@@ -59,8 +59,9 @@ run() {  # run one step; on failure say which one, with its exit code, in both .
     local rc=0
     "$@" & PID=$!; wait "$PID" || rc=$?; PID=""
     if [ "$rc" -ne 0 ]; then
-        echo "FAILED with exit code $rc at $(date '+%F %T'): $*" | tee /dev/stderr
-        [ "$rc" -gt 128 ] && echo "(exit code > 128: killed by signal $((rc - 128)); 9 = SIGKILL, often out of memory)" | tee /dev/stderr
+        # Append: plain tee /dev/stderr can truncate Slurm's error file and erase the traceback.
+        echo "FAILED with exit code $rc at $(date '+%F %T'): $*" | tee -a /dev/stderr
+        [ "$rc" -gt 128 ] && echo "(exit code > 128: killed by signal $((rc - 128)); 9 = SIGKILL, often out of memory)" | tee -a /dev/stderr
         exit "$rc"
     fi
 }
