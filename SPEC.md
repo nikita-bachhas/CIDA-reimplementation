@@ -449,6 +449,15 @@ Per seed, ALL / PRIV / shared:
 - **Late drift remains on these tasks.** Seed-mean ALL / PRIV at epoch 20 against epoch 60: A→W 75.7 / 54.5 → 73.9 / 51.9; D→W 81.0 / 60.1 → 77.3 / 56.2 (ALL peaks at 82.5 at epoch 5); W→D 83.1 / 66.9 → 81.4 / 63.2. PRIV peaks between epochs 9 and 27 on 12 of 15 seeds. Stopping earlier would gain 2–4 points, but the epoch would be chosen with target labels, so we keep the last epoch.
 - Time: 26–34 min per adaptation seed.
 
+### Under test: hand-picked images with lp, 20 epochs (2026-11-22)
+
+`configs/office20_a2d_fixedshot_lp20.yaml` and `configs/office20_w2d_fixedshot_lp20.yaml`: the main configuration with the hand-picked DSLR one-shot images (`office20_*_fixedshot.yaml`), `adapt.pseudo_label: lp`, and `adapt.epochs: 20`. Seeds 0–4. Not the paper's protocol on two counts (shots picked by eye; the epoch count read off test curves), so it is reported apart from Table 2.
+
+- **Why:** the two best levers found so far, together. Hand-picked shots gave +10 PRIV over random shots with nearest guide on A→D (epoch 20: 46.1 against 35.6); lp gave +21 (56.5). All runs plateau around epochs 15–20 and drift down afterwards (Lr2 rising, La2 still falling).
+- **Tasks:** A→D, and W→D as the task furthest below the paper (lp, random shots, epoch 20: 83.1 / 66.9 against 89.5 / 88.4). A→W has the lowest absolute accuracy but has no hand-picked Webcam images.
+- **20 epochs equals epoch 20 of a 60-epoch run:** the adaptation has no learning-rate schedule, so the only difference from reading epoch 20 off a 60-epoch log is that training stops there.
+- **Compare with:** lp + random shots at epoch 20 (A→D 76.7 / 56.5 / 88.2, 3 seeds; W→D 83.1 / 66.9 / 92.3, 5 seeds) and nearest + hand-picked at epoch 20 (A→D 75.9 / 46.1 / 92.8). Not yet run.
+
 ## Investigated, not adopted
 
 **Prediction-step changes for PRIV** (`scripts/posthoc.py`, re-evaluating the 15 saved Digits models; no target labels used). Mean change from the paper's rule (ALL / PRIV / shared):

@@ -160,6 +160,12 @@ sbatch slurm/run.sbatch configs/office20_d2a_lpref.yaml
 sbatch slurm/run.sbatch configs/office20_w2a_lpref.yaml
 ```
 
+**Hand-picked images + lp + 20 epochs** (2026-11-22; SPEC "Under test: hand-picked images with lp, 20 epochs"). A→D and W→D (W→D is furthest below the paper), the DSLR picks of the `*_fixedshot.yaml` configs, `pseudo_label: lp`, `adapt.epochs: 20`, seeds 0–4 (the seed changes only the training RNG). Reuses the source models from jobs 56508 and 56614. About 2 h:
+
+```bash
+sbatch --export=ALL,STAGES=adapt,CONFIGS="configs/office20_a2d_fixedshot_lp20.yaml configs/office20_w2d_fixedshot_lp20.yaml" slurm/run.sbatch
+```
+
 ```bash
 # 0. Old Digits runs predate the deterministic pipeline: move them aside so they are re-run
 mv runs/digits_u2m runs/digits_u2m_old; mv runs/digits_s2m runs/digits_s2m_old
