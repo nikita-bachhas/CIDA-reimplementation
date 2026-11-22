@@ -456,7 +456,28 @@ Per seed, ALL / PRIV / shared:
 - **Why:** the two best levers found so far, together. Hand-picked shots gave +10 PRIV over random shots with nearest guide on A→D (epoch 20: 46.1 against 35.6); lp gave +21 (56.5). All runs plateau around epochs 15–20 and drift down afterwards (Lr2 rising, La2 still falling).
 - **Tasks:** A→D, and W→D as the task furthest below the paper (lp, random shots, epoch 20: 83.1 / 66.9 against 89.5 / 88.4). A→W has the lowest absolute accuracy but has no hand-picked Webcam images.
 - **20 epochs equals epoch 20 of a 60-epoch run:** the adaptation has no learning-rate schedule, so the only difference from reading epoch 20 off a 60-epoch log is that training stops there.
-- **Compare with:** lp + random shots at epoch 20 (A→D 76.7 / 56.5 / 88.2, 3 seeds; W→D 83.1 / 66.9 / 92.3, 5 seeds) and nearest + hand-picked at epoch 20 (A→D 75.9 / 46.1 / 92.8). Not yet run.
+- **Compare with:** lp + random shots at epoch 20 (A→D 76.7 / 56.5 / 88.2, 3 seeds; W→D 83.1 / 66.9 / 92.3, 5 seeds) and nearest + hand-picked at epoch 20 (A→D 75.9 / 46.1 / 92.8).
+
+**Results (job 56686, `logs/cida_56686.out`, 2026-11-23).** ALL / PRIV / shared per seed, last epoch (20):
+
+| Seed | A→D | W→D |
+| --- | --- | --- |
+| 0 | 85.6 / 74.6 / 91.9 | 82.3 / 62.1 / 93.9 |
+| 1 | 81.5 / 70.1 / 88.1 | 85.6 / 70.1 / 94.5 |
+| 2 | 81.7 / 72.3 / 87.1 | 87.7 / 77.4 / 93.5 |
+| 3 | 82.8 / 70.1 / 90.0 | 86.2 / 71.2 / 94.8 |
+| 4 | 82.1 / 68.9 / 89.7 | 85.2 / 64.4 / 97.1 |
+| **Mean** | **82.8 / 71.2 / 89.4** | **85.4 / 69.0 / 94.8** |
+| sd ALL / PRIV / shared | 1.7 / 2.3 / 1.9 | 2.0 / 6.0 / 1.4 |
+| Class-averaged ALL / PRIV | 82.6 / 69.5 | 85.6 / 67.3 |
+| priv_as_shared / shared_as_priv | 24.4 / 4.3 | 13.3 / 2.7 |
+| Paper (Table 2) ALL / PRIV | 73.3 / 73.1 | 89.5 / 88.4 |
+
+- **A→D:** PRIV is 1.9 under the paper and ALL 9.5 over it. Against lp + random shots at epoch 20: +6.1 ALL, +14.7 PRIV, +1.2 shared. Against nearest + hand-picked at epoch 20: +6.9 ALL, +25.1 PRIV, −3.4 shared. Against the earlier post-hoc lp on the 60-epoch hand-picked models (82.1 / 68.0 / 90.1): +0.7 / +3.2 / −0.7. The private → shared leak falls from 54.5% (nearest, hand-picked, epoch 60) to 24.4%.
+- **W→D:** still 4.1 ALL and 19.4 PRIV under the paper. Against lp + random shots at epoch 20: +2.3 ALL, +2.1 PRIV, +2.5 shared, so the hand-picked shots help much less here than on A→D. PRIV varies more across seeds (62.1–77.4, sd 6.0) even with the shots fixed; only the training RNG differs between seeds.
+- **Drift within 20 epochs:** ALL peaks at epochs 14–17 on A→D (0.6–1.5 above the last epoch, mean 0.9) and at epochs 11–14 on W→D (1.7–3.5 above, mean 2.4). The last epoch is kept.
+- Time: about 11.7 min per adaptation seed on the A40, about 2 h for the job.
+- Still not the paper's protocol (hand-picked shots; the epoch count read off test curves): report apart from Table 2.
 
 ## Investigated, not adopted
 
