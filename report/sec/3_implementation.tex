@@ -41,7 +41,7 @@ We tuned the Digits epoch counts on M$\to$U only and then kept them fixed for th
 
 \subsection{Our changes to the method}\label{sec:changes}
 When we ran the method as written, shared and private classes became mixed during adaptation (\cref{sec:exp-vanilla}).
-We made four changes, each aimed at one cause, and \cref{sec:exp-changes} gives the evidence for each of them.
+We made four changes, each aimed at one cause, and \cref{sec:exp-improvements} reports their effect.
 A configuration preset (\texttt{preset=vanilla}) switches all four off.
 
 \paragraph{1. Target BatchNorm statistics.}
@@ -88,7 +88,6 @@ The rule therefore keeps a candidate whenever its Mahalanobis distance to the mo
 For a sample from a $D$-dimensional Gaussian, however, the squared distance follows a $\chi^2_D$ distribution with mean $D$.
 With $D=100$ or $256$, almost every sample exceeds $9$, including real samples of the class itself.
 The rule thus keeps almost every candidate as a negative.
-We also implemented a threshold based on a quantile of the $\chi^2_D$ distribution and evaluate it in \cref{sec:exp-negative}.
 
 \paragraph{Typo in the negative-sampling algorithm.}
 Line~9 of Algorithm~1 in the supplementary material writes $\mathcal{P}(\uu_s)$ where $\mathcal{P}(\uu_n)$ is meant.

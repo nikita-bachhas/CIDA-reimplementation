@@ -10,8 +10,8 @@ Errors in these early labels then grow, because every later epoch trains on them
 
 \paragraph{Limitations.}
 \begin{itemize}
-  \item \textbf{Accuracy on the new classes.} Accuracy on the target-private classes (PRIV) remains below the values reported in the paper (\cref{sec:exp-main}).
-  \item \textbf{Choice of the final epoch.} The paper gives no epoch counts, and target labels cannot be used to pick an epoch. We therefore report the last epoch, although accuracy at intermediate epochs can differ (\cref{sec:exp-changes}).
+  \item \textbf{Accuracy on the new classes.} Accuracy on the target-private classes (PRIV) remains below the values reported in the paper (\cref{sec:exp-improvements}).
+  \item \textbf{Choice of the final epoch.} The paper gives no epoch counts, and target labels cannot be used to pick an epoch. We therefore report the last epoch, although accuracy at intermediate epochs can differ (\cref{sec:exp-improvements}).
   \item \textbf{Departures from the paper.} Our four changes alter the method. We report the method as written separately in \cref{sec:exp-vanilla}, so readers can compare the two versions.
   \item \textbf{Parts not implemented.} We did not implement Ours-d, the paper's variant that uses real source features during adaptation. We also did not implement the two-step upgrade from Amazon to DSLR and then to Webcam (A$\to$D$\to$W).
 \end{itemize}
