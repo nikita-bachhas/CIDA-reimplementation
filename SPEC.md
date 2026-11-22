@@ -123,6 +123,29 @@ Each Real→Syn seed takes about 6 h, so every seed was resumed after a requeue.
 
 **All vanilla runs are complete.** ALL / PRIV against the paper: Digits 33–47 / 47–61 (paper 46–73 / 46–72); Office-31 Table 3 21–56 / 3–27 (paper 62–88 / 62–88); Office-31 Table 2 10–60 / 1–21 (paper 64–90 / 63–88); VisDA 6–8 / 14–16 (paper 56 / 56).
 
+## Main configuration on Office-31
+
+All four changes on, with the ResNet-50 frozen (`configs/office31.yaml`, `configs/office20.yaml`; runs in `runs/<task>/`). 5 seeds, ALL / PRIV at epoch 60.
+
+| Setting | Task | Main config | Vanilla | Paper |
+|---|---|---|---|---|
+| Table 3 (10/20) | A→D | **70.3 ± 4.5 / 48.5 ± 8.8** | 45.2 / 16.9 | 72.2 / 72.6 |
+| | A→W | **67.1 ± 7.2 / 44.4 ± 12.8** | 51.3 / 26.9 | 62.1 / 62.0 |
+| | D→A | 41.2 ± 2.6 / 11.4 ± 5.9 | 25.2 / 3.2 | 62.6 / 61.8 |
+| | D→W | 72.3 ± 3.1 / 48.6 ± 6.2 | 56.1 / 17.8 | 78.5 / 78.7 |
+| | W→A | 43.4 ± 6.5 / 12.2 ± 8.1 | 20.9 / 7.4 | 62.1 / 62.4 |
+| | W→D | 73.5 ± 5.2 / 52.1 ± 10.5 | 54.3 / 19.6 | 87.8 / 87.6 |
+| Table 2 (20/31) | A→D | 65.3 ± 2.9 / 26.6 ± 7.1 | 47.7 / 16.3 | 73.3 / 73.1 |
+| | A→W | **66.6 ± 2.8 / 25.5 ± 6.1** | 42.5 / 20.9 | 63.6 / 62.6 |
+| | D→A, D→W, W→A, W→D | still running | | |
+
+- **ALL rises by 16 to 25 points over vanilla on every finished transfer.** It matches the paper on A→D (70.3 against 72.2, within noise) and exceeds it on A→W (67.1 against 62.1 in Table 3, 66.6 against 63.6 in Table 2). It stays 6 to 21 points below on the others.
+- **Shared accuracy holds.** It stays at 77–100 through adaptation, and shared_as_priv stays below 9%. In vanilla, shared accuracy fell to 36–50 with Amazon as target.
+- **PRIV is still the gap: 11–52 against 62–88 in the paper.** The remaining loss is private samples predicted as shared, which is 16–70% at epoch 30. PRIV peaks around epochs 8–20 and then decays slowly to epoch 60. Peak (epoch) → epoch 60: A→W 49.0 (15) → 44.4; D→A 25.6 (8) → 11.4; D→W 54.0 (10) → 48.6; W→A 31.3 (8) → 12.2; W→D 58.3 (8) → 52.1; Table 2 A→D 35.3 (20) → 26.6; Table 2 A→W 32.2 (15) → 25.5.
+- **Amazon targets are the weakest** (D→A, W→A: PRIV 11–12). The private part of B_t is only 54–60% correct there, against 73–93% with DSLR or Webcam as target, and 61–70% of private samples end up predicted as shared by epoch 30.
+- **Table 2 PRIV is lower than Table 3 on the same transfer** (A→D 26.6 against 48.5). With 20 shared classes, more shared classes compete for each private sample: priv_as_shared is 62–65% at epoch 30.
+- `trajectory.py` shows n = 4 in some early rows of D→W, W→D and Table 2 A→W, because a seed was resumed after a requeue.
+
 ## Inconsistencies in the paper
 
 1. **Office private classes.** Supp §5 says the private classes are those "ranked 21–31", which is 11 classes. Table 3 has |Ct| = 20, which means 10 private classes. We use indices 20–29 for Table 3 (`configs/office31.yaml`) and 20–30 for Table 2, where |Cs| = 20 and |Ct| = 31 (`configs/office20.yaml`).
