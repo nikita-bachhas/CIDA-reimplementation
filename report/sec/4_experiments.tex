@@ -22,258 +22,50 @@
 \section{Experiments}\label{sec:experiments}
 
 \subsection{Setup}\label{sec:exp-setup}
-\TODO{Datasets (Digits M/U/S, Office-31, VisDA) and class splits. ALL and PRIV accuracy. 5 seeds with different one-shot images. GPU and run times.}
+\paragraph{Datasets.}
+We use the three benchmarks of the paper.
+Digits has three domains, MNIST~\citep{lecun1998mnist}, USPS~\citep{hull1994usps} and SVHN~\citep{netzer2011svhn}, and we run the transfers M$\to$U, U$\to$M and S$\to$M.
+Digits 0 to 4 are shared and digits 5 to 9 are private to the target.
+Images are resized to $32\times32$, and greyscale digits are copied to three channels.
+Office-31~\citep{saenko2010office} has 31 classes in three domains, Amazon (2{,}817 images), DSLR (498) and Webcam (795), and we run all six transfers.
+Classes are ranked alphabetically, and we use the two settings of the paper.
+In the 10/20 setting, classes 1 to 10 are shared and classes 21 to 30 are private, so $|\Cs|=10$ and $|\Ct|=20$ (\cref{sec:inconsistencies}).
+In the 20/31 setting, classes 1 to 20 are shared and classes 21 to 31 are private, so $|\Cs|=20$ and $|\Ct|=31$.
+VisDA-2017~\citep{peng2017visda} has 12 classes, with 152{,}397 synthetic renderings and 55{,}388 real images, and we run Syn$\to$Real and Real$\to$Syn.
+Bicycle, bus, car, motorcycle, train and truck are shared, and the other six classes are private.
+In every task the source domain holds only the shared classes, and the target domain holds all classes of $\Ct$.
+
+\paragraph{Protocol.}
+For each transfer and configuration we train one source model and then run adaptation with 5 seeds.
+Each seed draws a different labelled target image for every private class and sets the random state of adaptation.
+Digits adapts on the target training split and is evaluated on the target test split.
+Office-31 and VisDA have no official split, so they adapt and are evaluated on the whole target domain, without the labelled images.
+Office-31 and VisDA images are resized so that the shorter side is 256 pixels and cropped to $224\times224$.
+During training they are augmented with the flips, rotations up to 15 degrees, random crops, colour jitter and channel swaps of the supplementary material.
+Epoch counts and the other settings the paper leaves open are listed in \cref{tab:choices}.
+We report the last epoch, because selecting an epoch would need target labels.
+
+\paragraph{Metrics.}
+ALL is the accuracy over all target samples, and PRIV is the accuracy over the samples of the private classes $\Cp$.
+Both are per-sample accuracies in \%, and as in the paper we report the mean over the 5 seeds.
+For analysis only, we also log the share of shared samples predicted as private, the share of private samples predicted as shared, and the accuracy of the pseudo-labels.
+These diagnostics use target labels and never influence training.
+
+\paragraph{Configurations.}
+We evaluate two configurations.
+The baseline follows the method as written, with the four changes of \cref{sec:changes} switched off (\texttt{preset=vanilla}).
+The second configuration switches on all four changes where they apply, and the frozen ResNet-50 does not apply to Digits.
+
+\paragraph{Hardware and run time.}
+All experiments run in PyTorch on the GPU cluster of the NTU College of Computing and Data Science, with one NVIDIA A40 per job.
+A job may run for at most 6 hours, so every run saves a checkpoint every 20 minutes and resumes after a requeue.
+With the frozen ResNet-50, Office-31 adaptation takes about 10 to 45 minutes per seed in the 20/31 setting.
+In the baseline, VisDA source training takes about 7 minutes per epoch on Syn$\to$Real.
+Adaptation then takes about 2 hours per seed on Syn$\to$Real and about 6 hours per seed on Real$\to$Syn.
 
 \subsection{Baseline results}\label{sec:exp-vanilla}
-We first ran a reproduction of the method exactly as the paper describes it, with all four changes of \cref{sec:changes} switched off (\texttt{preset=vanilla}).
-Where the paper is silent, the reproduction keeps the choices of \cref{tab:choices}.
-\Cref{tab:vanilla} compares it with the numbers reported in the paper on every benchmark.
-The reproduction stays below the paper on every task.
-The gap in ALL ranges from 14 to 29 points on Digits, 11 to 54 points on Office-31 and about 50 points on VisDA.
-PRIV suffers most on Office-31, where it ends between 1.4 and 26.9 against 61.8 to 88.4 in the paper.
-The way accuracy is lost differs between the benchmarks, and each failure points to one of our changes.
-
-\begin{table}[t]
-  \centering
-  \small
-  \caption{Reproduction of the method as written (\texttt{preset=vanilla}) against the numbers reported in the paper. ALL and PRIV accuracy in \% at the last epoch, mean over 5 seeds. Office 10/20 is the setting $|\Cs|=10, |\Ct|=20$, and Office 20/31 is $|\Cs|=20, |\Ct|=31$. Runs are in \texttt{runs\_vanilla/}.}
-  \label{tab:vanilla}
-  \begin{tabular}{@{}llcccc@{}}
-    \toprule
-    & & \multicolumn{2}{c}{Reproduction} & \multicolumn{2}{c}{Paper (reported)} \\
-    \cmidrule(lr){3-4}\cmidrule(lr){5-6}
-    Setting & Task & ALL & PRIV & ALL & PRIV \\
-    \midrule
-    Digits & M$\to$U & 43.7 & 50.5 & 72.5 & 71.6 \\
-           & U$\to$M & 47.2 & 60.7 & 69.4 & 68.6 \\
-           & S$\to$M & 32.8 & 46.5 & 46.4 & 45.7 \\
-    \midrule
-    Office 10/20 & A$\to$D & 45.2 & 16.9 & 72.2 & 72.6 \\
-                 & A$\to$W & 51.3 & 26.9 & 62.1 & 62.0 \\
-                 & D$\to$A & 25.2 & 3.2  & 62.6 & 61.8 \\
-                 & D$\to$W & 56.1 & 17.8 & 78.5 & 78.7 \\
-                 & W$\to$A & 20.9 & 7.4  & 62.1 & 62.4 \\
-                 & W$\to$D & 54.3 & 19.6 & 87.8 & 87.6 \\
-    \midrule
-    Office 20/31 & A$\to$D & 47.7 & 16.3 & 73.3 & 73.1 \\
-                 & A$\to$W & 42.5 & 20.9 & 63.6 & 62.6 \\
-                 & D$\to$A & 9.9  & 4.4  & 64.1 & 64.3 \\
-                 & D$\to$W & 53.2 & 17.7 & 80.3 & 79.4 \\
-                 & W$\to$A & 14.7 & 1.4  & 63.7 & 62.8 \\
-                 & W$\to$D & 60.0 & 12.7 & 89.5 & 88.4 \\
-    \midrule
-    VisDA & Syn$\to$Real & 6.2 & 16.1 & 56.4 & 56.3 \\
-          & Real$\to$Syn & 7.7 & 13.9 & 55.8 & 55.7 \\
-    \bottomrule
-  \end{tabular}
-\end{table}
-
-\paragraph{Digits.}
-On Digits, shared samples move into the private classes.
-On M$\to$U, accuracy on the shared classes is already 47.2 before any adaptation loss is applied.
-At that point the only differences from the source model are the pretrained projections and the source BatchNorm statistics.
-During the first epoch, the nearest-guide pseudo-labels are only 37.5 to 43.9\% accurate.
-Without target BatchNorm statistics, shared target samples lie closer to the one-shot private guides than to the shared guides.
-$\mathcal{L}_{a1}$ then trains $f_t$ on these labels for every target sample.
-By epoch 30, 57 to 60\% of the shared samples are predicted as private, and shared accuracy falls to 20.0 on S$\to$M.
-PRIV stays at 46.5 to 60.7 only because most samples are predicted as private.
-
-\paragraph{Office-31.}
-On Office-31 the failure runs the other way, and private samples move into the shared classes.
-PRIV peaks within the first 10 epochs and then decays steadily.
-On A$\to$D it peaks at 35.6 in epoch 10 and ends at 16.9, and on D$\to$A it falls from 36.9 in epoch 2 to 3.2.
-At epoch 60, 53 to 94\% of the private samples are predicted as shared in the 10/20 setting.
-$\mathcal{L}_{a1}$ fine-tunes the whole ResNet-50 on noisy labels for every target sample, so the features drift towards the shared guides.
-With Amazon as the target, shared accuracy collapses as well, which brings ALL on D$\to$A in the 20/31 setting down to 9.9.
-Even the best epoch, chosen with target labels that the setting does not allow, stays below the paper.
-On W$\to$D in the 10/20 setting, ALL peaks at 72.5 in epoch 5 against 87.8 in the paper.
-
-\paragraph{VisDA.}
-On VisDA the model collapses onto a single class in both directions.
-Class-averaged ALL is 8.5 on Syn$\to$Real and 8.4 on Real$\to$Syn, close to the 8.3 of a constant prediction over 12 classes.
-The pipeline itself works, since the source model reaches 37.3 on the shared real images before adaptation, against 16.7 for chance.
-The nearest-guide pseudo-labels, however, are only 10.4\% accurate at that point.
-The shared guides are built from synthetic features, while the private guides come from real one-shot images.
-In seed 0, the pretrained projections also remain 24\% away from the identity, so the shared guides are misplaced from the start.
-By epoch 10, shared accuracy on Syn$\to$Real is 0.0, and every target image is assigned to one private class.
-
-\paragraph{Best, middle and last epoch.}
-\Cref{tab:vanilla-epochs} reports accuracy at the best epoch, at epoch 15 and at the last epoch.
-The best epoch has the highest mean ALL, so choosing it uses target labels, and it is only an upper bound.
-Every best epoch lies between epoch 0 and epoch 12, and accuracy mostly falls after that.
-On VisDA Syn$\to$Real the best epoch is epoch 0, before any adaptation, so adaptation only lowers accuracy there.
-On Office-31, ALL loses a further 6 to 30 points between epoch 15 and epoch 60, and PRIV falls the most.
-Even at the best epoch, ALL stays below the paper by 1 to 19 points on Office-31 and by 24 to 33 points on VisDA.
-Earlier stopping therefore does not explain the gap to the paper.
-
-\begin{table*}[t]
-  \centering
-  \small
-  \caption{Baseline (\texttt{preset=vanilla}) at three points of adaptation. ALL and PRIV accuracy in \%, mean over 5 seeds. The best epoch has the highest mean ALL and is chosen with target labels, which the setting does not allow, so it is an upper bound only. The last epoch is 30 on Digits, 60 on Office-31 and 10 on VisDA, which has no epoch 15.}
-  \label{tab:vanilla-epochs}
-  \begin{tabular}{@{}llccccccc@{}}
-    \toprule
-    & & \multicolumn{3}{c}{Best epoch} & \multicolumn{2}{c}{Epoch 15} & \multicolumn{2}{c}{Last epoch} \\
-    \cmidrule(lr){3-5}\cmidrule(lr){6-7}\cmidrule(lr){8-9}
-    Setting & Task & Epoch & ALL & PRIV & ALL & PRIV & ALL & PRIV \\
-    \midrule
-    Digits & M$\to$U & 5 & 50.2 & 53.7 & 47.0 & 54.0 & 43.7 & 50.5 \\
-     & U$\to$M & 10 & 50.1 & 56.8 & 49.6 & 59.0 & 47.2 & 60.7 \\
-     & S$\to$M & 3 & 40.8 & 42.4 & 35.1 & 44.2 & 32.8 & 46.5 \\
-    \midrule
-    Office 10/20 & A$\to$D & 7 & 58.0 & 36.0 & 55.8 & 33.1 & 45.2 & 16.9 \\
-     & A$\to$W & 10 & 60.9 & 40.6 & 59.2 & 38.2 & 51.3 & 26.9 \\
-     & D$\to$A & 3 & 52.5 & 36.8 & 48.6 & 26.8 & 25.2 & 3.2 \\
-     & D$\to$W & 4 & 71.4 & 43.3 & 66.2 & 33.8 & 56.1 & 17.8 \\
-     & W$\to$A & 5 & 48.5 & 32.1 & 45.5 & 24.5 & 20.9 & 7.4 \\
-     & W$\to$D & 5 & 72.5 & 47.6 & 68.6 & 39.9 & 54.3 & 19.6 \\
-    \midrule
-    Office 20/31 & A$\to$D & 8 & 54.5 & 33.2 & 53.3 & 31.6 & 47.7 & 16.3 \\
-     & A$\to$W & 12 & 52.9 & 39.2 & 52.3 & 35.4 & 42.5 & 20.9 \\
-     & D$\to$A & 2 & 51.2 & 25.6 & 39.4 & 9.0 & 9.9 & 4.4 \\
-     & D$\to$W & 2 & 76.3 & 34.1 & 69.9 & 22.0 & 53.2 & 17.7 \\
-     & W$\to$A & 6 & 45.1 & 19.2 & 39.0 & 11.7 & 14.7 & 1.4 \\
-     & W$\to$D & 6 & 74.5 & 33.6 & 69.8 & 22.8 & 60.0 & 12.7 \\
-    \midrule
-    VisDA & Syn$\to$Real & 0 & 23.0 & 0.0 & -- & -- & 6.2 & 16.1 \\
-     & Real$\to$Syn & 1 & 32.1 & 22.4 & -- & -- & 7.7 & 13.9 \\
-    \bottomrule
-  \end{tabular}
-\end{table*}
-
-\paragraph{Summary.}
-The three failures share one mechanism.
-Wrong pseudo-labels in the first epochs are reinforced by $\mathcal{L}_{a1}$, which trains on every target sample.
-Source BatchNorm statistics and imperfect projections make these early labels worse, and fine-tuning the whole backbone lets the errors reshape the features.
-Each of these causes corresponds to one change in \cref{sec:changes}.
+% Emptied on request. The previous text, tables tab:vanilla and tab:vanilla-epochs are in commit a42c640.
 
 \subsection{Improvements}\label{sec:exp-improvements}
-Each set of improvements below is compared with the baseline of \cref{sec:exp-vanilla} and with the numbers reported in the paper.
-% Each team member adds their own improvements as a \subsubsection below,
-% with its own label (sec:exp-imp-<topic>), a list of the changes and a results table.
-
-% ---------------------------------------------------------------------
-% Improvements by Nikita: the four changes of Section 3 (sec:changes).
-% Empty cells in tab:imp-pseudo are runs we have not done yet (VisDA).
-% ---------------------------------------------------------------------
-% TEMPORARY title naming the author. Final title: "Stabilising the pseudo-labels".
-\subsubsection{Nikita's improvements}\label{sec:exp-imp-pseudo}
-This set combines the four changes of \cref{sec:changes}.
-Each one targets a cause of the baseline failures, and all four are on by default in our configurations.
-\begin{itemize}
-  \item \textbf{Target BatchNorm statistics.} Before adaptation, AdaBN re-estimates the BatchNorm statistics of $f_t$ on the unlabelled target set (\texttt{adapt.adabn}).
-  \item \textbf{Identity projections.} $f_e$ and $f_d$ take the residual form $\uu+h(\uu)$ with a linear last layer initialised to zero, so both start as the exact identity (\texttt{model.proj\_residual}).
-  \item \textbf{$\mathcal{L}_{a1}$ on the confident set.} The $\mathcal{L}_{a1}$ batches come from $\Bt$ instead of the whole target set (\texttt{adapt.la1\_samples}).
-  \item \textbf{Frozen ResNet-50.} On Office-31 and VisDA the ResNet-50 keeps its ImageNet weights in both stages, while its BatchNorm statistics still adapt (\texttt{backbone\_lr\_mult}). Digits uses a LeNet trained from scratch, so this change does not apply there.
-\end{itemize}
-\Cref{tab:imp-pseudo} reports the results next to the baseline and the paper.
-Runs are in \texttt{runs/}, and empty cells are runs we have not done yet.
-
-\begin{table}[t]
-  \centering
-  \footnotesize
-  \setlength{\tabcolsep}{3.5pt}
-  \caption{Results with the four changes of \cref{sec:changes} against the baseline of \cref{tab:vanilla} and the numbers reported in the paper. ALL and PRIV accuracy in \% at the last epoch, mean over 5 seeds. Empty cells are runs we have not done yet. Bold marks tasks where ALL matches or exceeds the paper.}
-  \label{tab:imp-pseudo}
-  \begin{tabular}{@{}llcccccc@{}}
-    \toprule
-    & & \multicolumn{2}{c}{Improved} & \multicolumn{2}{c}{Baseline} & \multicolumn{2}{c}{Paper (reported)} \\
-    \cmidrule(lr){3-4}\cmidrule(lr){5-6}\cmidrule(lr){7-8}
-    Setting & Task & ALL & PRIV & ALL & PRIV & ALL & PRIV \\
-    \midrule
-    Digits & M$\to$U & \textbf{71.9} & 55.3 & 43.7 & 50.5 & 72.5 & 71.6 \\
-           & U$\to$M & 65.5 & 51.0 & 47.2 & 60.7 & 69.4 & 68.6 \\
-           & S$\to$M & \textbf{58.8} & 44.0 & 32.8 & 46.5 & 46.4 & 45.7 \\
-    \midrule
-    Office 10/20 & A$\to$D & \textbf{70.3} & 48.5 & 45.2 & 16.9 & 72.2 & 72.6 \\
-                 & A$\to$W & \textbf{67.1} & 44.4 & 51.3 & 26.9 & 62.1 & 62.0 \\
-                 & D$\to$A & 41.2 & 11.4 & 25.2 & 3.2  & 62.6 & 61.8 \\
-                 & D$\to$W & 72.3 & 48.6 & 56.1 & 17.8 & 78.5 & 78.7 \\
-                 & W$\to$A & 43.4 & 12.2 & 20.9 & 7.4  & 62.1 & 62.4 \\
-                 & W$\to$D & 73.5 & 52.1 & 54.3 & 19.6 & 87.8 & 87.6 \\
-    \midrule
-    Office 20/31 & A$\to$D & 65.3 & 26.6 & 47.7 & 16.3 & 73.3 & 73.1 \\
-                 & A$\to$W & \textbf{66.6} & 25.5 & 42.5 & 20.9 & 63.6 & 62.6 \\
-                 & D$\to$A & 32.9 & 2.5  & 9.9  & 4.4  & 64.1 & 64.3 \\
-                 & D$\to$W & 71.7 & 27.1 & 53.2 & 17.7 & 80.3 & 79.4 \\
-                 & W$\to$A & 40.6 & 4.5  & 14.7 & 1.4  & 63.7 & 62.8 \\
-                 & W$\to$D & 77.5 & 42.9 & 60.0 & 12.7 & 89.5 & 88.4 \\
-    \midrule
-    VisDA & Syn$\to$Real &  &  & 6.2 & 16.1 & 56.4 & 56.3 \\
-          & Real$\to$Syn &  &  & 7.7 & 13.9 & 55.8 & 55.7 \\
-    \bottomrule
-  \end{tabular}
-\end{table}
-
-\paragraph{Digits.}
-ALL rises by 18 to 28 points over the baseline on all three tasks.
-It matches the paper on M$\to$U (71.9 against 72.5) and exceeds it on S$\to$M (58.8 against 46.4).
-PRIV is lower than the baseline on U$\to$M and S$\to$M, but the baseline PRIV was inflated.
-The baseline predicted most target samples as private, which raises PRIV at the cost of shared accuracy.
-Moving only $\mathcal{L}_{a1}$ to $\Bt$ raises shared accuracy on M$\to$U at epoch 30 from 52.8 to 83.4.
-
-\paragraph{Office-31.}
-ALL rises by 16 to 26 points over the baseline on every transfer.
-It matches the paper on A$\to$D in the 10/20 setting (70.3 against 72.2) and exceeds it on A$\to$W in both settings.
-Shared accuracy stays at 77 to 100 throughout adaptation in the 10/20 setting and on the 20/31 transfers to DSLR or Webcam.
-The baseline, in contrast, fell to 36 to 50 with Amazon as the target.
-PRIV improves on every transfer except D$\to$A in the 20/31 setting, where it ends at 2.5 against 4.4 for the baseline.
-It remains the main gap, at 2.5 to 52.1 against 61.8 to 88.4 in the paper.
-The remaining loss is private samples predicted as shared, which is 16 to 94\% of them at epoch 30.
-ALL peaks between epochs 3 and 28 and then decays by 2 to 24 points until epoch 60.
-Amazon targets are the weakest, with PRIV 2.5 to 12.2 and the four largest decays.
-In the 10/20 setting, only 54 to 60\% of the private part of $\Bt$ is correct there, against 73 to 93\% with DSLR or Webcam as the target.
-In the 20/31 setting the errors build up late in adaptation.
-On D$\to$A, the precision of the private part of $\Bt$ falls from 73.0 before adaptation to 38.2 at epoch 60.
-Shared accuracy then drops from 71.6 to 49.7, and ALL falls from 56.4 at epoch 3 to 32.9.
-The 20/31 setting gives lower PRIV than the 10/20 setting on every transfer, for example 26.6 against 48.5 on A$\to$D.
-With 20 shared classes, more shared guides compete for each private sample, and 42 to 94\% of private samples are predicted as shared at epoch 30.
-
-\paragraph{Best, middle and last epoch.}
-\Cref{tab:imp-pseudo-epochs} reports the same three points as \cref{tab:vanilla-epochs}.
-With the changes, the best epoch comes later on 14 of the 15 tasks, at epochs 16 to 23 on Digits and 3 to 28 on Office-31.
-Accuracy also decays less after epoch 15.
-ALL falls by 0.3 to 3.6 points from epoch 15 to the last epoch on Digits, and by 1.1 to 19.1 points on Office-31.
-The baseline lost 6 to 30 points over the same stretch on Office-31.
-At the best epoch, ALL matches or exceeds the paper on all three Digits tasks and on four Office-31 tasks.
-These are A$\to$D and A$\to$W in the 10/20 setting, and A$\to$W and D$\to$W in the 20/31 setting.
-PRIV at the best epoch still reaches only 24.1 to 57.7 on Office-31, against 61.8 to 88.4 in the paper.
-Epoch 15 gives a higher ALL than the last epoch on every task, but without target labels we have no principled way to choose it.
-
-\begin{table*}[t]
-  \centering
-  \small
-  \caption{Results with the four changes of \cref{sec:changes} at three points of adaptation. ALL and PRIV accuracy in \%, mean over 5 seeds. The best epoch is chosen as in \cref{tab:vanilla-epochs}, so it is an upper bound only. Empty cells are runs we have not done yet.}
-  \label{tab:imp-pseudo-epochs}
-  \begin{tabular}{@{}llccccccc@{}}
-    \toprule
-    & & \multicolumn{3}{c}{Best epoch} & \multicolumn{2}{c}{Epoch 15} & \multicolumn{2}{c}{Last epoch} \\
-    \cmidrule(lr){3-5}\cmidrule(lr){6-7}\cmidrule(lr){8-9}
-    Setting & Task & Epoch & ALL & PRIV & ALL & PRIV & ALL & PRIV \\
-    \midrule
-    Digits & M$\to$U & 23 & 72.6 & 55.3 & 72.2 & 54.7 & 71.9 & 55.3 \\
-     & U$\to$M & 16 & 69.5 & 58.4 & 69.1 & 57.2 & 65.5 & 51.0 \\
-     & S$\to$M & 16 & 62.1 & 52.7 & 61.5 & 52.7 & 58.8 & 44.0 \\
-    \midrule
-    Office 10/20 & A$\to$D & 28 & 72.3 & 52.3 & 71.4 & 50.1 & 70.3 & 48.5 \\
-     & A$\to$W & 17 & 69.9 & 49.0 & 69.7 & 49.0 & 67.1 & 44.4 \\
-     & D$\to$A & 8 & 50.3 & 25.6 & 48.6 & 22.2 & 41.2 & 11.4 \\
-     & D$\to$W & 9 & 75.8 & 53.1 & 74.3 & 51.1 & 72.3 & 48.6 \\
-     & W$\to$A & 8 & 55.1 & 31.3 & 53.2 & 27.7 & 43.4 & 12.2 \\
-     & W$\to$D & 11 & 77.5 & 57.7 & 76.3 & 55.3 & 73.5 & 52.1 \\
-    \midrule
-    Office 20/31 & A$\to$D & 21 & 69.5 & 35.6 & 69.2 & 34.1 & 65.3 & 26.6 \\
-     & A$\to$W & 25 & 68.3 & 32.5 & 67.9 & 32.2 & 66.6 & 25.5 \\
-     & D$\to$A & 3 & 56.4 & 24.7 & 52.0 & 16.4 & 32.9 & 2.5 \\
-     & D$\to$W & 8 & 79.6 & 43.2 & 77.6 & 39.0 & 71.7 & 27.1 \\
-     & W$\to$A & 4 & 54.6 & 24.1 & 52.0 & 17.5 & 40.6 & 4.5 \\
-     & W$\to$D & 11 & 82.6 & 53.7 & 81.5 & 51.4 & 77.5 & 42.9 \\
-    \midrule
-    VisDA & Syn$\to$Real &  &  &  &  &  &  &  \\
-     & Real$\to$Syn &  &  &  &  &  &  &  \\
-    \bottomrule
-  \end{tabular}
-\end{table*}
-
-\paragraph{VisDA.}
-We have not yet run these changes on VisDA.
+% Emptied on request. The previous text, Nikita's improvements and tables tab:imp-pseudo and
+% tab:imp-pseudo-epochs are in commit a42c640.
