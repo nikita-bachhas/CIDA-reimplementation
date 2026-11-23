@@ -186,6 +186,16 @@ sbatch slurm/run.sbatch configs/office20_w2d_src180.yaml
 sbatch slurm/run.sbatch configs/office20_a2d_src150.yaml
 ```
 
+**Final run: off-protocol configuration on A→W, D→W, D→A, W→A** (2026-11-23; SPEC "Final run: off-protocol configuration on the remaining Table 2 tasks"). Each config trains its own longer source model, then seeds 0–4 at 20 epochs. Times are estimates: Webcam targets ~12 min per seed (as DSLR); Amazon targets have about 6× the images, so evaluation and the lp refresh take longer (rough guess ~1 h per seed). The Amazon jobs requeue themselves at 6 h.
+
+```bash
+# Webcam targets (~3 h)
+sbatch --export=ALL,CONFIGS="configs/office20_a2w_final.yaml configs/office20_d2w_final.yaml" slurm/run.sbatch
+# Amazon targets (one job each, ~5-6 h each, not timed)
+sbatch slurm/run.sbatch configs/office20_d2a_final.yaml
+sbatch slurm/run.sbatch configs/office20_w2a_final.yaml
+```
+
 **Step-matched source training, paper protocol — dropped, not to be run** (the report now uses the off-protocol configuration only). (2026-11-23; SPEC "Under test: step-matched source training, paper protocol"). W→D (180 source epochs) and D→W (317), random one-shot draws, lp, 60 adaptation epochs, seeds 0–4. Each trains its own source model (W→D ~13 min, D→W ~26 min), then 5 seeds of ~34 / ~26 min:
 
 ```bash

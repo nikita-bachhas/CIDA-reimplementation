@@ -1,0 +1,28 @@
+# Final run, Table 2 setting (20 shared + 11 private) on W->A: the report's off-protocol configuration.
+# Hand-picked one-shot Amazon images (picked by eye from scripts/contact_sheet.py sheets, which uses
+# the labels of every amazon image of each class; not the paper's protocol), lp pseudo-labels, 20 adaptation
+# epochs, ResNet-50 frozen, and a longer source model: Webcam gives 16 source steps per epoch, so
+# 180 epochs + 1 warm-up is ~2,880 steps (rule per source domain: Amazon 150 as configs/office20_a2d_src150.yaml,
+# Webcam 180 as job 56769, DSLR 317 to match Amazon's 51-epoch step count). Seeds 0-4 change only the training RNG.
+# Trains its own source model: writes runs/office20_w2a_final/source and
+# runs/office20_w2a_final/adapt_1shot_abl-none_final_seed<k>.
+base: office20_w2a.yaml
+name: office20_w2a_final
+src_train: {epochs: 180, backbone_lr_mult: 0.0}
+adapt:
+  tag: final
+  pseudo_label: lp
+  epochs: 20
+  backbone_lr_mult: 0.0
+  fixed_shots:
+    phone: frame_0051.jpg           # black multi-line desk phone with display (the most common kind), 3/4
+    printer: frame_0022.jpg         # black all-in-one inkjet with paper in the tray, 3/4
+    projector: frame_0038.jpg       # grey mid-size projector, lens front and centre, 3/4
+    punchers: frame_0033.jpg        # black three-hole office punch with handle (many images are craft punches), 3/4
+    ring_binder: frame_0050.jpg     # black three-ring binder, open, rings visible
+    ruler: frame_0004.jpg           # stainless steel ruler (6 of 75 alike), tick marks visible
+    scissors: frame_0056.jpg        # orange-handled scissors (8 of 100 alike), open
+    speaker: frame_0037.jpg         # pair of black desktop speakers, drivers visible
+    stapler: frame_0018.jpg         # black desktop stapler (the most common kind), throat visible
+    tape_dispenser: frame_0047.jpg  # black desktop dispenser with roll (the most common kind)
+    trash_can: frame_0057.jpg       # stainless steel pedal bin (stainless cans are the most common kind)

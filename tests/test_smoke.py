@@ -272,7 +272,8 @@ OFFICE31_CLASSES = [
     ("office20_a2d_fixedshot_lp20", 20, 11), ("office20_w2d_fixedshot_lp20", 20, 11),
     ("office20_w2d_srcft100", 20, 11), ("office20_w2d_src180", 20, 11),
     ("office20_w2d_lpref_srcmatch", 20, 11), ("office20_d2w_lpref_srcmatch", 20, 11),
-    ("office20_a2d_src150", 20, 11)])
+    ("office20_a2d_src150", 20, 11),
+    ("office20_a2w_final", 20, 11), ("office20_d2w_final", 20, 11), ("office20_d2a_final", 20, 11), ("office20_w2a_final", 20, 11)])
 def test_office_configs(tmp_path, name, n_shared, n_private):
     """Class splits of the Office configs, and fixed_shots resolving to one file per private class."""
     from PIL import Image
@@ -284,6 +285,8 @@ def test_office_configs(tmp_path, name, n_shared, n_private):
         (root / c).mkdir(parents=True)
         for k in range(1, 26):
             Image.new("RGB", (8, 8)).save(root / c / f"frame_{k:04d}.jpg")
+    for c, f in (cfg["adapt"].get("fixed_shots") or {}).items():  # picks past frame_0025 (Amazon classes are larger)
+        Image.new("RGB", (8, 8)).save(root / c / f)
     ds = build_domain(cfg, cfg["tgt_domain"], "all", False)
     assert (ds.n_shared, ds.n_private) == (n_shared, n_private)
     if cfg["adapt"].get("fixed_shots"):

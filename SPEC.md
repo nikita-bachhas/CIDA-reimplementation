@@ -573,6 +573,54 @@ Source stage (the first 51 epochs reproduce job 56614's source log exactly, so o
 - **Watch:** `loss_ls1` (does it reach ~0?), `loss_ls2`, `neg_detected`; then ALL / PRIV / shared and private → shared against job 56686.
 - **Compare with:** job 56686 A→D (82.8 / 71.2 / 89.4; per seed 85.6 / 74.6 / 91.9, 81.5 / 70.1 / 88.1, 81.7 / 72.3 / 87.1, 82.8 / 70.1 / 90.0, 82.1 / 68.9 / 89.7); paper 73.3 / 73.1. Not yet run.
 
+### Final run: off-protocol configuration on the remaining Table 2 tasks (2026-11-23)
+
+The report's configuration (user's decision, 2026-11-23) on A→W, D→W, D→A and W→A: hand-picked one-shot images, `pseudo_label: lp`, 20 adaptation epochs, ResNet-50 frozen, and a longer source model. Configs `configs/office20_<task>_final.yaml`, folders `runs/office20_<task>_final/`, tag `final`, seeds 0–4. A→D and W→D are covered by `office20_a2d_src150.yaml` (pending) and job 56769.
+
+**Source length, one rule per source domain:**
+
+| Source | Steps per epoch | Source epochs | Steps | Basis |
+| --- | --- | --- | --- | --- |
+| Amazon (A→W) | 56 | 150 + 1 | ~8,450 | as `office20_a2d_src150.yaml` (result pending) |
+| Webcam (W→A) | 16 | 180 + 1 | ~2,880 | job 56769 (W→D +3.1 / +5.1) |
+| DSLR (D→W, D→A) | 9 | 317 + 1 | ~2,850 | matches Amazon's 51-epoch step count |
+
+**Webcam picks** (A→W, D→W; same criteria as the DSLR picks: the most common object model, an angle that shows its distinctive parts, a clear view):
+
+| Class | Image | Reason |
+| --- | --- | --- |
+| phone | frame_0011 | black multi-line handset (the most common model), 3/4, display and keypad |
+| printer | frame_0018 | boxy laser printer (7 of 20, like the DSLR pick), 3/4, plain wall |
+| projector | frame_0019 | silver tabletop model (15 of 30), lens front and centre |
+| punchers | frame_0016 | two-hole punch with arch handle (11 of 27, like the DSLR pick) |
+| ring_binder | frame_0023 | lever-arch binder (18 of 40), mechanism and spine visible |
+| ruler | frame_0005 | purple ruler (4 of 11), clearer than the white ones on grey |
+| scissors | frame_0011 | blue scissors (13 of 25), open |
+| speaker | frame_0023 | tall white speaker with grey grille (the most common model), 3/4 |
+| stapler | frame_0020 | black Swingline (black staplers 9 of 24), throat and anvil visible |
+| tape_dispenser | frame_0020 | rectangular black model (9 of 23, like the DSLR pick) |
+| trash_can | frame_0008 | single dark bin with liner (8 of 21), whole |
+
+**Amazon picks** (D→A, W→A; product photos on white, many models per class, some classes noisy — punchers has craft punches, phone has routers and PBX boxes):
+
+| Class | Image | Reason |
+| --- | --- | --- |
+| phone | frame_0051 | black multi-line desk phone with display, 3/4 |
+| printer | frame_0022 | black all-in-one inkjet, paper in the tray, 3/4 |
+| projector | frame_0038 | grey mid-size projector, lens front and centre |
+| punchers | frame_0033 | black three-hole office punch with handle |
+| ring_binder | frame_0050 | black three-ring binder, open, rings visible |
+| ruler | frame_0004 | stainless steel ruler (6 alike), tick marks visible |
+| scissors | frame_0056 | orange-handled scissors (8 alike), open |
+| speaker | frame_0037 | pair of black desktop speakers, drivers visible |
+| stapler | frame_0018 | black desktop stapler, throat visible |
+| tape_dispenser | frame_0047 | black desktop dispenser with roll |
+| trash_can | frame_0057 | stainless steel pedal bin (stainless cans are the most common kind) |
+
+- **Not the paper's protocol:** picked by eye from every labelled image of each class; epoch count read off earlier test curves.
+- **Untested parts:** no hand-picked or lp run has used a Webcam or Amazon target before; the Amazon-source length (150) waits on the A→D src150 result; lp on an Amazon target builds a 2,817-image graph (under LP_MAX).
+- **Compare with:** paper Table 2 A→W 63.6 / 62.6, D→W 80.3 / 79.4, D→A 64.1 / 64.3, W→A 63.7 / 62.8; our lp random-shot runs at epoch 20 (A→W 75.7 / 54.5 / 85.9, D→W 81.0 / 60.1 / 91.2); vanilla (A→W 42.5 / 20.9, D→W 53.2 / 17.7, D→A 9.9 / 4.4, W→A 14.7 / 1.4). Not yet run.
+
 ## Investigated, not adopted
 
 **Prediction-step changes for PRIV** (`scripts/posthoc.py`, re-evaluating the 15 saved Digits models; no target labels used). Mean change from the paper's rule (ALL / PRIV / shared):

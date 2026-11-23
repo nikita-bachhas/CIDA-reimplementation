@@ -1,0 +1,28 @@
+# Final run, Table 2 setting (20 shared + 11 private) on D->W: the report's off-protocol configuration.
+# Hand-picked one-shot Webcam images (picked by eye from scripts/contact_sheet.py sheets, which uses
+# the labels of every webcam image of each class; not the paper's protocol), lp pseudo-labels, 20 adaptation
+# epochs, ResNet-50 frozen, and a longer source model: DSLR gives 9 source steps per epoch, so
+# 317 epochs + 1 warm-up is ~2,853 steps (rule per source domain: Amazon 150 as configs/office20_a2d_src150.yaml,
+# Webcam 180 as job 56769, DSLR 317 to match Amazon's 51-epoch step count). Seeds 0-4 change only the training RNG.
+# Trains its own source model: writes runs/office20_d2w_final/source and
+# runs/office20_d2w_final/adapt_1shot_abl-none_final_seed<k>.
+base: office20_d2w.yaml
+name: office20_d2w_final
+src_train: {epochs: 317, backbone_lr_mult: 0.0}
+adapt:
+  tag: final
+  pseudo_label: lp
+  epochs: 20
+  backbone_lr_mult: 0.0
+  fixed_shots:
+    phone: frame_0011.jpg           # black multi-line handset (the most common model), 3/4, display and keypad visible
+    printer: frame_0018.jpg         # boxy laser printer (7 of 20, like the DSLR pick), 3/4, plain wall
+    projector: frame_0019.jpg       # silver tabletop model (15 of 30), lens front and centre
+    punchers: frame_0016.jpg        # two-hole punch with arch handle (11 of 27, like the DSLR pick), paper guide visible
+    ring_binder: frame_0023.jpg     # lever-arch binder (18 of 40), ring mechanism and spine visible
+    ruler: frame_0005.jpg           # purple ruler (4 of 11), whole length visible, clearer than the white ones on grey
+    scissors: frame_0011.jpg        # blue scissors (13 of 25), open, blades and handles visible
+    speaker: frame_0023.jpg         # tall white speaker with grey grille (the most common model), 3/4
+    stapler: frame_0020.jpg         # black Swingline (black staplers 9 of 24), throat and anvil visible
+    tape_dispenser: frame_0020.jpg  # rectangular black model (9 of 23, like the DSLR pick), roll and cutter visible
+    trash_can: frame_0008.jpg       # single dark bin with liner (8 of 21), whole, plain carpet
