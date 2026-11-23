@@ -308,30 +308,53 @@ Per seed on the final features, own shot → picks, PRIV: nearest 57.9 → 69.4,
 
 **Runs:** `sbatch slurm/run.sbatch configs/office_a2d_fixedshot.yaml` (source reused, seeds 0–4) → `runs/office_a2d/adapt_1shot_abl-none_fixedshot_seed<k>`. Compare seed by seed with the main runs, and use the spread over seeds as the RNG-only spread.
 
-## Under test: label-free stopping and balanced B_t batches (2026-11-22)
+## Share-peak stop on Office Table 3 (results 2026-11-23)
 
-**Why.** On every Office task, ALL falls after about epoch 10. The fall is worst on the Amazon targets, D→A (49.8 at epoch 10, 41.2 at epoch 60) and W→A (54.1, 43.4). B_t is only 58 to 66% correct there. Lc then sends more private images to shared classes, and the next B_t is worse. The private → shared leak rises from 48 to 79% on D→A.
+**Why.** On the five Office tasks used to design the rule, ALL falls after about epoch 10. The fall is worst on the Amazon targets, D→A (49.8 at epoch 10, 41.2 at epoch 60) and W→A (54.1, 43.4). B_t is only 58 to 66% correct there. Lc then sends more private images to shared classes, and the next B_t is worse. The private → shared leak rises from 48 to 79% on D→A.
 
-**Share-peak stop (`adapt.stop: share_peak`, default `last`).** The drift shows up as a falling share of images predicted as any private class (`pred_priv_share`, now logged every epoch). This share counts predictions only, so it uses no labels. The run keeps the model of the epoch with the highest share, epoch 0 excluded, and stops once the share has not risen for `adapt.stop_patience` epochs (default 3). `final_metrics.json` then holds `stop_epoch`, `stop_share` and `epochs_trained`, and `final.pt` is the stop-epoch model. A replay on the logged error rates of the 25 main Office runs gave a five-task mean of 65.9 / 44.0 against 60.2 / 34.9 at epoch 60, with higher ALL on 23 of 25 seeds. The rule was designed after seeing those five tasks, so A→D is the held-out check. It fails on Digits (U→M stops at epoch 1, ALL 49.4 against 65.5), so Digits keeps its fixed 30 epochs.
+**The rule (`adapt.stop: share_peak`).** The drift shows up as a falling share of images predicted as any private class (`pred_priv_share`, logged every epoch). This share counts predictions only, so it uses no labels. The run keeps the model of the epoch with the highest share, epoch 0 excluded, and stops once the share has not risen for `adapt.stop_patience` epochs (default 3). `final_metrics.json` then holds `stop_epoch`, `stop_share` and `epochs_trained`, and `final.pt` is the stop-epoch model.
 
-**Balanced B_t batches (`adapt.b_sampler: balanced`, default `shuffle`).** Each B_t sample is drawn with weight 1 / (size of its pseudo-class), so every class has the same expected share of a batch. The smallest class in B_t has one image on all five Office tasks. A mislabelled image in a small class is repeated in almost every batch, so the outcome is uncertain.
+**Where it is on.** On this branch it stays off by default (`adapt.stop: last`), because this branch records the code that job 56672 ran. Branch `feat/share-peak-stop` (#3) makes it the Office Table 3 default and adds `sharestop` to the folder name of every share-peak run. The runs here pass `adapt.stop=share_peak adapt.tag=sharestop`, so their folders match that naming.
 
-**Runs:** `adapt.stop=share_peak adapt.tag=sharestop` and `adapt.b_sampler=balanced adapt.tag=bbal`, seeds 0 to 4, compared seed by seed with the main runs. `slurm/steps_2026-11-22.sh` holds the full job (job 56672 on TC2).
+**Why not Digits or Table 2.** Replayed on the Digits logs, the rule stops U→M at epoch 1 on all 5 seeds and gives 49.4 ALL against 65.5, so Digits keeps its fixed 30 epochs. Table 2 was not tested.
 
-**Share-peak results on the five design tasks (job 56672, 5 seeds, ALL / PRIV per image).** Main is the 60-epoch run with the same seed.
+**Results (job 56672 on TC2, ALL / PRIV per image, mean ± SD over seeds 0 to 4).** `slurm/steps_2026-11-22.sh` holds the full job. Main here means Ryan's own 60-epoch runs, paired seed by seed with the stopped runs. On A→D they match Sourabh's runs within 0.2 (70.3 / 48.5). The rule was designed on the first five tasks, and A→D was held out until the rule was fixed.
 
 | Task | Main, epoch 60 | Share-peak stop | Stop epochs | Paired Δ ALL / PRIV | Seeds with higher ALL |
 |---|---|---|---|---|---|
-| A→W | 70.5 ± 4.9 / 49.7 ± 8.3 | 72.2 ± 3.4 / 52.6 ± 5.5 | 12–17 | +1.7 / +3.0 | 4 of 5 |
-| D→A | 41.2 ± 2.6 / 11.4 ± 5.9 | 50.0 ± 3.7 / 25.6 ± 6.2 | 5–8 | +8.8 / +14.1 | 5 of 5 |
-| D→W | 72.7 ± 2.7 / 49.3 ± 5.0 | 75.3 ± 2.3 / 53.1 ± 4.0 | 7–19 | +2.6 / +3.7 | 5 of 5 |
-| W→A | 43.4 ± 6.5 / 12.2 ± 8.1 | 54.5 ± 4.3 / 31.1 ± 6.5 | 4–9 | +11.0 / +18.9 | 5 of 5 |
-| W→D | 73.4 ± 5.3 / 51.9 ± 10.7 | 77.3 ± 5.3 / 57.4 ± 9.9 | 11–14 | +3.8 / +5.5 | 5 of 5 |
-| Mean | 60.2 / 34.9 | 65.9 / 44.0 | | +5.6 / +9.1 | 24 of 25 |
+| A→W | 70.5 ± 4.9 / 49.7 ± 8.3 | 72.2 ± 3.4 / 52.6 ± 5.5 | 12 to 17 | +1.7 / +3.0 | 4 of 5 |
+| D→A | 41.2 ± 2.6 / 11.4 ± 5.9 | 50.0 ± 3.7 / 25.6 ± 6.2 | 5 to 8 | +8.8 / +14.1 | 5 of 5 |
+| D→W | 72.7 ± 2.7 / 49.3 ± 5.0 | 75.3 ± 2.3 / 53.1 ± 4.0 | 7 to 19 | +2.6 / +3.7 | 5 of 5 |
+| W→A | 43.4 ± 6.5 / 12.2 ± 8.1 | 54.5 ± 4.3 / 31.1 ± 6.5 | 4 to 9 | +11.0 / +18.9 | 5 of 5 |
+| W→D | 73.4 ± 5.3 / 51.9 ± 10.7 | 77.3 ± 5.3 / 57.4 ± 9.9 | 11 to 14 | +3.8 / +5.5 | 5 of 5 |
+| Mean of the five design tasks | 60.2 / 34.9 | 65.9 / 44.0 | | +5.6 / +9.1 | 24 of 25 |
+| A→D (held out) | 70.2 ± 4.6 / 48.3 ± 9.0 | 71.5 ± 5.0 / 50.6 ± 9.0 | 15 to 20 | +1.3 / +2.2 | 3 of 5 |
 
-- **Training is deterministic.** Each stopped run matches its 60-epoch run at every common epoch (largest gap 0.00 in ALL and PRIV), so the comparison is paired exactly.
-- **The stop epochs match the replay on 22 of 25 seeds.** The other 3 are exact ties in the share (A→W seed 4 has 40.764 at epochs 12 and 14). The rule keeps the earlier epoch, while the replay's rebuilt share broke the tie by rounding noise.
-- **The held-out test is A→D,** with its own source model and 60-epoch runs in the same job. LP after training on the stopped models is also pending.
+- **The rule holds on the held-out task.** The bar, set before the run, was a change of −1 ALL or better on A→D. ALL rose on 3 seeds, stayed equal on 1 and fell by 2.2 on 1.
+- **The held-out gain is smaller,** +1.3 against +5.6. A→D drifts less, since its mean ALL peaks at epoch 30 and falls only 2.0 by epoch 60.
+- **Training is deterministic.** Each stopped run matches its 60-epoch run at every common epoch, with a largest gap of 0.00 in ALL and PRIV. The one exception is A→D seed 4, whose 60-epoch run was requeued at epoch 17. From epoch 18 its log differs by up to 0.95 ALL, so a resume from a checkpoint is not bit-exact. That seed stops at epoch 15, before the resume, so its pair still holds.
+- **The stop epochs match an offline replay** on the 60-epoch logs for 27 of 30 seeds. The other 3 are exact ties in the share (A→W seed 4 has 40.764 at epochs 12 and 14). The rule keeps the earlier epoch of a tie.
+
+**With LP after training.** LP after training relabels the evaluation images by label propagation from the class guides (`scripts/posthoc.py` on `office-rectify-sweep`). It is transductive, because each image's label depends on the other evaluation images. Paired by seed, ALL / PRIV per image, mean over seeds 0 to 4.
+
+| Task | Main + LP after training | Stop + LP after training | Paired Δ ALL / PRIV | Seeds with higher ALL | Paper |
+|---|---|---|---|---|---|
+| A→D | 75.3 / 58.2 | 74.6 / 56.4 | −0.6 / −1.7 | 1 of 5 | 72.2 / 72.6 |
+| A→W | 76.2 / 61.7 | 75.0 / 58.3 | −1.2 / −3.4 | 1 of 5 | 62.1 / 62.0 |
+| D→A | 52.9 / 36.9 | 57.6 / 40.2 | +4.7 / +3.3 | 5 of 5 | 62.6 / 61.8 |
+| D→W | 77.7 / 59.2 | 79.9 / 61.8 | +2.3 / +2.5 | 4 of 5 | 78.5 / 78.7 |
+| W→A | 55.6 / 38.9 | 60.8 / 44.0 | +5.2 / +5.1 | 4 of 5 | 62.1 / 62.4 |
+| W→D | 78.5 / 61.1 | 79.2 / 61.0 | +0.7 / −0.1 | 2 of 5 | 87.8 / 87.6 |
+| Mean of six | 69.4 / 52.7 | 71.2 / 53.6 | +1.8 / +1.0 | 17 of 30 | 70.9 / 70.9 |
+
+- **Stop plus LP after training gives the best six-task mean,** 71.2 ALL against the paper's 70.9. PRIV is 53.6 against 70.9, so the new classes remain the gap.
+- **The two gains add up on the Amazon targets,** where the drift is strongest. On A→D and A→W, LP after training does slightly better on the 60-epoch model.
+
+**Source model without Ls1 (job 56687, `configs/office_d2a_nols1.yaml` and `office_w2a_nols1.yaml`).** These ran with `adapt.stop: last`. Paired by seed with Main at epoch 60, ALL changes by −0.3 on D→A and −0.7 on W→A, and PRIV by −0.8 and +0.4. Pseudo-label accuracy at epoch 0 moves by at most 1.7 on any seed. So Ls1 does no harm here, and it does not explain the Amazon gap.
+
+**LP inside training on the Amazon targets (`adapt.pseudo_label=lp`, job 56672, running).** D→A with the balanced variant (`adapt.tag=lp`) has finished seeds 0 to 3. Paired by seed with Main, ALL / PRIV at epoch 60 rise from 41.5 / 13.1 to 57.2 / 45.4, with higher ALL on 4 of 4 seeds. At the share-peak epoch, seeds 0 to 4 rise from 50.0 / 25.6 to 57.7 / 44.6, with higher ALL on 5 of 5. The private → shared leak is 22 to 26% at epochs 5, 10, 30 and 60, against 48 to 79% under Main, so the wrong-label loop no longer grows. Over seeds 0 to 3, mean ALL is 58.8 at epoch 5 and 57.2 at epoch 60. W→A and the variant without balancing (`adapt.tag=lpnobal`) are still running.
+
+**Balanced B_t batches (`adapt.b_sampler: balanced`, default `shuffle`), not run yet.** Each B_t sample is drawn with weight 1 / (size of its pseudo-class), so every class has the same expected share of a batch. The smallest class in B_t has one image on all five Office tasks. A mislabelled image in a small class is repeated in almost every batch, so the outcome is uncertain.
 
 ## Investigated, not adopted
 
