@@ -125,26 +125,30 @@ Each Real→Syn seed takes about 6 h, so every seed was resumed after a requeue.
 
 ## Main configuration on Office-31
 
-All four changes on, with the ResNet-50 frozen (`configs/office31.yaml`, `configs/office20.yaml`; runs in `runs/<task>/`). 5 seeds, ALL / PRIV at epoch 60.
+All four changes on, with the ResNet-50 frozen (`configs/office31.yaml`, `configs/office20.yaml`; runs in `runs/<task>/`). 5 seeds, ALL / PRIV at epoch 60. Best epoch = highest mean ALL over seeds, chosen with target labels (`scripts/epochs.py runs/`), so an upper bound only.
 
-| Setting | Task | Main config | Vanilla | Paper |
-|---|---|---|---|---|
-| Table 3 (10/20) | A→D | **70.3 ± 4.5 / 48.5 ± 8.8** | 45.2 / 16.9 | 72.2 / 72.6 |
-| | A→W | **67.1 ± 7.2 / 44.4 ± 12.8** | 51.3 / 26.9 | 62.1 / 62.0 |
-| | D→A | 41.2 ± 2.6 / 11.4 ± 5.9 | 25.2 / 3.2 | 62.6 / 61.8 |
-| | D→W | 72.3 ± 3.1 / 48.6 ± 6.2 | 56.1 / 17.8 | 78.5 / 78.7 |
-| | W→A | 43.4 ± 6.5 / 12.2 ± 8.1 | 20.9 / 7.4 | 62.1 / 62.4 |
-| | W→D | 73.5 ± 5.2 / 52.1 ± 10.5 | 54.3 / 19.6 | 87.8 / 87.6 |
-| Table 2 (20/31) | A→D | 65.3 ± 2.9 / 26.6 ± 7.1 | 47.7 / 16.3 | 73.3 / 73.1 |
-| | A→W | **66.6 ± 2.8 / 25.5 ± 6.1** | 42.5 / 20.9 | 63.6 / 62.6 |
-| | D→A, D→W, W→A, W→D | still running | | |
+| Setting | Task | Main config | Best epoch (ep) | Vanilla | Paper |
+|---|---|---|---|---|---|
+| Table 3 (10/20) | A→D | **70.3 ± 4.5 / 48.5 ± 8.8** | 72.3 / 52.3 (28) | 45.2 / 16.9 | 72.2 / 72.6 |
+| | A→W | **67.1 ± 7.2 / 44.4 ± 12.8** | 69.9 / 49.0 (17) | 51.3 / 26.9 | 62.1 / 62.0 |
+| | D→A | 41.2 ± 2.6 / 11.4 ± 5.9 | 50.3 / 25.6 (8) | 25.2 / 3.2 | 62.6 / 61.8 |
+| | D→W | 72.3 ± 3.1 / 48.6 ± 6.2 | 75.8 / 53.1 (9) | 56.1 / 17.8 | 78.5 / 78.7 |
+| | W→A | 43.4 ± 6.5 / 12.2 ± 8.1 | 55.1 / 31.3 (8) | 20.9 / 7.4 | 62.1 / 62.4 |
+| | W→D | 73.5 ± 5.2 / 52.1 ± 10.5 | 77.5 / 57.7 (11) | 54.3 / 19.6 | 87.8 / 87.6 |
+| Table 2 (20/31) | A→D | 65.3 ± 2.9 / 26.6 ± 7.1 | 69.5 / 35.6 (21) | 47.7 / 16.3 | 73.3 / 73.1 |
+| | A→W | **66.6 ± 2.8 / 25.5 ± 6.1** | 68.3 / 32.5 (25) | 42.5 / 20.9 | 63.6 / 62.6 |
+| | D→A | 32.9 ± 4.6 / 2.5 ± 2.3 | 56.4 / 24.7 (3) | 9.9 / 4.4 | 64.1 / 64.3 |
+| | D→W | 71.7 ± 0.7 / 27.1 ± 1.2 | 79.6 / 43.2 (8) | 53.2 / 17.7 | 80.3 / 79.4 |
+| | W→A | 40.6 ± 4.9 / 4.5 ± 2.2 | 54.6 / 24.1 (4) | 14.7 / 1.4 | 63.7 / 62.8 |
+| | W→D | 77.5 ± 1.9 / 42.9 ± 4.8 | 82.6 / 53.7 (11) | 60.0 / 12.7 | 89.5 / 88.4 |
 
-- **ALL rises by 16 to 25 points over vanilla on every finished transfer.** It matches the paper on A→D (70.3 against 72.2, within noise) and exceeds it on A→W (67.1 against 62.1 in Table 3, 66.6 against 63.6 in Table 2). It stays 6 to 21 points below on the others.
-- **Shared accuracy holds.** It stays at 77–100 through adaptation, and shared_as_priv stays below 9%. In vanilla, shared accuracy fell to 36–50 with Amazon as target.
-- **PRIV is still the gap: 11–52 against 62–88 in the paper.** The remaining loss is private samples predicted as shared, which is 16–70% at epoch 30. PRIV peaks around epochs 8–20 and then decays slowly to epoch 60. Peak (epoch) → epoch 60: A→W 49.0 (15) → 44.4; D→A 25.6 (8) → 11.4; D→W 54.0 (10) → 48.6; W→A 31.3 (8) → 12.2; W→D 58.3 (8) → 52.1; Table 2 A→D 35.3 (20) → 26.6; Table 2 A→W 32.2 (15) → 25.5.
-- **Amazon targets are the weakest** (D→A, W→A: PRIV 11–12). The private part of B_t is only 54–60% correct there, against 73–93% with DSLR or Webcam as target, and 61–70% of private samples end up predicted as shared by epoch 30.
-- **Table 2 PRIV is lower than Table 3 on the same transfer** (A→D 26.6 against 48.5). With 20 shared classes, more shared classes compete for each private sample: priv_as_shared is 62–65% at epoch 30.
-- `trajectory.py` shows n = 4 in some early rows of D→W, W→D and Table 2 A→W, because a seed was resumed after a requeue.
+- **ALL rises by 16 to 26 points over vanilla on every transfer.** It matches the paper on A→D (70.3 against 72.2, within noise) and exceeds it on A→W (67.1 against 62.1 in Table 3, 66.6 against 63.6 in Table 2). It stays 6 to 31 points below on the others.
+- **Shared accuracy holds except for Table 2 with Amazon as target.** It stays at 77–100 through adaptation on Table 3 and on Table 2 A→D, A→W, D→W, W→D (93–100 on the last two), and shared_as_priv stays below 9%. On Table 2 D→A it falls from 71.6 at epoch 0 to 68.6 at epoch 30 and 49.7 at epoch 60; on W→A to 60.7. In vanilla, shared accuracy fell to 36–50 with Amazon as target.
+- **PRIV is still the gap: 2.5–52.1 against 62–88 in the paper.** It improves over vanilla on every transfer except Table 2 D→A (2.5 against 4.4, within noise). The remaining loss is private samples predicted as shared, 16–94% at epoch 30. ALL peaks between epochs 3 and 28 and decays by 2 to 24 points until epoch 60; PRIV falls further (Table 2 D→A: 24.7 at epoch 3 → 2.5).
+- **Amazon targets are the weakest** (PRIV 2.5–12.2, and the four largest decays from the best epoch: Table 2 D→A 23.5, Table 2 W→A 14.0, W→A 11.7, D→A 9.1). In Table 3, the private part of B_t is only 54–60% correct there, against 73–93% with DSLR or Webcam as target. In Table 2 D→A it falls from 73.0 at epoch 0 to 38.2 at epoch 60, and pl_acc_all from 51.6 to 39.8: the errors build up late.
+- **Table 2 PRIV is lower than Table 3 on every transfer** (A→D 26.6 against 48.5, D→W 27.1 against 48.6). With 20 shared classes, more shared guides compete for each private sample: priv_as_shared at epoch 30 is 42–94% (Table 2 W→D lowest, D→A highest).
+- Table 2 D→A first crashed in AdaBN: Amazon with 31 classes has 2,817 images = 44 × 64 + 1, and BatchNorm cannot train on a final batch of one. Fixed in 7c71273 (the batch is skipped).
+- Earlier versions of `trajectory.py` and `epochs.py` dropped a resumed seed's epochs from before the restart (n = 4 in early rows). Both now keep the last logged value per epoch.
 
 ## Inconsistencies in the paper
 

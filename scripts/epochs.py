@@ -54,7 +54,7 @@ def main():
     tasks = [d for d in Path(args.root).iterdir() if d.is_dir() and any(d.glob("adapt_*/log.jsonl"))]
     tasks.sort(key=lambda d: (ORDER.index(d.name) if d.name in ORDER else len(ORDER), d.name))
 
-    head = f"{'task':<14}{'variant':<24}{'n':>2}  {'best ep':>7} {'ALL':>5} {'PRIV':>5}   "
+    head = f"{'task':<22}{'variant':<24}{'n':>2}  {'best ep':>7} {'ALL':>5} {'PRIV':>5}   "
     head += "".join(f"{'ep ' + str(e):>5} {'ALL':>5} {'PRIV':>5}   " for e in args.epochs)
     head += f"{'last ep':>7} {'ALL':>5} {'PRIV':>5}"
     print(head)
@@ -64,7 +64,7 @@ def main():
             full = [e for e, v in by_epoch.items() if len(v) == n]  # epochs every seed has reached
             best = max(full, key=lambda e: st.mean(a for a, _ in by_epoch[e]))
             last = max(by_epoch)  # marked * if some seed has not reached it
-            line = f"{d.name:<14}{variant:<24}{n:>2}  {best:>7} {cell(by_epoch, best, n)}  "
+            line = f"{d.name:<22}{variant:<24}{n:>2}  {best:>7} {cell(by_epoch, best, n)}  "
             line += "".join(f"{e:>5} {cell(by_epoch, e, n)}  " for e in args.epochs)
             line += f"{last:>7} {cell(by_epoch, last, n)}"
             print(line)
