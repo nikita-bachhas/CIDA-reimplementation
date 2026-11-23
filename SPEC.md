@@ -739,6 +739,28 @@ The user asked on 2026-11-23 for the same results in the Table 3 setting (10 sha
 - **Compare with:** paper Table 3 A→D 72.2 / 72.6, A→W 62.1 / 62.0, D→W 78.5 / 78.7, W→D 87.8 / 87.6, D→A 62.6 / 61.8, W→A 62.1 / 62.4; vanilla (epoch 60) A→D 45.2 / 16.9, A→W 51.3 / 26.9, D→W 56.1 / 17.8, W→D 54.3 / 19.6, D→A 25.2 / 3.2, W→A 20.9 / 7.4.
 - **Checked locally:** all six configs load with the 10 + 10 split and every pick resolves to a real image; W→D ran end to end on the CPU (1 source epoch, 1 adaptation epoch); W→A with `source_from` skipped the source stage and adapted from the shared model.
 
+**Results, seed 0** (job 56873, `logs/cida_56873.out`, epoch 20 = last epoch; ALL / PRIV / shared; paper Table 3 in brackets):
+
+| Task | Ours | Paper | Baseline (epoch 15) | Shared at epoch 0 | shared → priv | priv → shared | Best ALL (epoch) |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| A→D | not in this log | 72.2 / 72.6 | 55.8 / 33.1 | | | | |
+| A→W | **70.7 / 61.9** / 79.6 | 62.1 / 62.0 | 59.2 / 38.2 | 90.2 | 10.6 | 25.8 | 70.7 (20) |
+| D→W | **80.0** / 70.8 / 89.4 | 78.5 / 78.7 | 66.2 / 33.8 | 100.0 | 10.6 | 10.2 | 81.7 (8) |
+| W→D | **88.6** / 79.8 / 98.1 | 87.8 / 87.6 | 68.6 / 39.9 | 100.0 | 1.3 | 3.1 | 89.6 (18) |
+| D→A | 58.3 / 43.7 / 74.9 | 62.6 / 61.8 | 48.6 / 26.8 | 82.5 | 12.5 | 37.5 | 59.8 (8) |
+| W→A | 58.4 / 50.0 / 68.0 | 62.1 / 62.4 | 45.5 / 24.5 | 78.9 | 25.4 | 15.2 | 60.3 (15) |
+| Avg. (5, no A→D) | 71.2 / 61.2 | 70.6 / 70.5 | 57.6 / 32.6 | | | | |
+
+- **A→D is missing from this log.** The job found `runs/office_a2d_final/adapt_1shot_abl-none_final_seed0/final_metrics.json` already on the cluster (an earlier job whose log we don't have) and skipped it. Read that file to complete the table.
+- **Source models settled.** Webcam (181 epochs, 1,260 steps): Ls2 0.80, 88.5% of negatives detected, source accuracy 100. DSLR (318 epochs, 1,268 steps): Ls2 0.77, 89.9%, 100. Both close to the Table 2 W→D model at ~1,600 steps (Ls2 0.79, 94.5%), far from the under-trained one (2.17, 38.9%). The Amazon source model comes from the earlier job.
+- **ALL is at or above the paper on A→W, D→W, W→D** (+8.6, +1.5, +0.8; the last two within noise) and 3.7 to 4.3 below on the Amazon targets. Averaged over the five, ALL 71.2 against 70.6.
+- **PRIV is level with the paper only on A→W** (61.9 against 62.0). It is 7.8 to 7.9 short on D→W and W→D, 12.4 on W→A and 18.1 on D→A. Average 61.2 against 70.5.
+- **New in this setting: adaptation costs shared accuracy.** Shared accuracy falls from epoch 0 to 20 by 10.6 (A→W), 10.6 (D→W), 7.6 (D→A), 10.9 (W→A) and only 1.9 on W→D. 10.6 to 25.4% of shared images end up predicted as private (W→D 1.3%). In Table 2 shared_as_priv stayed small and Amazon-target shared accuracy barely moved (70.2 → 71.5, 70.3 → 70.6). Likely reason: half the target classes are private here (10 of 20, against 11 of 31), so the private guides and the class-balanced lp claim a larger share of the images, and with only 10 shared guides each private cluster borders fewer shared ones. Not tested.
+- **Against Table 2** (5-seed means): ALL is lower here on A→W (70.7 against 80.6), D→W (80.0 / 85.1), D→A (58.3 / 62.9), W→A (58.4 / 63.8), equal on W→D (88.6 / 88.5). PRIV is higher on W→D (79.8 / 74.1) and D→W (70.8 / 63.8), equal on W→A (50.0 / 49.8), lower on A→W (61.9 / 65.5) and D→A (43.7 / 49.1). One seed against five; Table 2 seed sd was 0.6–2.0 ALL and 1.5–4.4 PRIV.
+- **Epoch 20 is within 1.9 points of the best ALL on every task** (best at epochs 8 to 20); D→W and D→A peak at epoch 8, as in Table 2.
+- **Time:** Webcam source 8.3 min, DSLR source 17.7 min, adaptation 9.0 to 13.2 min per task, under the 1.5 h estimate.
+- **Not run:** seeds 1–4 (`STAGES=adapt SEEDS="1 2 3 4"` reuses the source models).
+
 ## Investigated, not adopted
 
 **Prediction-step changes for PRIV** (`scripts/posthoc.py`, re-evaluating the 15 saved Digits models; no target labels used). Mean change from the paper's rule (ALL / PRIV / shared):
