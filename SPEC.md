@@ -646,6 +646,29 @@ The report's configuration (user's decision, 2026-11-23) on A→W, D→W, D→A 
 
 **Amazon targets: crash and fix** (job 56791, W→A, 2026-11-23): the source stage finished, then adaptation seed 0 failed in AdaBN with `ValueError: Expected more than 1 value per channel when training`. AdaBN re-estimates BatchNorm statistics over the target set in batches of 64. Amazon has 2,817 images, which is 44 × 64 + 1, so the last batch holds one image, and BatchNorm cannot run in train mode on a single sample. `adabn()` in `adapt.py` now skips batches of fewer than 2 images. The skipped image is 1 of 2,817 and only affects the BatchNorm statistics. Earlier runs are unchanged: DSLR (498) and Webcam (795) never leave a batch of one. The only earlier Amazon-target runs are the vanilla ones, and vanilla switches AdaBN off. D→A (job 56787) hits the same error after its source stage. Both source models are saved and reused on resubmission.
 
+**Results, Amazon targets** (jobs 56808 W→A and 56809 D→A, `logs/cida_56808.out`, `logs/cida_56809.out`, 2026-11-23; resubmitted with the AdaBN fix, source models reused; ALL / PRIV / shared at epoch 20):
+
+| Seed | W→A | D→A |
+| --- | --- | --- |
+| 0 | 66.1 / 51.3 / 74.3 | 63.0 / 46.9 / 72.0 |
+| 1 | 62.5 / 49.6 / 69.7 | 63.6 / 49.6 / 71.4 |
+| 2 | 63.2 / 48.8 / 71.2 | 62.2 / 49.2 / 69.5 |
+| 3 | 64.1 / 48.1 / 73.0 | 63.4 / 51.1 / 70.2 |
+| 4 | 62.9 / 51.3 / 69.3 | 62.5 / 48.9 / 70.0 |
+| **Mean** | **63.8 / 49.8 / 71.5** | **62.9 / 49.1 / 70.6** |
+| sd ALL / PRIV | 1.5 / 1.5 | 0.6 / 1.5 |
+| Class-averaged ALL / PRIV | 63.9 / 50.1 | 63.4 / 49.5 |
+| Private → shared / → wrong private / shared → private | 32.7 / 17.5 / 8.2 | 37.7 / 13.2 / 6.5 |
+| Paper (Table 2) ALL / PRIV | 63.7 / 62.8 | 64.1 / 64.3 |
+| Vanilla (epoch 60) ALL / PRIV | 14.7 / 1.4 | 9.9 / 4.4 |
+
+- **ALL matches the paper (W→A +0.1, D→A −1.2); PRIV is 13.0 and 15.2 short.** These are the first runs of the method on an Amazon target with AdaBN on; vanilla collapses on both.
+- **Shared accuracy hardly moves:** 70.2 → 71.5 (W→A) and 70.3 → 70.6 (D→A) from epoch 0 to 20, against 88–97 on the DSLR and Webcam targets. It peaks near 74 at epochs 1–2 and slowly falls. The shared-class ceiling on Amazon is set by the source model (Webcam / DSLR source on Amazon product photos), not by adaptation.
+- **PRIV levels off by epoch 10** (seed-mean 49.8 / 49.9 / 49.8 at epochs 10 / 15 / 20). The private → shared leak falls from 94% at epoch 0 to 33–38% and stays there. Pseudo-label accuracy stays at 64–66% from epoch 5 on.
+- **Curves:** best ALL per seed at epochs 4–8 on 8 of 10 seeds, 1.0–2.1 above epoch 20 (the other two peak at epoch 19); last epoch kept.
+- **Source models:** Webcam 180 epochs ended with Ls2 0.31, 99.3% of negatives detected (job 56791; same as W→D's). DSLR 317 epochs uses D→W's recipe; its log copy (job 56787) stops at epoch 90.
+- Time: 13.2–13.4 min per adaptation seed (Amazon is 3.5× the size of Webcam).
+
 ## Investigated, not adopted
 
 **Prediction-step changes for PRIV** (`scripts/posthoc.py`, re-evaluating the 15 saved Digits models; no target labels used). Mean change from the paper's rule (ALL / PRIV / shared):
