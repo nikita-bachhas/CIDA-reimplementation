@@ -564,6 +564,15 @@ Source stage (the first 51 epochs reproduce job 56614's source log exactly, so o
 - **Compare with (epoch 60):** W→D 81.4 / 63.2 / 91.8 and D→W 77.3 / 56.2 / 87.6 (paper 89.5 / 88.4 and 80.3 / 79.4).
 - **If it helps:** apply the same rule to W→A (Webcam source, 180 epochs) and D→A (DSLR source, 317 epochs). A→D / A→W already have ~2,850 steps. Not yet run.
 
+### Under test: A→D source model trained longer, ResNet frozen (2026-11-23)
+
+`configs/office20_a2d_src150.yaml`: the report's off-protocol configuration on A→D (`office20_a2d_fixedshot_lp20.yaml`: hand-picked shots, lp, 20 adaptation epochs) with the source model trained for 150 + 1 epochs instead of 50 + 1 (Amazon: 56 steps per epoch, ~2,850 → ~8,450 steps). Own folder `runs/office20_a2d_src150/`, tag `fixedshot_lp20_src150`, seeds 0–4.
+
+- **Why:** on W→D the longer frozen source gave +3.1 ALL / +5.1 PRIV (job 56769), mostly by cutting private ↔ private confusion. A→D's 50-epoch source was less under-trained (Ls2 0.61, 98% of negatives detected, against 2.17 / 39% on W→D), but Ls1 was still 5.8 at the end (W→D at 180 epochs: ~0), so tighter source clusters may still help.
+- **Expected:** a smaller gain than on W→D, if any; A→D's private loss is mostly private → shared (24.4%), not private ↔ private (~4%).
+- **Watch:** `loss_ls1` (does it reach ~0?), `loss_ls2`, `neg_detected`; then ALL / PRIV / shared and private → shared against job 56686.
+- **Compare with:** job 56686 A→D (82.8 / 71.2 / 89.4; per seed 85.6 / 74.6 / 91.9, 81.5 / 70.1 / 88.1, 81.7 / 72.3 / 87.1, 82.8 / 70.1 / 90.0, 82.1 / 68.9 / 89.7); paper 73.3 / 73.1. Not yet run.
+
 ## Investigated, not adopted
 
 **Prediction-step changes for PRIV** (`scripts/posthoc.py`, re-evaluating the 15 saved Digits models; no target labels used). Mean change from the paper's rule (ALL / PRIV / shared):

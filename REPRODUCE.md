@@ -180,6 +180,12 @@ sbatch --export=ALL,STAGES=adapt,SEEDS="1 2 3 4" slurm/run.sbatch configs/office
 sbatch slurm/run.sbatch configs/office20_w2d_src180.yaml
 ```
 
+**A→D with a frozen source model trained for 150 epochs** (2026-11-23, off-protocol configuration; SPEC "Under test: A→D source model trained longer, ResNet frozen"). Source ~21 min, then 5 adaptation seeds of ~12 min (~1.4 h in all):
+
+```bash
+sbatch slurm/run.sbatch configs/office20_a2d_src150.yaml
+```
+
 **Step-matched source training, paper protocol — dropped, not to be run** (the report now uses the off-protocol configuration only). (2026-11-23; SPEC "Under test: step-matched source training, paper protocol"). W→D (180 source epochs) and D→W (317), random one-shot draws, lp, 60 adaptation epochs, seeds 0–4. Each trains its own source model (W→D ~13 min, D→W ~26 min), then 5 seeds of ~34 / ~26 min:
 
 ```bash

@@ -271,7 +271,8 @@ OFFICE31_CLASSES = [
     ("office20_w2a_lpref", 20, 11), ("office20_w2d_lpref", 20, 11),
     ("office20_a2d_fixedshot_lp20", 20, 11), ("office20_w2d_fixedshot_lp20", 20, 11),
     ("office20_w2d_srcft100", 20, 11), ("office20_w2d_src180", 20, 11),
-    ("office20_w2d_lpref_srcmatch", 20, 11), ("office20_d2w_lpref_srcmatch", 20, 11)])
+    ("office20_w2d_lpref_srcmatch", 20, 11), ("office20_d2w_lpref_srcmatch", 20, 11),
+    ("office20_a2d_src150", 20, 11)])
 def test_office_configs(tmp_path, name, n_shared, n_private):
     """Class splits of the Office configs, and fixed_shots resolving to one file per private class."""
     from PIL import Image
