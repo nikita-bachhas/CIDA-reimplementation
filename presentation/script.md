@@ -81,93 +81,86 @@ Here is our baseline: CIDA exactly as the paper describes it, with none of our f
 
 **[click]** On digits it lands 11 to 26 points below the paper.
 
-**[click]** On office photos, 3 to 25 points below, and on the new classes it is far worse: 9 to 40 percent, where the paper reports 62 to 88.
-
-**[click]** And on VisDA, about 50 points below.
+**[click]** On office photos, 3 to 39 points below, and on the new classes it is far worse: 3 to 36 percent, where the paper reports 62 to 88.
 
 ## Slide 7. Why the baseline fails (40 s)
 
-The method as written has no safeguard against its own early mistakes.
+The method has no safeguard against its own mistakes.
 
-**[click]** One image per new class is labelled, so the model labels the rest itself: each image takes the label of its nearest guide.
+**[click]** Only one new-class image is labelled, so the model labels the rest itself.
 
-**[click]** Training then pulls every image towards whichever guide it picked.
+**[click]** Training pulls each image towards that guide.
 
-**[click]** So the features move towards the guide that was wrong, and the next round of labels is worse. That is why the best epoch is always an early one.
+**[click]** So features drift to the wrong guide, and the next labels are worse.
 
-**[click]** On digits, known images drift into the new classes. Only 38 to 44 percent of the first labels are right.
+**[click]** On digits, known images drift into the new classes.
 
-**[click]** On office photos it runs the other way, with up to 94 percent of new-class images called known.
+**[click]** On office photos, the other way round.
 
-**[click]** On VisDA everything collapses onto a single class.
-
-**[click]** This is the method, not our code. Even at the best epoch, chosen with target labels we would not have, the baseline stays 1 to 19 points short on office photos and 24 to 33 on VisDA.
-
+**[click]** This is the method, not our code. The gap survives even the best epoch.
 ## Slide 8. Four changes (35 s)
 
-So we made four changes, one for each cause.
+We apply four changes, one for each cause.
 
-**[click]** First, we recalibrate on the new photos, a technique known as AdaBN. The model re-learns what normal looks like in the new place before it labels anything. Known images mistaken for new ones drop from 74 to 78 percent down to 14 to 21 percent.
+**[click]** First, recalibrate on the new photos, so the model learns what normal looks like.
 
-**[click]** Second, the bridge, a small translator between the new features and the frozen old classifier. The paper only trains it towards a pass-through, and 13 percent error remains. We build it as an exact pass-through, so it starts with zero error.
+**[click]** Second, the bridge converts features into the form the frozen old classifier understands. At the start it should hand them back unchanged. The paper's version changes them by 13 percent. Ours does not.
 
-**[click]** Third, the model labels the new photos itself, so we let it learn only from the fifth it is surest about. On MNIST to USPS, accuracy on known classes rises from 52.8 to 83.4.
+**[click]** Third, it learns only from the fifth of its own labels it is surest about.
 
-**[click]** Fourth, the image network was already trained on millions of photos, so for office photos we keep it fixed. Retraining it on our 900 photos dropped its accuracy on the new things from 72 to about 30.
-
+**[click]** Fourth, the image network already knows general vision, so we keep it fixed.
 ## Slide 9. Results (30 s)
 
-Read the table left to right. As written, the method sits 3 to 50 points below the paper across all 17 transfers.
+Read it left to right.
 
-**[click]** With our four changes, digits recover: 71.6 against the paper's 72.5 on MNIST to USPS,
+**[click]** With our four changes, MNIST to USPS matches the paper,
 
-**[click]** and 68.3 against 69.4 on USPS to MNIST, both within noise.
+**[click]** USPS to MNIST matches it too,
 
-**[click]** On SVHN to MNIST we reach 58.2 against 46.4, above the paper, and above it on the new classes too.
+**[click]** and SVHN to MNIST comes out higher.
 
-**[click]** On office photos, [Office result with our changes: fill in once report Table 3 has it].
+**[click]** On office photos the four changes fall about six points short,
 
-**[click]** VisDA with our changes we did not run, and I will come back to that.
+**[click]** on both splits. Hand-picking the one labelled image lifts both past the paper overall, though new classes stay lower.
 
 ## Slide 10. Limitations (25 s)
 
-Four limits.
+Four limits in this reimplementation.
 
-**[click]** We never ran VisDA with our changes. The cluster gives one GPU for six hours at a time, and ResNet-50 over VisDA with five seeds did not fit what we had left.
+**[click]** We did not run VisDA at all; the GPU budget did not stretch.
 
-**[click]** Accuracy on the new classes is still below the paper, except on SVHN to MNIST.
+**[click]** New classes are still below the paper, except on SVHN to MNIST.
 
-**[click]** Our changes alter the method, which is why we report the method as written separately.
+**[click]** Our changes depart from the paper, so we report both versions.
 
-**[click]** And we did not implement two parts of the paper: Ours-d, which uses real source features, and the two-step upgrade from Amazon to DSLR to Webcam.
-
+**[click]** And two parts of the paper we did not implement.
 ## Slide 11. Future work (20 s)
 
-Next, **[click]** run VisDA with the four changes, **[click]** close the new-class gap, **[click]** and find a label-free way to choose the epoch. Four lessons carry over to similar methods: recalibrate on the new data first, start the bridge as an exact pass-through, learn only from confident labels, and check thresholds in high dimensions against the right distribution. Thank you.
+For the future work, **[click]** we will run VisDA, **[click]** close the new-class gap, **[click]** and find a label-free way to choose the epoch. Lessons that carry over: recalibrate on the new data first, start the bridge as an exact pass-through, and learn only from confident labels. Thank you.
 
 ## Where each number comes from
 
-"Report" means the team report, `report/` on the `report` branch (PDF of commit `d153099`). All of our results are the mean of 5 seeds at a fixed epoch 15 (VisDA at its last epoch, 10), chosen without target labels.
+"Report" means the team report, `report/` on the `report` branch (PDF of commit `d153099`). All of our results are the mean of 5 seeds, at epoch 15 on Digits and epoch 20 on Office-31, chosen without target labels. VisDA was not run.
 
-| Slide | Number | Source |
-| ----- | ------ | ------ |
-| 3 | 28.6, 62.1, 66.3, 63.0, 70.8 | Paper, Table 3 (Office-31 average, accuracy on new classes). Earlier methods use 5% labelled new photos. |
-| 3 | Check marks | Paper, Table 1 |
-| 6 | 11 to 26, 3 to 25, about 50 points below | Report, Section 4.2 and Table 3 (baseline, `preset=vanilla`) |
-| 6 | New classes 44.2 to 59.0, 9.0 to 39.9, 13.9 to 16.1 against 45.7 to 71.6, 61.8 to 88.4, 55.7 to 56.3 | Report, Table 3, PRIV columns (Office covers both the 10/20 and 20/31 settings) |
-| 6 | Bars: 72.5 vs 47.0, 69.4 vs 49.6, 46.4 vs 35.1, 72.2 vs 55.8, 56.4 vs 6.2; 17 transfers | Report, Table 3 (Office bar is A→D in the 10/20 setting) |
-| 6 | 10 settings unspecified, 10 vs 11 Office classes, 3σ test keeps almost every point | Report, Table 2 and Section 3.3 |
-| 7 | The feedback loop; best epoch between 0 and 12 | Report, Section 5.1, "The model trains on its own mistakes" |
-| 7 | 38 to 44% (37.5 to 43.9), 57 to 60%, up to 94%, 10% (10.4) and single-class collapse | Report, Sections 4.2 and 5.1 |
-| 7 | 1 to 19 points on Office-31, 24 to 33 on VisDA at the best epoch | Report, Section 5.1, "Our reproduction or the method" |
-| 8 | 74 to 78% → 14 to 21% | Report, Section 5.1, cause 1 (Digits M→U) |
-| 8 | 13% (24% on VisDA) → 0 | Report, Section 5.1, cause 2, and Section 3.2, change 2 (exact identity at the start) |
-| 8 | 52.8 → 83.4 | Report, Section 5.1, cause 3 (Digits M→U, shared accuracy at epoch 30, other changes on) |
-| 8 | 27.0 to 33.1 → 72.4, approximately 900 photos | Report, Section 5.1, cause 4 (Office A→D, nearest-guide accuracy on private classes) |
-| 9 | Paper columns | Paper, Tables 2 and 3, as listed in report Table 3 |
-| 9 | As written: 47.0/54.0, 49.6/59.0, 35.1/44.2, 6.2/16.1 (Real→Syn 7.7/13.9) | Report, Table 3, Baseline columns |
-| 9 | With our changes: 71.6/57.5, 68.3/54.4, 58.2/52.6 | Report, Table 3, Improved columns |
-| 9 | Office row: as written 57.3/32.7, paper 70.9/70.8 | Mean of the six 10/20 rows of report Table 3. **With our changes: pending, the report's Improved columns for Office are still empty.** |
-| 10 | One GPU, six hours, one job at a time | `README.md` line 34, CCDS GPU TC2 QoS `normal`; report Section 4.1 |
-| 10 | 57.5, 54.4, 52.6 against 71.6, 68.6, 45.7; Ours-d and A→D→W not implemented | Report, Table 3 and Section 5.3 |
-| 11 | Epoch 15 for every task; baseline peaks by epoch 12; the four lessons | Report, Sections 4.1, 5.1 and 6 |
+| Slide | Number                                                                                                   | Source                                                                                                                                                                  |
+| ----- | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 3     | 28.6, 62.1, 66.3, 63.0, 70.8                                                                             | Paper, Table 3 (Office-31 average, accuracy on new classes). Earlier methods use 5% labelled new photos.                                                                |
+| 3     | Check marks                                                                                              | Paper, Table 1                                                                                                                                                          |
+| 6     | 11 to 26 (Digits), 3 to 39 (Office) points below                                                        | Report, Table 3 (baseline, `preset=vanilla`)                                                                  |
+| 6     | New classes 44.2 to 59.0 (Digits), 3.2 to 36.4 (Office) against 45.7 to 71.6 and 61.8 to 88.4           | Report, Table 3, PRIV columns                                                                                 |
+| 6     | Bars: 72.5 vs 47.0, 69.4 vs 49.6, 46.4 vs 35.1, 72.2 vs 54.3; 15 transfers                              | Report, Table 3 (Office bar is A→D in the 10/20 setting)                                                      |
+| 6     | 10 settings unspecified, 10 vs 11 Office classes, 3σ test keeps almost every point                      | Report, Table 2 and Section 3.3                                                                                                                                         |
+| 7     | The feedback loop; best epoch between 0 and 12                                                           | Report, Section 5.1, "The model trains on its own mistakes"                                                                                                             |
+| 7     | 38 to 44% (37.5 to 43.9), 57 to 60%, up to 94%, 10% (10.4) and single-class collapse                     | Report, Sections 4.2 and 5.1                                                                                                                                            |
+| 7     | 1 to 19 points on Office-31 at the best epoch                                         | Report, Section 5.1, "Our reproduction or the method"                                                                                                                   |
+| 8     | 74 to 78% → 14 to 21%                                                                                   | Report, Section 5.1, cause 1 (Digits M→U)                                                                                                                              |
+| 8     | 13% → 0                                                                                  | Report, Section 5.1, cause 2, and Section 3.2, change 2 (exact identity at the start)                                                                                   |
+| 8     | 52.8 → 83.4                                                                                             | Report, Section 5.1, cause 3 (Digits M→U, shared accuracy at epoch 30, other changes on)                                                                               |
+| 8     | 27.0 to 33.1 → 72.4, approximately 900 photos                                                           | Report, Section 5.1, cause 4 (Office A→D, nearest-guide accuracy on private classes)                                                                                   |
+| 9     | Paper columns                                                                                            | Paper, Tables 2 and 3, as listed in report Table 3                                                                                                                      |
+| 9     | As written: 47.0/54.0, 49.6/59.0, 35.1/44.2; Office 10/20 55.6/29.6, 20/31 50.1/17.8 | Report, Table 3, Baseline columns |
+| 9     | With our changes: 71.6/57.5, 68.3/54.4, 58.2/52.6; Office 10/20 65.1/42.1, 20/31 65.8/30.1. Hand-picked: 83.7/75.5, 77.1/71.0, 60.4/59.1; Office 10/20 72.2/61.8, 20/31 77.3/62.2 | Report, Table 3, Improved and Handpicked columns. Hand-picked fixes the labelled image across seeds; on Office it also adds label propagation and the 10/20 figure is one seed |
+| 9     | Office paper columns 70.9/70.8 (10/20) and 72.4/71.8 (20/31) | Means of the six rows of each setting in report Table 3 |
+| 10    | One GPU, six hours, one job at a time                                                                    | `README.md` line 34, CCDS GPU TC2 QoS `normal`; report Section 4.1                                                                                                  |
+| 10    | New-class gaps; VisDA not run; Ours-d and A→D→W not implemented                                          | Report, Table 3, Section 3 ("we run the method on Digits and Office-31 only") and Section 5.3                 |
+| 11    | Epoch 15 for every task; baseline peaks by epoch 12; the four lessons                                    | Report, Sections 4.1, 5.1 and 6                                                                                                                                         |

@@ -11,7 +11,7 @@
   Script with timings: presentation/script.md (same text as the notes below).
   TEAM: slides 6 to 11 follow the team report (report branch, d153099), Table 3 and
   Sections 3 to 5, all at epoch 15. Office with our changes is "pending" on slide 9
-  until report Table 3 has it. VisDA with our changes was not run.
+  until report Table 3 has it. VisDA was not run at all.
 -->
 <style>
 :root{
@@ -465,20 +465,18 @@ aside.notes{display:none}
       <div class="gaps">
         <div class="gap step"><div class="b">Digits</div><div class="d">11 to 26 points below</div>
           <div class="n">new classes 44.2 to 59.0%, paper 45.7 to 71.6</div></div>
-        <div class="gap step"><div class="b">Office-31</div><div class="d">3 to 25 points below</div>
-          <div class="n">new classes 9.0 to 39.9%, paper 61.8 to 88.4</div></div>
-        <div class="gap step"><div class="b">VisDA</div><div class="d">about 50 points below</div>
-          <div class="n">new classes 13.9 to 16.1%, paper 55.7 to 56.3</div></div>
+        <div class="gap step"><div class="b">Office-31</div><div class="d">3 to 39 points below</div>
+          <div class="n">new classes 3.2 to 36.4%, paper 61.8 to 88.4</div></div>
       </div>
     </div>
     <div class="chart-wrap">
       <div class="chart-title">Overall accuracy (%), paper against our run of the paper as written</div>
       <div class="chart-legend"><span><i style="background:var(--paper)"></i>Paper, as reported</span><span><i style="background:var(--ours)"></i>Ours, paper as written</span></div>
       <svg id="bars" viewBox="0 0 1000 560" style="width:100%;height:auto" role="img" aria-label="Paired bars, paper against our run of the paper as written, for five tasks"></svg>
-      <p class="source">Paper, Tables 2 and 3. Ours, mean of 5 seeds at epoch 15 (VisDA at its last epoch, 10); report, Table 3. Every one of the 17 transfers falls short. The paper also leaves 10 settings unspecified, lists 10 new Office classes in one place and 11 in another, and its 3σ “unusual point” test keeps almost every point in 100 or more dimensions; we chose and documented each one.</p>
+      <p class="source">Paper, Tables 2 and 3. Ours, mean of 5 seeds at epoch 15 on Digits and epoch 20 on Office; report, Table 3. Every one of the 15 transfers falls short. The paper also leaves 10 settings unspecified, lists 10 new Office classes in one place and 11 in another, and its 3σ “unusual point” test keeps almost every point in 100 or more dimensions; we chose and documented each one.</p>
     </div>
   </div>
-  <aside class="notes">Here is our baseline: CIDA exactly as the paper describes it, with none of our four changes. There was no public code, so this is our own build. [click] On digits it lands 11 to 26 points below the paper. [click] On office photos, 3 to 25 points below, and on the new classes it is far worse: 9 to 40 percent, where the paper reports 62 to 88. [click] And on VisDA, about 50 points below.</aside>
+  <aside class="notes">Here is our baseline: CIDA exactly as the paper describes it, with none of our four changes. There was no public code, so this is our own build. [click] On digits it lands 11 to 26 points below the paper. [click] On office photos, 3 to 39 points below, and on the new classes it is far worse: 3 to 36 percent, where the paper reports 62 to 88.</aside>
 </section>
 
 <!-- ============================================================ 7 -->
@@ -513,11 +511,10 @@ aside.notes{display:none}
     <div class="cards">
       <div class="card step"><h2>Digits: known images drift into the new classes</h2><p>First labels 38 to 44% right. By epoch 30, 57 to 60% of known images are called new.</p></div>
       <div class="card step"><h2>Office-31: new classes drift into the known ones</h2><p>By epoch 60, up to 94% of new-class images are called known.</p></div>
-      <div class="card step"><h2>VisDA: everything collapses onto one class</h2><p>The first labels are 10% right. By epoch 10 every image gets the same label.</p></div>
-    </div>
+      </div>
   </div>
-  <p class="defence step">This is the method, not our code. Even at the best epoch, chosen with target labels we would not have, the baseline stays 1 to 19 points short on Office-31 and 24 to 33 on VisDA.</p>
-  <aside class="notes">The method as written has no safeguard against its own early mistakes. [click] One image per new class is labelled, so the model labels the rest itself: each image takes the label of its nearest guide. [click] Training then pulls every image towards whichever guide it picked. [click] So the features move towards the guide that was wrong, and the next round of labels is worse. That is why the best epoch is always an early one. [click] On digits, known images drift into the new classes. Only 38 to 44 percent of the first labels are right. [click] On office photos it runs the other way, with up to 94 percent of new-class images called known. [click] On VisDA everything collapses onto a single class. [click] This is the method, not our code. Even at the best epoch, chosen with target labels we would not have, the baseline stays 1 to 19 points short on office photos and 24 to 33 on VisDA.</aside>
+  <p class="defence step">This is the method, not our code. Even at the best epoch, chosen with target labels we would not have, the baseline stays 1 to 19 points short on Office-31.</p>
+  <aside class="notes">The method has no safeguard against its own mistakes. [click] Only one new-class image is labelled, so the model labels the rest itself. [click] Training pulls each image towards that guide. [click] So features drift to the wrong guide, and the next labels are worse. [click] On digits, known images drift into the new classes. [click] On office photos, the other way round. [click] This is the method, not our code. The gap survives even the best epoch.</aside>
 </section>
 
 <!-- ============================================================ 8 -->
@@ -528,46 +525,46 @@ aside.notes{display:none}
     <thead><tr><th style="width:60px"></th><th style="width:520px">Cause in the baseline</th><th style="width:520px">Our change</th><th style="text-align:right">Before</th><th></th><th style="text-align:right">After</th><th style="width:330px">Measured as</th></tr></thead>
     <tbody>
       <tr class="step"><td class="i">1</td><td>Internal calibration still matches the old photos<span class="tag">(source BatchNorm statistics)</span></td><td>Recalibrate on the new photos<span class="tag">(AdaBN)</span></td><td class="num">74 to 78%</td><td class="arrow">→</td><td class="num">14 to 21%</td><td class="meas">known images labelled as new, lower is better, Digits</td></tr>
-      <tr class="step"><td class="i">2</td><td>The bridge starts slightly bent<span class="tag">(plain MLP, only pretrained towards the identity)</span></td><td>Build it to start as an exact pass-through<span class="tag">(u + MLP(u), last layer set to zero)</span></td><td class="num">13%</td><td class="arrow">→</td><td class="num">0%</td><td class="meas">bridge error when adaptation starts, Digits (24% on VisDA)</td></tr>
+      <tr class="step"><td class="i">2</td><td>The bridge starts slightly bent<span class="tag">(plain MLP, only pretrained towards the identity)</span></td><td>Build it to start as an exact pass-through<span class="tag">(u + MLP(u), last layer set to zero)</span></td><td class="num">13%</td><td class="arrow">→</td><td class="num">0%</td><td class="meas">bridge error when adaptation starts, Digits</td></tr>
       <tr class="step"><td class="i">3</td><td>The model learns from all its own guesses<span class="tag">(loss L<sub>a1</sub> on every photo)</span></td><td>Learn only from the most confident 20%<span class="tag">(loss L<sub>a1</sub> on B<sub>t</sub>)</span></td><td class="num">52.8</td><td class="arrow">→</td><td class="num">83.4</td><td class="meas">accuracy on known classes, MNIST→USPS, epoch 30, other three changes on</td></tr>
-      <tr class="step"><td class="i">4</td><td>Retraining the image network on approximately 900 photos erases general vision<span class="tag">(Office and VisDA only)</span></td><td>Keep the pretrained network fixed<span class="tag">(frozen ResNet-50)</span></td><td class="num">27 to 33</td><td class="arrow">→</td><td class="num">72.4</td><td class="meas">accuracy on new things from the features alone, Office Amazon→DSLR</td></tr>
+      <tr class="step"><td class="i">4</td><td>Retraining the image network on approximately 900 photos erases general vision<span class="tag">(Office only; Digits uses a LeNet trained from scratch)</span></td><td>Keep the pretrained network fixed<span class="tag">(frozen ResNet-50)</span></td><td class="num">27 to 33</td><td class="arrow">→</td><td class="num">72.4</td><td class="meas">accuracy on new things from the features alone, Office Amazon→DSLR</td></tr>
     </tbody>
   </table>
   <p class="source" style="margin-top:auto">Each row undoes one cause from the previous slide. Report, Sections 3.2 and 5.1.</p>
-  <aside class="notes">So we made four changes, one for each cause. [click] First, we recalibrate on the new photos, a technique known as AdaBN. The model re-learns what normal looks like in the new place before it labels anything. Known images mistaken for new ones drop from 74 to 78 percent down to 14 to 21 percent. [click] Second, the bridge, a small translator between the new features and the frozen old classifier. The paper only trains it towards a pass-through, and 13 percent error remains. We build it as an exact pass-through, so it starts with zero error. [click] Third, the model labels the new photos itself, so we let it learn only from the fifth it is surest about. On MNIST to USPS, accuracy on known classes rises from 52.8 to 83.4. [click] Fourth, the image network was already trained on millions of photos, so for office photos we keep it fixed. Retraining it on our 900 photos dropped its accuracy on the new things from 72 to about 30.</aside>
+  <aside class="notes">We apply four changes, one for each cause. [click] First, recalibrate on the new photos, so the model learns what normal looks like. [click] Second, the bridge converts features into the form the frozen old classifier understands. At the start it should hand them back unchanged. The paper's version changes them by 13 percent. Ours does not. [click] Third, it learns only from the fifth of its own labels it is surest about. [click] Fourth, the image network already knows general vision, so we keep it fixed.</aside>
 </section>
 
 <!-- ============================================================ 9 -->
 <section class="slide" data-title="Results">
   <div class="kicker"><b>Our reimplementation</b>, 4 of 4</div>
-  <h1>With our changes, Digits matches or beats the paper</h1>
+  <h1>Digits matches the paper; Office needs the hand-picked supports</h1>
   <table class="res">
     <thead>
-      <tr><th class="l" rowspan="2" style="width:470px">Task</th><th colspan="2"><span class="sw" style="background:var(--paper)"></span>Paper</th><th colspan="2"><span class="sw" style="background:var(--ours)"></span>Ours, as written</th><th colspan="2">Ours, with our four changes</th></tr>
-      <tr><th>overall</th><th>new things</th><th>overall</th><th>new things</th><th>overall</th><th>new things</th></tr>
+      <tr><th class="l" rowspan="2" style="width:380px">Task</th><th colspan="2"><span class="sw" style="background:var(--paper)"></span>Paper</th><th colspan="2"><span class="sw" style="background:var(--ours)"></span>Ours, as written</th><th colspan="2">+ our four changes</th><th colspan="2">+ hand-picked supports</th></tr>
+      <tr><th>overall</th><th>new things</th><th>overall</th><th>new things</th><th>overall</th><th>new things</th><th>overall</th><th>new things</th></tr>
     </thead>
     <tbody>
-      <tr class="step" data-focus="r1"><td class="l">Digits, MNIST→USPS</td><td><span class="numbox" data-ptr="r1">72.5</span></td><td>71.6</td><td>47.0</td><td>54.0</td><td><span class="numbox" data-ptr="r1">71.6</span></td><td>57.5</td></tr>
-      <tr class="step" data-focus="r2"><td class="l">Digits, USPS→MNIST</td><td><span class="numbox" data-ptr="r2">69.4</span></td><td>68.6</td><td>49.6</td><td>59.0</td><td><span class="numbox" data-ptr="r2">68.3</span></td><td>54.4</td></tr>
-      <tr class="step" data-focus="r3"><td class="l">Digits, SVHN→MNIST</td><td><span class="numbox" data-ptr="r3">46.4</span></td><td><span class="numbox" data-ptr="r3">45.7</span></td><td>35.1</td><td>44.2</td><td><span class="numbox" data-ptr="r3"><b>58.2</b></span></td><td><span class="numbox" data-ptr="r3"><b>52.6</b></span></td></tr>
-      <tr class="step" data-focus="r4"><td class="l">Office-31<span class="tag">10/20 setting, average of six tasks</span></td><td>70.9</td><td>70.8</td><td>57.3</td><td>32.7</td><td><span class="numbox" data-ptr="r4">pending</span></td><td><span class="numbox" data-ptr="r4">pending</span></td></tr>
-      <tr class="step" data-focus="r5"><td class="l">VisDA, synthetic→real<span class="tag">as written, real→syn: 7.7 / 13.9</span></td><td>56.4</td><td>56.3</td><td>6.2</td><td>16.1</td><td><span class="numbox" data-ptr="r5">not run</span></td><td><span class="numbox" data-ptr="r5">not run</span></td></tr>
+      <tr class="step" data-focus="r1"><td class="l">Digits, MNIST→USPS</td><td><span class="numbox" data-ptr="r1">72.5</span></td><td>71.6</td><td>47.0</td><td>54.0</td><td>71.6</td><td>57.5</td><td><span class="numbox" data-ptr="r1"><b>83.7</b></span></td><td><span class="numbox" data-ptr="r1"><b>75.5</b></span></td></tr>
+      <tr class="step" data-focus="r2"><td class="l">Digits, USPS→MNIST</td><td><span class="numbox" data-ptr="r2">69.4</span></td><td>68.6</td><td>49.6</td><td>59.0</td><td>68.3</td><td>54.4</td><td><span class="numbox" data-ptr="r2"><b>77.1</b></span></td><td><span class="numbox" data-ptr="r2"><b>71.0</b></span></td></tr>
+      <tr class="step" data-focus="r3"><td class="l">Digits, SVHN→MNIST</td><td><span class="numbox" data-ptr="r3">46.4</span></td><td>45.7</td><td>35.1</td><td>44.2</td><td><b>58.2</b></td><td><b>52.6</b></td><td><span class="numbox" data-ptr="r3"><b>60.4</b></span></td><td><span class="numbox" data-ptr="r3"><b>59.1</b></span></td></tr>
+      <tr class="step" data-focus="r4"><td class="l">Office-31<span class="tag">10/20 setting, average of six tasks</span></td><td><span class="numbox" data-ptr="r4">70.9</span></td><td>70.8</td><td>55.6</td><td>29.6</td><td>65.1</td><td>42.1</td><td><span class="numbox" data-ptr="r4"><b>72.2</b></span></td><td><span class="numbox" data-ptr="r4">61.8</span></td></tr>
+      <tr class="step" data-focus="r5"><td class="l">Office-31<span class="tag">20/31 setting, average of six tasks</span></td><td><span class="numbox" data-ptr="r5">72.4</span></td><td>71.8</td><td>50.1</td><td>17.8</td><td>65.8</td><td>30.1</td><td><span class="numbox" data-ptr="r5"><b>77.3</b></span></td><td><span class="numbox" data-ptr="r5">62.2</span></td></tr>
     </tbody>
   </table>
-  <p class="source" style="margin-top:auto">Accuracy in %, mean of 5 seeds, at a fixed epoch 15 for every task (VisDA at its last epoch, 10), chosen without target labels. Paper, Tables 2 and 3. Ours: report, Table 3. The Office row averages the six 10/20 transfers. Bold: above the paper. Differences under 2 points are noise.</p>
-  <aside class="notes">Read the table left to right. As written, the method sits 3 to 50 points below the paper across all 17 transfers. [click] With our four changes, digits recover: 71.6 against the paper's 72.5 on MNIST to USPS, [click] and 68.3 against 69.4 on USPS to MNIST, both within noise. [click] On SVHN to MNIST we reach 58.2 against 46.4, above the paper, and above it on the new classes too. [click] On office photos, [Office result with our changes: fill in once report Table 3 has it]. [click] VisDA with our changes we did not run, and I will come back to that.</aside>
+  <p class="source" style="margin-top:auto">Accuracy in %, mean of 5 seeds, at epoch 15 on Digits and epoch 20 on Office; report, Table 3. Hand-picked keeps our four changes but chooses the labelled target image by hand and fixes it across seeds; on Office it also adds label propagation, and the 10/20 figure is one seed. Each Office row averages its six transfers. Bold: above the paper. Differences under 2 points are noise.</p>
+  <aside class="notes">Read it left to right. [click] With our four changes, MNIST to USPS matches the paper, [click] USPS to MNIST matches it too, [click] and SVHN to MNIST comes out higher. [click] On office photos the four changes fall about six points short, [click] on both splits. Hand-picking the one labelled image lifts both past the paper overall, though new classes stay lower.</aside>
 </section>
 
 <!-- ============================================================ 10 -->
 <section class="slide" data-title="Limitations">
   <div class="kicker">Limitations</div>
   <h1>What our changes do not cover</h1>
-  <div class="lesson step"><div class="dot">1</div><p>We never ran VisDA with our changes<span>The course cluster gives one GPU for six hours at a time, one job at a time. ResNet-50 over VisDA, five seeds and two training stages, did not fit the budget we had left. The VisDA row above is the baseline only.</span></p></div>
+  <div class="lesson step"><div class="dot">1</div><p>We did not run VisDA at all<span>The paper reports VisDA-2017; we ran Digits and Office-31 only. The cluster gives one GPU for six hours at a time, one job at a time, and ResNet-50 over VisDA with five seeds did not fit the budget we had left.</span></p></div>
   <div class="lesson step"><div class="dot">2</div><p>New classes are still below the paper<span>On Digits, new-class accuracy reaches 57.5 and 54.4 against the paper's 71.6 and 68.6 on MNIST→USPS and USPS→MNIST. SVHN→MNIST is the exception, at 52.6 against 45.7.</span></p></div>
   <div class="lesson step"><div class="dot">3</div><p>Our changes depart from the paper<span>They alter the method, so we report the method as written separately and the two can be compared side by side.</span></p></div>
-  <div class="lesson step"><div class="dot">4</div><p>Two parts of the paper are not implemented<span>Ours-d, the variant that uses real source features during adaptation, and the two-step upgrade Amazon→DSLR→Webcam.</span></p></div>
+  <div class="lesson step"><div class="dot">4</div><p>Two parts of the paper are not implemented<span>Ours-d, the paper's reference variant that keeps the real source features, so it is not source-free. Also the two-step upgrade Amazon→DSLR→Webcam, which runs the method twice, the second time starting from the first upgrade's model.</span></p></div>
   <p class="source" style="margin-top:auto">Report, Table 3 and Section 5.3. Five seeds per task throughout. Treat differences under about two points as noise.</p>
-  <aside class="notes">Four limits. [click] We never ran VisDA with our changes. The cluster gives one GPU for six hours at a time, and ResNet-50 over VisDA with five seeds did not fit what we had left. [click] Accuracy on the new classes is still below the paper, except on SVHN to MNIST. [click] Our changes alter the method, which is why we report the method as written separately. [click] And we did not implement two parts of the paper: Ours-d, which uses real source features, and the two-step upgrade from Amazon to DSLR to Webcam.</aside>
+  <aside class="notes">Four limits in this reimplementation. [click] We did not run VisDA at all; the GPU budget did not stretch. [click] New classes are still below the paper, except on SVHN to MNIST. [click] Our changes depart from the paper, so we report both versions. [click] And two parts of the paper we did not implement.</aside>
 </section>
 
 <!-- ============================================================ 11 -->
@@ -576,7 +573,7 @@ aside.notes{display:none}
   <h1>What we would do next</h1>
   <div class="two">
     <div>
-      <div class="lesson step"><div class="dot">1</div><p>Run VisDA with the four changes<span>The one benchmark our changes have never been tested on.</span></p></div>
+      <div class="lesson step"><div class="dot">1</div><p>Run VisDA<span>The third benchmark of the paper, which we never got to.</span></p></div>
       <div class="lesson step"><div class="dot">2</div><p>Close the new-class gap<span>On MNIST→USPS, new-class accuracy is still 14 points short of the paper.</span></p></div>
       <div class="lesson step"><div class="dot">3</div><p>Choose the epoch without target labels<span>We fix epoch 15 for every task. As written, accuracy peaks by epoch 12 and then falls.</span></p></div>
     </div>
@@ -591,7 +588,7 @@ aside.notes{display:none}
       <div class="thanks">Thank you. Questions?</div>
     </div>
   </div>
-  <aside class="notes">Next, [click] run VisDA with the four changes, [click] close the new-class gap, [click] and find a label-free way to choose the epoch. Four lessons carry over to similar methods: recalibrate on the new data first, start the bridge as an exact pass-through, learn only from confident labels, and check thresholds in high dimensions against the right distribution. Thank you.</aside>
+  <aside class="notes">Next, [click] run VisDA, [click] close the new-class gap, [click] and find a label-free way to choose the epoch. Lessons that carry over: recalibrate on the new data first, start the bridge as an exact pass-through, and learn only from confident labels. Thank you.</aside>
 </section>
 
 </div><!-- /stage -->
@@ -655,8 +652,7 @@ aside.notes{display:none}
       ["MNIST→USPS","Digits",72.5,47.0],
       ["USPS→MNIST","Digits",69.4,49.6],
       ["SVHN→MNIST","Digits",46.4,35.1],
-      ["Amazon→DSLR","Office-31",72.2,55.8],
-      ["Synthetic→Real","VisDA",56.4,6.2]
+      ["Amazon→DSLR","Office-31",72.2,54.3]
     ];
     var x0=250,x1=930,max=80,sx=function(v){return x0+(x1-x0)*v/max;};
     var top=20,gh=100,bh=36,gap=2;
