@@ -174,10 +174,14 @@ svg.arw{width:64px;height:26px;flex:none;stroke:var(--ink2);stroke-width:3;fill:
 .res th{font-size:26px;font-weight:700;padding:0 18px 12px;color:var(--ink2);text-align:center}
 .res th.l{text-align:left}
 .res thead tr:last-child th{border-bottom:3px solid var(--ink);font-weight:600}
-.res td{font-size:32px;padding:16px 18px;border-bottom:2px solid var(--rule);text-align:center}
+.res td{font-size:32px;padding:10px 18px;border-bottom:2px solid var(--rule);text-align:center}
 .res td.l{text-align:left}
 .res td.l .tag{display:block;font-size:24px}
 .res .sw{display:inline-block;width:22px;height:22px;border-radius:4px;vertical-align:-3px;margin-right:8px}
+/* a number the speaker names: the box appears with its row, the space is always reserved */
+.numbox{display:inline-block;padding:2px 10px;border:4px solid transparent;border-radius:10px;transition:border-color .3s ease}
+.numbox.on{border-color:var(--hot)}
+.static .numbox{transition:none}
 
 /* slide 10 */
 .two{display:grid;grid-template-columns:1.25fr 1fr;gap:70px;flex:1}
@@ -543,11 +547,11 @@ aside.notes{display:none}
       <tr><th>overall</th><th>new things</th><th>overall</th><th>new things</th><th>overall</th><th>new things</th></tr>
     </thead>
     <tbody>
-      <tr class="step"><td class="l">Digits, MNIST→USPS</td><td>72.5</td><td>71.6</td><td>43.7</td><td>50.5</td><td><b>71.9</b></td><td>55.3</td></tr>
-      <tr class="step"><td class="l">Digits, USPS→MNIST</td><td>69.4</td><td>68.6</td><td>47.2</td><td>60.7</td><td>65.5</td><td>51.0</td></tr>
-      <tr class="step"><td class="l">Digits, SVHN→MNIST</td><td>46.4</td><td>45.7</td><td>32.8</td><td>46.5</td><td><b>58.8</b></td><td>44.0</td></tr>
-      <tr class="step"><td class="l">Office-31<span class="tag">10/20 setting, average of six tasks</span></td><td>70.7</td><td>70.8</td><td>42.2</td><td>15.3</td><td>61.3</td><td>36.2</td></tr>
-      <tr class="step"><td class="l">VisDA, synthetic→real<span class="tag">as written, real→syn: 7.7 / 13.9</span></td><td>56.4</td><td>56.3</td><td>6.2</td><td>16.1</td><td>not run</td><td>not run</td></tr>
+      <tr class="step" data-focus="r1"><td class="l">Digits, MNIST→USPS</td><td><span class="numbox" data-ptr="r1">72.5</span></td><td>71.6</td><td>43.7</td><td>50.5</td><td><span class="numbox" data-ptr="r1"><b>71.9</b></span></td><td>55.3</td></tr>
+      <tr class="step" data-focus="r2"><td class="l">Digits, USPS→MNIST</td><td><span class="numbox" data-ptr="r2">69.4</span></td><td>68.6</td><td>47.2</td><td>60.7</td><td><span class="numbox" data-ptr="r2">65.5</span></td><td>51.0</td></tr>
+      <tr class="step" data-focus="r3"><td class="l">Digits, SVHN→MNIST</td><td><span class="numbox" data-ptr="r3">46.4</span></td><td>45.7</td><td>32.8</td><td>46.5</td><td><span class="numbox" data-ptr="r3"><b>58.8</b></span></td><td>44.0</td></tr>
+      <tr class="step" data-focus="r4"><td class="l">Office-31<span class="tag">10/20 setting, average of six tasks</span></td><td>70.7</td><td><span class="numbox" data-ptr="r4">70.8</span></td><td>42.2</td><td>15.3</td><td><span class="numbox" data-ptr="r4">61.3</span></td><td><span class="numbox" data-ptr="r4">36.2</span></td></tr>
+      <tr class="step" data-focus="r5"><td class="l">VisDA, synthetic→real<span class="tag">as written, real→syn: 7.7 / 13.9</span></td><td>56.4</td><td>56.3</td><td>6.2</td><td>16.1</td><td><span class="numbox" data-ptr="r5">not run</span></td><td><span class="numbox" data-ptr="r5">not run</span></td></tr>
     </tbody>
   </table>
   <div class="callout step">

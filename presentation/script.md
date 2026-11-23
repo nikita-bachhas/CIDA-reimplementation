@@ -113,7 +113,7 @@ So we made four changes, one for each cause.
 
 **[click]** Third, the model learns only from its most confident 20 percent of labels, which means it lables the new photos itself, so it learns only from the fifth it is surest about. This lifts accuracy from 55.1 to 71.9.
 
-**[click]** Fourth, the image network turning photos into numbers arrived already trained on millions of photos, so for office photos we leave it untouched — retraining it on our 900 dropped its accuracy on the new things from 72 to 33.
+**[click]** Fourth, the image network embedding photos already trained on millions of photos, so for office photos we leave it untouched — retraining it on our 900 dropped its accuracy on the new things from 72 to 33.
 
 ## Slide 9. Results (35 s)
 
