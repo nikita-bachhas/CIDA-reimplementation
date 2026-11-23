@@ -548,6 +548,20 @@ Source stage (the first 51 epochs reproduce job 56614's source log exactly, so o
 - Time: source 12.5 min, 11.3–11.4 min per adaptation seed.
 - **Implication:** the 50-epoch default under-trains the small-source tasks (Webcam 16, DSLR 9 steps per epoch, against ~55 for Amazon). The paper gives no epoch count, so matching source steps across tasks is a label-free choice that could apply to the paper-protocol runs (W→D, D→W, and W→A, D→A).
 
+### Under test: step-matched source training, paper protocol (2026-11-23)
+
+`configs/office20_w2d_lpref_srcmatch.yaml` and `configs/office20_d2w_lpref_srcmatch.yaml`: the Table 2 lp runs of jobs 56614 / 56615 (random one-shot draws, lp pseudo-labels, 60 adaptation epochs, last epoch kept, ResNet frozen), with the source model trained for about as many steps as an Amazon source model gets in 51 epochs (56 steps per epoch, ~2,850 steps).
+
+| Task | Source | Steps per epoch | Source epochs, before → now | Steps, before → now |
+| --- | --- | --- | --- | --- |
+| W→D | Webcam | 16 | 50 + 1 → 180 + 1 | ~800 → ~2,880 |
+| D→W | DSLR | 9 | 50 + 1 → 317 + 1 | ~450 → ~2,850 |
+
+- **Why:** job 56769 (W→D, hand-picked shots, 20 epochs) gained +3.1 ALL / +5.1 PRIV from the 180-epoch source alone, with both source objectives settling. The paper gives no source epoch count, and matching steps uses no target labels, so this can be part of the paper-protocol configuration.
+- **Seed-paired:** the one-shot draw depends only on the seed (`sample_labelled`), so each seed uses the same shots as jobs 56614 / 56615; only the source model differs.
+- **Compare with (epoch 60):** W→D 81.4 / 63.2 / 91.8 and D→W 77.3 / 56.2 / 87.6 (paper 89.5 / 88.4 and 80.3 / 79.4).
+- **If it helps:** apply the same rule to W→A (Webcam source, 180 epochs) and D→A (DSLR source, 317 epochs). A→D / A→W already have ~2,850 steps. Not yet run.
+
 ## Investigated, not adopted
 
 **Prediction-step changes for PRIV** (`scripts/posthoc.py`, re-evaluating the 15 saved Digits models; no target labels used). Mean change from the paper's rule (ALL / PRIV / shared):

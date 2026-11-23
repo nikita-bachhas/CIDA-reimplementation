@@ -180,6 +180,15 @@ sbatch --export=ALL,STAGES=adapt,SEEDS="1 2 3 4" slurm/run.sbatch configs/office
 sbatch slurm/run.sbatch configs/office20_w2d_src180.yaml
 ```
 
+**Step-matched source training, paper protocol** (2026-11-23; SPEC "Under test: step-matched source training, paper protocol"). W→D (180 source epochs) and D→W (317), random one-shot draws, lp, 60 adaptation epochs, seeds 0–4. Each trains its own source model (W→D ~13 min, D→W ~26 min), then 5 seeds of ~34 / ~26 min:
+
+```bash
+# W->D (~3 h)
+sbatch slurm/run.sbatch configs/office20_w2d_lpref_srcmatch.yaml
+# D->W (~2.5 h)
+sbatch slurm/run.sbatch configs/office20_d2w_lpref_srcmatch.yaml
+```
+
 ```bash
 # 0. Old Digits runs predate the deterministic pipeline: move them aside so they are re-run
 mv runs/digits_u2m runs/digits_u2m_old; mv runs/digits_s2m runs/digits_s2m_old

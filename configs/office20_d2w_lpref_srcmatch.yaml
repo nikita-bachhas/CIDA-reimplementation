@@ -1,0 +1,11 @@
+# Office D->W, Table 2 setting (20 shared + 11 private), paper protocol (random one-shot draw per seed,
+# 60 adaptation epochs, last epoch kept) with lp pseudo-labels, as configs/office20_d2w_lpref.yaml, but
+# with the source model trained for a matched number of steps: DSLR gives 9 source steps per epoch,
+# so 317 epochs + 1 warm-up is ~2,850 steps, about what an Amazon source model gets in 51.
+# The paper gives no source epoch count; matching steps uses no target labels. ResNet-50 frozen.
+# Seed-paired with job 56615 (configs/office20_d2w_lpref.yaml, 50-epoch source).
+# Trains its own source model: writes runs/office20_d2w_srcmatch/source and
+# runs/office20_d2w_srcmatch/adapt_1shot_abl-none_lpref_seed<k>.
+base: office20_d2w_lpref.yaml
+name: office20_d2w_srcmatch
+src_train: {epochs: 317}
