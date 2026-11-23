@@ -44,3 +44,4 @@ logs/*
 ### IntelliJ project files ###
 .idea/
 *.iml
+oneshot_review/

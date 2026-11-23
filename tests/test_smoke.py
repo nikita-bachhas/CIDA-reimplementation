@@ -64,6 +64,31 @@ def test_adapt_la1_variants(out_dir):
     assert (out_dir / "adapt_1shot_abl-none_la1var_seed2" / "final_metrics.json").exists()
 
 
+@pytest.mark.parametrize("select,shared", [("distance", False), ("margin", True)])
+def test_adapt_rectify(out_dir, select, shared):
+    tag = f"rect{select[0]}{int(shared)}"
+    adapt.main(["--config", CFG, "--seed", "0", "--set", f"out_dir={out_dir}", "adapt.rectify.enabled=true",
+                f"adapt.rectify.select={select}", f"adapt.rectify.shared={shared}", f"adapt.tag={tag}"])
+    run = out_dir / f"adapt_1shot_abl-none_{tag}_seed0"
+    logs = [json.loads(l) for l in open(run / "log.jsonl")]
+    ep = [l for l in logs if "rect_w0" in l]
+    assert ep and all(0.3 - 1e-6 <= l["rect_w0"] <= 1 for l in ep) and "pl_acc_basic" in ep[0]
+    assert (run / "final_metrics.json").exists()
+
+
+def test_guide_diag_script(out_dir):
+    from scripts.guide_diag import VARIANTS, analyse
+    adapt.main(["--config", CFG, "--seed", "0", "--set", f"out_dir={out_dir}"])
+    run = out_dir / "adapt_1shot_abl-none_seed0"
+    for stage in ("final", "start"):
+        o = analyse(run, torch.device("cpu"), 0, stage=stage)
+        assert set(VARIANTS) <= set(o) and 0 <= o["rect"]["priv"] <= 100
+        assert (run / f"guide_diag_{stage}.json").exists()
+    o = analyse(run, torch.device("cpu"), 0, label_frac=0.5)
+    assert min(o["labelled_per_class"]) > 1 and (run / "guide_diag_final_few50.json").exists()
+    assert 0 <= o["lp"]["priv"] <= 100 and 0 <= o["km-over"]["priv"] <= 100
+
+
 def test_confusion_script(out_dir):
     from scripts.confusion import analyse
     adapt.main(["--config", CFG, "--seed", "3", "--set", f"out_dir={out_dir}"])
@@ -72,9 +97,15 @@ def test_confusion_script(out_dir):
     final = json.load(open(run / "final_metrics.json"))
     assert abs(o["priv"] - final["priv"]) < 1e-6 and o["priv_given_priv"] >= o["priv"]
     assert (run / "confusion.json").exists()
+    from scripts.confusion import print_class_table
+    pc = o["per_class"]
+    assert len(pc) == len(o["classes"]) and all(0 <= p["acc"] <= 100 for p in pc.values())
+    priv = [p for p in pc.values() if p["group"] == "private"]
+    assert abs(sum(p["acc"] for p in priv) / len(priv) - final["priv_cls"]) < 1e-3
+    print_class_table([o, o])
 
 
-def test_posthoc_script(out_dir):
+def test_posthoc_script(out_dir, monkeypatch, capsys):
     from scripts.posthoc import analyse
     adapt.main(["--config", CFG, "--seed", "4", "--set", f"out_dir={out_dir}"])
     run = out_dir / "adapt_1shot_abl-none_seed4"
@@ -82,6 +113,24 @@ def test_posthoc_script(out_dir):
     final = json.load(open(run / "final_metrics.json"))
     assert abs(o["paper"]["all"] - final["all"]) < 1e-6  # the paper's rule reproduces final_metrics
     assert 0 <= o["pi_private"] <= 1 and set(o) >= {"gate", "bias", "both"}
+    assert abs(o["paper"]["priv_cls"] - final["priv_cls"]) < 1e-4 and len(o["classes"]) == len(o["paper"]["per_class"])
+    # Guide relabelling: nearest guide is what guide_diag calls "basic"; lp runs on this small target.
+    from scripts.posthoc import GUIDE_METHODS, guide_labels, print_class_table
+    assert all(o[m] is not None and 0 <= o[m]["priv"] <= 100 for m in GUIDE_METHODS)
+    V, G = torch.randn(40, 8), torch.randn(6, 8)
+    assert torch.equal(guide_labels(V, G, 3, "nearest"), torch.cdist(V, G).argmin(1))
+    print_class_table([o, o], ["paper", *GUIDE_METHODS], "lp")
+    # Raising the gt offset only moves predictions from shared to private classes.
+    sw = o["sweep"]
+    assert len(sw) > 10 and all(a["offset"] <= b["offset"] for a, b in zip(sw, sw[1:]))
+    assert all(a["priv"] <= b["priv"] + 1e-6 and a["shared"] >= b["shared"] - 1e-6 for a, b in zip(sw, sw[1:]))
+    from scripts.posthoc import print_sweep
+    print_sweep([o, o])
+    import sys as _sys
+    from scripts import posthoc
+    monkeypatch.setattr(_sys, "argv", ["posthoc.py", str(out_dir), "--num_workers", "0"])
+    posthoc.main()
+    assert "Class-wise accuracy" in capsys.readouterr().out
 
 
 def test_feature_probe_script(out_dir, monkeypatch, capsys):
@@ -148,6 +197,103 @@ def test_finished_run_deletes_resume_checkpoint(out_dir):
     adapt.main(["--config", CFG, "--seed", "4", "--set", f"out_dir={out_dir}"])
     run = out_dir / "adapt_1shot_abl-none_seed4"
     assert (run / "final.pt").exists() and not (run / "ckpt.pt").exists()
+
+
+def test_adapt_fixed_shots(out_dir):
+    """adapt.fixed_shots replaces the random one-shot draw; the seed then only sets the training RNG."""
+    from cida.common import load_config
+    from cida.data import build_domain, fixed_labelled
+    spec = "{'5': 3, '6': 0, '7': 1, '8': 2, '9': 4}"
+    sets = [f"out_dir={out_dir}", f"adapt.fixed_shots={spec}", "adapt.tag=fixed"]
+    for seed in ("0", "1"):
+        adapt.main(["--config", CFG, "--seed", seed, "--set", *sets])
+    cfg = load_config(CFG, sets)
+    ds = build_domain(cfg, cfg["tgt_domain"], cfg["tgt_train_split"], train_aug=False)
+    want = fixed_labelled(ds, range(5, 10), cfg["adapt"]["fixed_shots"])
+    assert want[5] == [[j for j, lab in enumerate(ds.labels) if lab == 5][3]]
+    for seed in (0, 1):
+        ck = torch.load(out_dir / f"adapt_1shot_abl-none_fixed_seed{seed}" / "final.pt", weights_only=False)
+        assert {int(c): v for c, v in ck["labelled"].items()} == want
+    with pytest.raises(ValueError, match="missing"):
+        fixed_labelled(ds, range(5, 10), {"5": 0})
+
+
+@pytest.mark.parametrize("la1", ["confident", "all"])
+def test_adapt_lp_pseudo_labels(out_dir, la1):
+    """adapt.pseudo_label=lp: label propagation labels the refresh (B_t, P_t, La1), with either La1 source."""
+    sets = [f"out_dir={out_dir}", "adapt.pseudo_label=lp", f"adapt.la1_samples={la1}", "adapt.tag=lp"]
+    adapt.main(["--config", CFG, "--seed", "0", "--set", *sets])
+    run = out_dir / "adapt_1shot_abl-none_lp_seed0"
+    rows = [json.loads(line) for line in open(run / "log.jsonl")]
+    refresh = [r for r in rows if "B_size" in r]
+    assert refresh and all("pl_acc_nearest" in r for r in refresh)
+    assert (run / "final.pt").exists()
+    with pytest.raises(ValueError, match="pseudo_label"):
+        adapt.main(["--config", CFG, "--seed", "0", "--set", f"out_dir={out_dir}", "adapt.pseudo_label=knn",
+                    "adapt.tag=bad"])
+
+
+def test_contact_sheet(tmp_path):
+    from PIL import Image
+    from scripts.contact_sheet import main
+    root = tmp_path / "data" / "office31" / "dslr" / "images"
+    for c in range(31):
+        (root / f"c{c:02d}").mkdir(parents=True)
+        for k in range(3):
+            Image.new("RGB", (40, 30), (8 * c, 0, 0)).save(root / f"c{c:02d}" / f"frame_{k:04d}.jpg")
+    main([str(Path(CFG).parent / "office_a2d.yaml"), "--data_root", str(tmp_path / "data"), "--out", str(tmp_path / "o")])
+    assert len(list((tmp_path / "o" / "dslr").glob("*.png"))) == 10  # one sheet per private class (20-29)
+
+
+def test_shot_check_script(out_dir, tmp_path, capsys):
+    from scripts.shot_check import main
+    for seed in ("0", "1"):
+        adapt.main(["--config", CFG, "--seed", seed, "--set", f"out_dir={out_dir}"])
+    cfg = tmp_path / "fixed.yaml"
+    cfg.write_text(f"base: {Path(CFG).as_posix()}\nadapt:\n  fixed_shots: {{'5': 3, '6': 0, '7': 1, '8': 2, '9': 4}}\n")
+    main([str(out_dir), "--config", str(cfg), "--num_workers", "0"])
+    out = capsys.readouterr().out
+    assert "fix avg" in out and "rnd avg" in out and "seed0fx" in out
+
+
+OFFICE31_CLASSES = [
+    "back_pack", "bike", "bike_helmet", "bookcase", "bottle", "calculator", "desk_chair", "desk_lamp",
+    "desktop_computer", "file_cabinet", "headphones", "keyboard", "laptop_computer", "letter_tray",
+    "mobile_phone", "monitor", "mouse", "mug", "paper_notebook", "pen", "phone", "printer", "projector",
+    "punchers", "ring_binder", "ruler", "scissors", "speaker", "stapler", "tape_dispenser", "trash_can"]
+
+
+@pytest.mark.parametrize("name, n_shared, n_private", [
+    ("office_a2d", 10, 10), ("office_a2d_fixedshot", 10, 10),
+    ("office20_a2d", 20, 11), ("office20_a2d_fixedshot", 20, 11), ("office20_w2d_fixedshot", 20, 11),
+    ("office_a2d_lpref", 10, 10), ("office20_a2d_lpref", 20, 11), ("office20_a2d_ft", 20, 11),
+    ("office20_a2w_lpref", 20, 11), ("office20_d2a_lpref", 20, 11), ("office20_d2w_lpref", 20, 11),
+    ("office20_w2a_lpref", 20, 11), ("office20_w2d_lpref", 20, 11),
+    ("office20_a2d_fixedshot_lp20", 20, 11), ("office20_w2d_fixedshot_lp20", 20, 11),
+    ("office20_w2d_srcft100", 20, 11), ("office20_w2d_src180", 20, 11),
+    ("office20_w2d_lpref_srcmatch", 20, 11), ("office20_d2w_lpref_srcmatch", 20, 11),
+    ("office20_a2d_src150", 20, 11),
+    ("office20_a2w_final", 20, 11), ("office20_d2w_final", 20, 11), ("office20_d2a_final", 20, 11), ("office20_w2a_final", 20, 11),
+    ("office_a2d_final", 10, 10), ("office_w2d_final", 10, 10), ("office_a2w_final", 10, 10),
+    ("office_d2w_final", 10, 10), ("office_d2a_final", 10, 10), ("office_w2a_final", 10, 10)])
+def test_office_configs(tmp_path, name, n_shared, n_private):
+    """Class splits of the Office configs, and fixed_shots resolving to one file per private class."""
+    from PIL import Image
+    from cida.common import load_config
+    from cida.data import build_domain, fixed_labelled
+    cfg = load_config(Path(CFG).parent / f"{name}.yaml", [f"data_root={tmp_path}"])
+    root = tmp_path / cfg["domain_paths"][cfg["tgt_domain"]]
+    for c in OFFICE31_CLASSES:
+        (root / c).mkdir(parents=True)
+        for k in range(1, 26):
+            Image.new("RGB", (8, 8)).save(root / c / f"frame_{k:04d}.jpg")
+    for c, f in (cfg["adapt"].get("fixed_shots") or {}).items():  # picks past frame_0025 (Amazon classes are larger)
+        Image.new("RGB", (8, 8)).save(root / c / f)
+    ds = build_domain(cfg, cfg["tgt_domain"], "all", False)
+    assert (ds.n_shared, ds.n_private) == (n_shared, n_private)
+    if cfg["adapt"].get("fixed_shots"):
+        lab = fixed_labelled(ds, range(n_shared, n_shared + n_private), cfg["adapt"]["fixed_shots"])
+        assert all(len(v) == 1 for v in lab.values()) and len(lab) == n_private
 
 
 def test_adabn_skips_a_final_batch_of_one():

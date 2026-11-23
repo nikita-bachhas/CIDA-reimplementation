@@ -1,0 +1,8 @@
+# Office W->A (Table 2 setting, 20 shared + 11 private) with label propagation as the pseudo-labeller
+# at every refresh (adapt.pseudo_label=lp; SPEC.md). Random one-shot draws, seed-paired with
+# configs/office20_w2a.yaml. Writes runs/office20_w2a/adapt_1shot_abl-none_lpref_seed<k>,
+# reusing runs/office20_w2a/source.
+base: office20_w2a.yaml
+adapt:
+  tag: lpref
+  pseudo_label: lp

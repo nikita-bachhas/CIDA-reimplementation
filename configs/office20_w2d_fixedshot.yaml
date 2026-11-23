@@ -1,0 +1,7 @@
+# Table 2 setting on W->D with the hand-picked DSLR one-shot images of configs/office20_a2d_fixedshot.yaml
+# (same target domain, same picks). Not the paper's protocol: report separately from Table 2.
+# Writes runs/office20_w2d/adapt_1shot_abl-none_fixedshot_seed<k>, reusing runs/office20_w2d/source.
+#   sbatch slurm/run.sbatch configs/office20_w2d_fixedshot.yaml
+base: office20_a2d_fixedshot.yaml
+name: office20_w2d
+src_domain: webcam

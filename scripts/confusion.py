@@ -8,6 +8,7 @@ Re-evaluates each run's final.pt on the target eval split (no training) and writ
   per class     accuracy of each private class, and where its errors mostly go
   guide         the guide nearest to that class's one-shot guide, and the distance ratio
                 (nearest / median distance between guides; small = the two guides nearly coincide)
+then a class-wise table: every class (shared and private) x seed, with the seed mean.
 
 Needs a GPU node on the cluster (it runs the model):
   sbatch slurm/confusion.sbatch runs/digits_m2u runs/digits_u2m runs/digits_s2m
@@ -85,8 +86,20 @@ def analyse(run_dir, device, num_workers):
             "nearest_guide": cls_names[near], "nearest_ratio": (dist[c, near] / median).item(),
             "oneshot_idx": [int(tgt_train.indices[i]) for i in lab_idx[c]],
         }
+    # Every class (shared and private): accuracy, sample count, and the share of its samples
+    # predicted into the other group (shared -> private, or private -> shared).
+    per_class_all = {}
+    for c in range(n):
+        total = conf[c].sum().item()
+        other = conf[c, ns:].sum() if c < ns else conf[c, :ns].sum()
+        per_class_all[cls_names[c]] = {
+            "group": "shared" if c < ns else "private", "n": total,
+            "acc": 100 * conf[c, c].item() / max(total, 1),
+            "to_other_group_pct": 100 * other.item() / max(total, 1),
+        }
     out = {
         "run": run_dir.name, "classes": cls_names, "confusion": conf.tolist(),
+        "per_class": per_class_all,
         "priv": 100 * (pred[is_p] == y[is_p]).float().mean().item(),
         "priv_given_priv": 100 * (pred_p[is_p] == y[is_p]).float().mean().item(),
         "shared": 100 * (pred[~is_p] == y[~is_p]).float().mean().item(),
@@ -104,6 +117,24 @@ def analyse(run_dir, device, num_workers):
     return out
 
 
+def print_class_table(outs):
+    """Accuracy of every class (rows) for every seed (columns), with the seed mean and the
+    share of the class's samples sent to the other group (seed mean)."""
+    names = list(outs[0]["per_class"])
+    seeds = [o["run"].rsplit("_", 1)[-1] for o in outs]
+    print("Class-wise accuracy (%)   n = eval images per class; ->other = predicted into the other group")
+    print(f"  {'class':>16} {'grp':>4} {'n':>3} " + " ".join(f"{s:>6}" for s in seeds) + f" {'mean':>6} {'->other':>8}")
+    for name in names:
+        rows = [o["per_class"][name] for o in outs]
+        accs = [r["acc"] for r in rows]
+        print(f"  {name:>16} {rows[0]['group'][:4]:>4} {rows[0]['n']:>3} " + " ".join(f"{a:6.1f}" for a in accs)
+              + f" {sum(accs) / len(accs):6.1f} {sum(r['to_other_group_pct'] for r in rows) / len(rows):8.1f}")
+    for grp in ("shared", "private"):
+        g = [nm for nm in names if outs[0]["per_class"][nm]["group"] == grp]
+        means = [sum(o["per_class"][nm]["acc"] for nm in g) / len(g) for o in outs]
+        print(f"  {grp + ' class-avg':>25} " + " ".join(f"{m:6.1f}" for m in means) + f" {sum(means) / len(means):6.1f}")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("task_dirs", nargs="+")
@@ -113,14 +144,18 @@ def main():
     device = get_device("auto")
     for task in args.task_dirs:
         runs = sorted(p for p in Path(task).glob(f"{args.runs}_seed*") if (p / "final.pt").exists())
-        print(f"\n===== {task}  ({len(runs)} runs)")
+        print(f"\n===== {task}  runs={args.runs}  ({len(runs)} runs)")
+        outs = []
         for r in runs:
             o = analyse(r, device, args.num_workers)
+            outs.append(o)
             print(f"{r.name[-5:]}  PRIV {o['priv']:5.1f}  PRIV|priv {o['priv_given_priv']:5.1f}  shared {o['shared']:5.1f}")
             for name, p in o["per_private_class"].items():
                 print(f"   class {name:>14}: acc {p['acc']:5.1f} | errors mostly -> {p['top_error']:>14} "
                       f"({p['top_error_pct']:4.1f}%), to shared {p['to_shared_pct']:4.1f}% | "
                       f"nearest guide {p['nearest_guide']:>14} (ratio {p['nearest_ratio']:.2f})")
+        if outs:
+            print_class_table(outs)
 
 
 if __name__ == "__main__":

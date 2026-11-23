@@ -1,0 +1,21 @@
+# Table 2 setting (|Cs| = 20, |Ct| = 31: 20 shared + 11 private) on A->D with hand-picked one-shot
+# DSLR images instead of a random draw per seed. Not the paper's protocol (5 random draws): report
+# separately from Table 2. Same picks as configs/office_a2d_fixedshot.yaml, plus trash_can, which is
+# private only in this setting. --seed changes only the training RNG.
+# Writes runs/office20_a2d/adapt_1shot_abl-none_fixedshot_seed<k>, reusing runs/office20_a2d/source.
+#   sbatch slurm/run.sbatch configs/office20_a2d_fixedshot.yaml
+base: office20_a2d.yaml
+adapt:
+  tag: fixedshot
+  fixed_shots:
+    phone: frame_0002.jpg
+    printer: frame_0014.jpg
+    projector: frame_0014.jpg
+    punchers: frame_0003.jpg
+    ring_binder: frame_0007.jpg
+    ruler: frame_0007.jpg
+    scissors: frame_0018.jpg
+    speaker: frame_0011.jpg
+    stapler: frame_0019.jpg
+    tape_dispenser: frame_0020.jpg
+    trash_can: frame_0004.jpg        # single dark bin with liner (the most common kind), whole, plain carpet
