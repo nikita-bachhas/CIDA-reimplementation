@@ -9,19 +9,19 @@ How to use this script.
 - Times are targets. The total is 4:55, which leaves 5 seconds of slack.
 - Text in square brackets is for the team to fill in before the talk.
 
-| Slide | Topic                                | Time | Running |
-| ----- | ------------------------------------ | ---- | ------- |
-| 1     | Title                                | 5 s  | 0:05    |
-| 2     | The problem                          | 25 s | 0:30    |
-| 3     | Earlier work and its limits          | 35 s | 1:05    |
-| 4     | How CIDA works, at home              | 25 s | 1:30    |
-| 5     | How CIDA works, in the new place     | 25 s | 1:55    |
-| 6     | The baseline                         | 30 s | 2:25    |
-| 7     | Why the baseline fails               | 40 s | 3:05    |
-| 8     | Four changes                         | 35 s | 3:40    |
-| 9     | Results                              | 35 s | 4:15    |
-| 10    | Limitations                          | 25 s | 4:40    |
-| 11    | Future work                          | 15 s | 4:55    |
+| Slide | Topic                            | Time | Running |
+| ----- | -------------------------------- | ---- | ------- |
+| 1     | Title                            | 5 s  | 0:05    |
+| 2     | The problem                      | 25 s | 0:30    |
+| 3     | Earlier work and its limits      | 35 s | 1:05    |
+| 4     | How CIDA works, at home          | 25 s | 1:30    |
+| 5     | How CIDA works, in the new place | 25 s | 1:55    |
+| 6     | The baseline                     | 30 s | 2:25    |
+| 7     | Why the baseline fails           | 40 s | 3:05    |
+| 8     | Four changes                     | 35 s | 3:40    |
+| 9     | Results                          | 35 s | 4:15    |
+| 10    | Limitations                      | 25 s | 4:40    |
+| 11    | Future work                      | 15 s | 4:55    |
 
 The reimplementation, slides 6 to 9, takes 135 seconds, the largest share of the talk. The total is 4:55, which leaves 5 seconds of slack.
 
@@ -107,13 +107,13 @@ The method as written has no safeguard against its own early mistakes.
 
 So we made four changes, one for each cause.
 
-**[click]** First, we recalibrate on the new photos, known as AdaBN. Known images wrongly labelled new drop from 74 to 78 percent, down to 14 to 21 percent.
+**[click]** First, we recalibrate on the new photos, known as AdaBN. Which means we let the model adjusts to the new place first, it re-learns what "normal" looks like there, using the new photos, before it labels anything. Known images mistaken for new ones drop from 74 to 78 percent, down to 14 to 21 percent.
 
-**[click]** Second, we build the bridge to start as an exact pass-through, which lifts accuracy from 44.8 to 71.9 on MNIST to USPS.
+**[click]** Second, we build the bridge to start as an exact pass-through, which is a small translator that turns the new extractor's features into the frozen old classifier's language. This lifts accuracy from 44.8 to 71.9 on MNIST to USPS.
 
-**[click]** Third, the model learns only from its most confident 20 percent of labels, which lifts accuracy from 55.1 to 71.9.
+**[click]** Third, the model learns only from its most confident 20 percent of labels, which means it lables the new photos itself, so it learns only from the fifth it is surest about. This lifts accuracy from 55.1 to 71.9.
 
-**[click]** Fourth, for office photos we keep the pretrained image network fixed. Retraining it on about 900 photos dropped the new-thing accuracy of its features from 72.4 to 33.1.
+**[click]** Fourth, the image network turning photos into numbers arrived already trained on millions of photos, so for office photos we leave it untouched — retraining it on our 900 dropped its accuracy on the new things from 72 to 33.
 
 ## Slide 9. Results (35 s)
 
@@ -149,23 +149,23 @@ Next, **[click]** run VisDA with the four changes, **[click]** close the new-cla
 
 ## Where each number comes from
 
-| Slide | Number | Source |
-| --- | --- | --- |
-| 3 | 28.6, 62.1, 66.3, 63.0, 70.8 | Paper, Table 3 (Office-31 average, accuracy on new classes). Earlier methods use 5% labelled new photos. |
-| 3 | Check marks | Paper, Table 1 |
-| 6 | 14 to 29, 11 to 54, about 50 points below; new-class ranges 46.5–60.7, 1.4–26.9, 13.9–16.1 against 45.7–71.6, 61.8–88.4, 55.7–56.3 | Nikkita's baseline report, "Why the CIDA baseline underperforms" (2026-11-23), summary table |
-| 6 | 72.5 vs 43.7, 69.4 vs 47.2, 46.4 vs 32.8, 72.2 vs 45.2, 56.4 vs 6.2; 17 transfers | Paper, Tables 2 and 3. Report, Table 3 (preset=vanilla, 5 seeds) |
-| 6 | 11 settings unspecified, 10 vs 11 Office classes, "unusual point" test accepts about 100% | SPEC.md, "Inconsistencies in the paper". Report, Table 2 |
-| 7 | The feedback loop; best epoch between 0 and 12 | Nikkita's report, "The core problem" |
-| 7 | 38 to 44%, 57 to 60%; up to 94%; 10% and single-class collapse | Nikkita's report, "How the failure shows up on each benchmark" |
-| 7 | 1 to 19 points on Office-31, 24 to 33 on VisDA at the best epoch | Nikkita's report, "Is it our reproduction or the method?" |
-| 8 | 74 to 78% and 14 to 21%, 44.8, 55.1, 71.9, 33.1 and 72.4, approximately 900 photos | SPEC.md, "Our choices" |
-| 8 | +7.9, +18.3, +5.3 overall and 2 to 7 points lower on new things | Sourabh's report, matched all-target against confident-only La1 at epoch 15, 5 seeds |
-| 9 | 83.7 / 75.5, 77.1 / 71.0, 60.4 / 59.1 | Sourabh's report, chosen one-shot supports, confident-only La1, epoch 15, 5 seeds (83.73 ± 1.83, 77.10 ± 4.65, 60.37 ± 4.07) |
-| 8 | 13% on Digits, 24% on VisDA, projection error after pretraining | Nikkita's report, "Why the early pseudo-labels are wrong" |
-| 9 | Paper columns | Paper, Tables 2 and 3 |
-| 9 | As written: 43.7/50.5, 47.2/60.7, 32.8/46.5, 6.2/16.1, 7.7/13.9 | Report, Table 3 (preset=vanilla, 5 seeds, `runs_vanilla/`) |
-| 9 | With our changes: 71.9/55.3, 65.5/51.0, 58.8/44.0, 61.3/36.2 | SPEC.md, "Vanilla results, Digits" (our main runs, last epoch, random one-shot images) and "Main configuration on Office-31". Office row = mean of the six 10/20 transfers. **Office still to confirm with Siddharth.** |
-| 10 | One GPU, six hours, one job at a time | `README.md` line 34, CCDS GPU TC2 QoS `normal` |
-| 10 | Peak near epoch 30, drift to epoch 60 | SPEC.md, Office A→D frozen run (ALL 72.2 / PRIV 52.3 at epoch 30, PRIV 48.5 at epoch 60) |
-| 10, 11 | 36.2 against 70.8; 26% of new-class images pulled into known classes | Same sources as slide 9, Office averages; SPEC.md, A→D confusion at epoch 60 |
+| Slide  | Number                                                                                                                                   | Source                                                                                                                                                                                                                        |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 3      | 28.6, 62.1, 66.3, 63.0, 70.8                                                                                                             | Paper, Table 3 (Office-31 average, accuracy on new classes). Earlier methods use 5% labelled new photos.                                                                                                                      |
+| 3      | Check marks                                                                                                                              | Paper, Table 1                                                                                                                                                                                                                |
+| 6      | 14 to 29, 11 to 54, about 50 points below; new-class ranges 46.5–60.7, 1.4–26.9, 13.9–16.1 against 45.7–71.6, 61.8–88.4, 55.7–56.3 | Nikkita's baseline report, "Why the CIDA baseline underperforms" (2026-11-23), summary table                                                                                                                                  |
+| 6      | 72.5 vs 43.7, 69.4 vs 47.2, 46.4 vs 32.8, 72.2 vs 45.2, 56.4 vs 6.2; 17 transfers                                                        | Paper, Tables 2 and 3. Report, Table 3 (preset=vanilla, 5 seeds)                                                                                                                                                              |
+| 6      | 11 settings unspecified, 10 vs 11 Office classes, "unusual point" test accepts about 100%                                                | SPEC.md, "Inconsistencies in the paper". Report, Table 2                                                                                                                                                                      |
+| 7      | The feedback loop; best epoch between 0 and 12                                                                                           | Nikkita's report, "The core problem"                                                                                                                                                                                          |
+| 7      | 38 to 44%, 57 to 60%; up to 94%; 10% and single-class collapse                                                                           | Nikkita's report, "How the failure shows up on each benchmark"                                                                                                                                                                |
+| 7      | 1 to 19 points on Office-31, 24 to 33 on VisDA at the best epoch                                                                         | Nikkita's report, "Is it our reproduction or the method?"                                                                                                                                                                     |
+| 8      | 74 to 78% and 14 to 21%, 44.8, 55.1, 71.9, 33.1 and 72.4, approximately 900 photos                                                       | SPEC.md, "Our choices"                                                                                                                                                                                                        |
+| 8      | +7.9, +18.3, +5.3 overall and 2 to 7 points lower on new things                                                                          | Sourabh's report, matched all-target against confident-only La1 at epoch 15, 5 seeds                                                                                                                                          |
+| 9      | 83.7 / 75.5, 77.1 / 71.0, 60.4 / 59.1                                                                                                    | Sourabh's report, chosen one-shot supports, confident-only La1, epoch 15, 5 seeds (83.73 ± 1.83, 77.10 ± 4.65, 60.37 ± 4.07)                                                                                               |
+| 8      | 13% on Digits, 24% on VisDA, projection error after pretraining                                                                          | Nikkita's report, "Why the early pseudo-labels are wrong"                                                                                                                                                                     |
+| 9      | Paper columns                                                                                                                            | Paper, Tables 2 and 3                                                                                                                                                                                                         |
+| 9      | As written: 43.7/50.5, 47.2/60.7, 32.8/46.5, 6.2/16.1, 7.7/13.9                                                                          | Report, Table 3 (preset=vanilla, 5 seeds, `runs_vanilla/`)                                                                                                                                                                  |
+| 9      | With our changes: 71.9/55.3, 65.5/51.0, 58.8/44.0, 61.3/36.2                                                                             | SPEC.md, "Vanilla results, Digits" (our main runs, last epoch, random one-shot images) and "Main configuration on Office-31". Office row = mean of the six 10/20 transfers. **Office still to confirm with Siddharth.** |
+| 10     | One GPU, six hours, one job at a time                                                                                                    | `README.md` line 34, CCDS GPU TC2 QoS `normal`                                                                                                                                                                            |
+| 10     | Peak near epoch 30, drift to epoch 60                                                                                                    | SPEC.md, Office A→D frozen run (ALL 72.2 / PRIV 52.3 at epoch 30, PRIV 48.5 at epoch 60)                                                                                                                                     |
+| 10, 11 | 36.2 against 70.8; 26% of new-class images pulled into known classes                                                                     | Same sources as slide 9, Office averages; SPEC.md, A→D confusion at epoch 60                                                                                                                                                 |
