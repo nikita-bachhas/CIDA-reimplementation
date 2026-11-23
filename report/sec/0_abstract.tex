@@ -1,0 +1,10 @@
+\begin{abstract}
+Class-Incremental Domain Adaptation (CIDA)~\citep{kundu2020cida} adapts a trained classifier to a new domain that also contains new classes.
+It works without the source data and needs only one labelled image per new class.
+Since the paper has no public code, we reimplement CIDA from scratch in PyTorch and first run it exactly as the paper describes it.
+This version falls well short of the reported accuracy, and we trace the gap to four causes that each call for one change.
+The changes re-estimate BatchNorm statistics on the target and start the domain projections at the exact identity.
+They also train one pseudo-label loss on confident samples only and freeze the ImageNet backbone.
+With these changes, \TODO{headline results, e.g.\ ALL and PRIV on Digits M$\to$U and Office-31, against the paper}.
+We also show that the paper's $3\sigma$ rule for negative samples accepts almost every candidate in high dimensions.
+\end{abstract}

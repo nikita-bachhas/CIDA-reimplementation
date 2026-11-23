@@ -1,0 +1,63 @@
+% TEAM: check every statement here against Section 4 once it is written.
+\section{Discussion}\label{sec:discussion}
+
+\subsection{Why the CIDA baseline underperforms}\label{sec:disc-baseline}
+The baseline stays below the paper on every task (\cref{sec:exp-vanilla}).
+All of these losses come from one mechanism.
+
+\paragraph{The model trains on its own mistakes.}
+Only one image per private class is labelled, so the method labels the rest of the target data itself.
+Each target image takes the class of its nearest guide, and $\mathcal{L}_{a1}$ then pulls the image towards that guide.
+When an early pseudo-label is wrong, $\mathcal{L}_{a1}$ moves the feature towards the wrong guide.
+The next pseudo-labels are then worse, and the error grows with every epoch.
+This effect is known as confirmation bias in pseudo-labelling~\citep{arazo2020pseudo}.
+Without target labels, such self-training can also collapse onto a few classes~\citep{liang2020shot}, which is what happens on VisDA.
+This is why the best epoch of every baseline task lies between epoch 0 and epoch 12, and accuracy falls after it.
+Four details of the method make the first pseudo-labels wrong or let the errors spread.
+
+\paragraph{1. Source BatchNorm statistics.}
+$f_t$ starts as a copy of $f_s$, so it normalises target images with statistics computed on source images.
+These statistics carry domain information, so they do not fit the target domain~\citep{li2018adabn}.
+The private guides come from real target images, while the shared guides come from source class means.
+Shared target images therefore lie closer to a private guide than to their own shared guide.
+On Digits M$\to$U, 74 to 78\% of the shared samples receive private pseudo-labels for this reason.
+With target statistics this share falls to 14 to 21\%.
+
+\paragraph{2. Projections that are not the identity.}
+The paper pretrains $f_e$ and $f_d$ as plain MLPs towards the identity, but an error remains.
+After 2{,}000 steps the relative error is about 13\% on Digits and 24\% on VisDA.
+The last layer also carries an activation, which distorts the negative values of BatchNorm features.
+The shared guides $f_e(\mu_s)$ are therefore misplaced before adaptation starts.
+On Digits this lowers shared accuracy to between 28 and 85\% across seeds before the first adaptation step.
+A residual branch whose last layer starts at zero would make the projection exactly the identity~\citep{zhang2019fixup}, which the paper does not do.
+
+\paragraph{3. $\mathcal{L}_{a1}$ on every target sample.}
+As written, $\mathcal{L}_{a1}$ trains $f_t$ on the pseudo-label of every target sample, including the many wrong ones.
+In the first epoch of the baseline, only 37.5 to 43.9\% of these labels are correct on Digits.
+$\mathcal{L}_{a1}$ is the loss that turns wrong labels into moved features, so it drives the loop above.
+Self-training methods for domain adaptation limit this by training only on confident pseudo-labels~\citep{zou2018cbst}.
+With the other changes in place, shared accuracy on Digits M$\to$U at epoch 30 is 52.8 when $\mathcal{L}_{a1}$ uses every sample and 83.4 when it uses only $\Bt$.
+
+\paragraph{4. Fine-tuning the whole ResNet-50.}
+On Office-31 and VisDA the baseline trains the ResNet-50 together with the rest of the network.
+On Office-31 the source domain holds about 900 images of 10 classes, and the network fits them to 100\% source accuracy.
+In doing so it discards the ImageNet features that separate the unseen private classes.
+Full fine-tuning is known to distort pretrained features and to lower accuracy under distribution shift~\citep{kumar2022finetuning}.
+On A$\to$D, nearest-guide accuracy on the private classes is 72.4 with ImageNet features and only 27.0 to 33.1 after fine-tuning.
+With weaker features, the noisy labels of $\mathcal{L}_{a1}$ reshape the features even further.
+
+\paragraph{Our reproduction or the method.}
+The paper leaves several settings open, such as epoch counts, so part of the gap could come from our choices in \cref{tab:choices}.
+Two results suggest that the method as written is the main cause.
+First, stopping earlier does not close the gap.
+Even at the best epoch, chosen with target labels, ALL stays 1 to 19 points below the paper on Office-31 and 24 to 33 points below on VisDA.
+Second, removing the four causes above recovers most of the gap (\cref{sec:disc-improvements}).
+
+\subsection{How the improvements help}\label{sec:disc-improvements}
+
+\subsection{Limitations}\label{sec:disc-limitations}
+\begin{itemize}
+  \item \textbf{Accuracy on the new classes.} Accuracy on the target-private classes (PRIV) remains below the values reported in the paper (\cref{sec:exp-improvements}).
+  \item \textbf{Departures from the paper.} Our four changes alter the method. We report the method as written separately in \cref{sec:exp-vanilla}, so readers can compare the two versions.
+  \item \textbf{Parts not implemented.} We did not implement Ours-d, the paper's variant that uses real source features during adaptation. We also did not implement the two-step upgrade from Amazon to DSLR and then to Webcam (A$\to$D$\to$W).
+\end{itemize}

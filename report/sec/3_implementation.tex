@@ -1,0 +1,99 @@
+\section{Implementation}\label{sec:implementation}
+
+We implemented the method in PyTorch without any reference code.
+Each stage is one script, and a separate module handles prototype fitting, log-densities and sampling.
+
+\paragraph{Networks.}
+We follow the architectures in the paper's supplementary material.
+For Digits, $f_s$ is a modified LeNet with BatchNorm and 100-dimensional features.
+For Office-31 and VisDA, $f_s$ is an ImageNet-pretrained ResNet-50~\citep{he2016resnet}.
+A head of three fully connected layers (1024, 256 and 256 units) with ELU activations and BatchNorm follows it and produces 256-dimensional features.
+The classifiers $g_s$ and $g_t$ are two-layer MLPs.
+The projections $f_e$ and $f_d$ have two fully connected layers for Digits and three for Office and VisDA.
+
+\subsection{Choices the paper leaves open}\label{sec:choices}
+\Cref{tab:choices} lists the settings the paper does not give, together with our choices.
+We tuned the Digits epoch counts on M$\to$U only and then kept them fixed for the other Digits tasks.
+
+\begin{table}[t]
+  \centering
+  \small
+  \caption{Settings not specified in the paper, and our choices.}
+  \label{tab:choices}
+  \begin{tabularx}{\columnwidth}{@{}>{\raggedright\arraybackslash}p{2.0cm}>{\raggedright\arraybackslash}X@{}}
+    \toprule
+    Setting & Our choice and reason \\
+    \midrule
+    Prototype score $\ell^c$ & $\log\mathcal{P}^c(\uu)$, because raw densities in 100 to 256 dimensions underflow. \\
+    Covariance & $\bm{\Sigma}\leftarrow 0.9\,\bm{\Sigma} + (0.1+10^{-4})\,\tfrac{\operatorname{tr}\bm{\Sigma}}{D}\,\mathbf{I}$. An Office class has approximately 30 to 90 images in 256 dimensions, so its raw covariance is singular. \\
+    Batch size & 64 for Digits, 32 for Office and VisDA. \\
+    Source epochs & 10 (Digits), 50 (Office), 5 (VisDA). \\
+    Adaptation epochs & 30 (Digits), 60 (Office), 10 (VisDA). \\
+    Adaptation epoch length & Five times the number of target batches, so each of the five losses sees approximately one pass over the target data. \\
+    Projection pretraining & 2{,}000 iterations. \\
+    Data splits & Digits adapts on the target training split and tests on the target test split. Office adapts and tests on the whole target domain, minus the labelled images. \\
+    Warm-up & Updates both $f_s$ and $g_s$. The algorithm lists only $f_s$, but $g_s$ also needs training. \\
+    Private guides & One-shot images pass through $f_t$ in the same batch as target samples, so BatchNorm never sees a batch of only one image per class. \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsection{Our changes to the method}\label{sec:changes}
+When we ran the method as written, shared and private classes became mixed during adaptation (\cref{sec:exp-vanilla}).
+We made four changes, each aimed at one cause, and \cref{sec:exp-improvements} reports their effect.
+A configuration preset (\texttt{preset=vanilla}) switches all four off.
+
+\paragraph{1. Target BatchNorm statistics.}
+Because $f_t$ starts as a copy of $f_s$, it also inherits the BatchNorm running statistics of the source domain.
+The first pseudo-labels are computed with these statistics, which creates a mismatch.
+The private guides come from target images, while the shared guides come from source means.
+As a result, many shared target samples lie closer to a private guide than to their own shared guide.
+Before adaptation, we therefore re-estimate the BatchNorm statistics of $f_t$ on the unlabelled target set, a technique known as AdaBN~\citep{li2018adabn}.
+This fits the design of the method, since $f_t$ is meant to be specific to the target.
+
+\paragraph{2. Projections that start as the exact identity.}
+The paper pretrains $f_e$ and $f_d$ as plain MLPs to approximate the identity, but some error remains after pretraining.
+This error moves shared-class features across the decision boundaries of $g_s$ before adaptation even starts.
+The supplementary material also puts an activation on the last layer, which distorts the negative values that BatchNorm features often take.
+ELU clips them below $-1$ and LeakyReLU scales them by $0.01$, so the identity is hard to reach.
+We instead use $f_e(\uu)=\uu+h(\uu)$, where $h$ is an MLP whose linear last layer is initialised to zero, and we give $f_d$ the same form.
+Both projections are then exactly the identity at the start, and pretraining begins from zero error.
+
+\paragraph{3. $\mathcal{L}_{a1}$ on the confident set.}
+As written, $\mathcal{L}_{a1}$ \eqref{eq:la1} uses every target sample, each labelled by its nearest guide.
+Early in adaptation many of these labels are wrong, so $\mathcal{L}_{a1}$ trains $f_t$ to fit its own errors.
+This pulls shared samples into private clusters, and the effect grows with every epoch.
+We therefore draw the $\mathcal{L}_{a1}$ batches from the confident set $\Bt$ instead.
+The label is still the nearest guide computed online, and $\Pt^c$ is still fitted on all target samples.
+
+\paragraph{4. Frozen ResNet-50 for Office and VisDA.}
+The paper only states that the ResNet-50 is pretrained on ImageNet.
+Fine-tuning the whole network on approximately 900 source images of 10 classes reaches 100\% source accuracy.
+However, it discards the features that separate the unseen target classes.
+We therefore freeze the ResNet-50 weights in both stages, while its BatchNorm statistics still adapt.
+The fully connected head, the classifiers, $f_e$ and $f_d$ train as before.
+
+\subsection{Inconsistencies in the paper}\label{sec:inconsistencies}
+
+\paragraph{Office private classes.}
+The supplementary material lists the private classes as those ranked 21 to 31, which gives 11 classes.
+The main results table, however, uses $|\Ct|=20$, which implies 10 private classes.
+We therefore use classes 21 to 30 for the setting $|\Cs|=10, |\Ct|=20$, and classes 21 to 31 for $|\Cs|=20, |\Ct|=31$.
+
+\paragraph{The $3\sigma$ rule in high dimensions.}
+The Mahalanobis distance measures how far a point lies from a Gaussian's mean, in units of its covariance.
+Under $\mathcal{N}(\bm{\mu},\bm{\Sigma})$, the point $\bm{\mu}+3\sqrt{\lambda}\,\bm{\nu}$ in \eqref{eq:neg} has a squared Mahalanobis distance of exactly $9$.
+The rule therefore keeps a candidate whenever its Mahalanobis distance to the most likely class exceeds~$3$.
+For a sample from a $D$-dimensional Gaussian, however, the squared distance follows a $\chi^2_D$ distribution with mean $D$.
+With $D=100$ or $256$, almost every sample exceeds $9$, including real samples of the class itself.
+The rule thus keeps almost every candidate as a negative.
+
+\paragraph{Typo in the negative-sampling algorithm.}
+Line~9 of Algorithm~1 in the supplementary material writes $\mathcal{P}(\uu_s)$ where $\mathcal{P}(\uu_n)$ is meant.
+
+\subsection{Engineering}\label{sec:engineering}
+Each run saves a checkpoint every epoch and every 20 minutes, and it resumes automatically after an interruption.
+Cluster jobs have a 6-hour limit, so they requeue themselves before reaching it.
+Unit tests check prototype fitting, log-densities and sampling, and a short end-to-end test runs both stages on synthetic data.
+Diagnostic scripts count how many shared samples are predicted as private and the reverse.
+They also track pseudo-label accuracy per epoch, measure nearest-guide accuracy on fixed features, and plot confusion matrices.

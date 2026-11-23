@@ -1,0 +1,95 @@
+%% This file contains a number of tweaks that are typically applied to the main document.
+%% They are not enabled by default, but can be enabled by uncommenting the relevant lines.
+
+
+%%
+%% Inline annotations; for predefined colors, refer to "dvipsnames" in the xcolor package:
+%% https://tinyurl.com/overleaf-colors
+%%
+\newcommand{\red}[1]{{\color{red}#1}}
+\newcommand{\todo}[1]{{\color{red}#1}}
+\newcommand{\TODO}[1]{\textbf{\color{red}[TODO: #1]}}
+%%
+%% Disable for camera ready / submission by uncommenting these lines:
+%%
+% \renewcommand{\TODO}[1]{}
+% \renewcommand{\todo}[1]{#1}
+
+%%
+%% Work harder in optimizing text layout. Typically shrinks text by 1/6 of page, enable
+%% it at the very end of the writing process, when you are just above the page limit.
+%%
+% \usepackage{microtype}
+
+%%
+%% Fine-tune paragraph spacing.
+%%
+% \renewcommand{\paragraph}[1]{\vspace{.5em}\noindent\textbf{#1.}}
+
+%%
+%% Globally adjusts space between figure and caption.
+%%
+% \setlength{\abovecaptionskip}{.5em}
+
+%%
+%% Allows "the use of \paper to refer to the project name"
+%% with automatic management of space at the end of the word.
+%%
+% \usepackage{xspace}
+% \newcommand{\paper}{ProjectName\xspace}
+
+%%
+%% Commonly used math definitions.
+%%
+% \DeclareMathOperator*{\argmin}{arg\,min}
+% \DeclareMathOperator*{\argmax}{arg\,max}
+
+%%
+%% Tighten underline.
+%%
+% \usepackage{soul}
+% \setuldepth{foobar}
+
+%%
+%% Reconfigure paragraph (tweaks spacing)
+%%
+
+
+%%
+%% ----------------------------------------------------------------------------
+%% Additions for the CIDA report (the tweaks above came with the original CVPR kit preamble).
+%% aaai2027.sty loads the fonts (newtxtext, helvet, courier), T1 encoding and xcolor, and main.tex
+%% loads graphicx, natbib, caption and booktabs, so they are not repeated here.
+%% Do not add hyperref or any other package that AAAI forbids (see the kit's CameraReady2027.tex).
+%% ----------------------------------------------------------------------------
+%%
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{bm}         %< bold math symbols
+\usepackage{tabularx}   %< Table 2
+\usepackage{tikz}       %< Figure 1 (fig/arch.tex)
+\usetikzlibrary{positioning,arrows.meta,calc,fit,backgrounds,shapes.geometric}
+\usepackage[capitalize]{cleveref}  %< \cref; works without hyperref
+\crefname{section}{Sec.}{Secs.}
+\Crefname{section}{Section}{Sections}
+\Crefname{table}{Table}{Tables}
+\crefname{table}{Tab.}{Tabs.}
+
+%% Notation
+\newcommand{\Cs}{\mathcal{C}_s}
+\newcommand{\Ct}{\mathcal{C}_t}
+\newcommand{\Cp}{\mathcal{C}'_t}
+\newcommand{\U}{\mathcal{U}}
+\newcommand{\V}{\mathcal{V}}
+\newcommand{\Ps}{\mathcal{P}_s}
+\newcommand{\Pt}{\mathcal{P}_t}
+\newcommand{\Bt}{\mathcal{B}_t}
+\newcommand{\Ds}{\mathcal{D}_s}
+\newcommand{\Dt}{\mathcal{D}_t}
+\newcommand{\lce}{\ell_{\mathrm{ce}}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\vg}{\mathbf{v}_g}
+\newcommand{\x}{\mathbf{x}}
+\newcommand{\uu}{\mathbf{u}}
+\newcommand{\fv}{\mathbf{v}}
+\newcommand{\unk}{\varnothing}

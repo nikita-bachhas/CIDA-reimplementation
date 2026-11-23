@@ -1,0 +1,10 @@
+\section{Conclusion}\label{sec:conclusion}
+We reimplemented CIDA from scratch, since no public code exists.
+Run as the paper describes it, the method mixes shared and private classes during adaptation, and four changes address the causes.
+With these changes, \TODO{headline results against the paper}.
+Four lessons carry over to similar source-free methods.
+Re-estimate the BatchNorm statistics on the target before computing the first pseudo-labels.
+Build projections that are exactly the identity at the start, rather than pretraining them towards it.
+Train self-labelling losses only on confident samples, because early label errors grow over the epochs.
+Check any threshold in a high-dimensional space against the $\chi^2$ distribution, since the $3\sigma$ intuition from low dimensions does not hold there.
+\TODO{Attach the supporting number from \cref{sec:experiments} to each lesson.}

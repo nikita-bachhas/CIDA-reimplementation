@@ -1,0 +1,134 @@
+% =====================================================================
+% SECTION 4 IS WRITTEN BY THE TEAM.
+% Budget: about 2 pages. The other sections take about 4 pages.
+% Keep the subsection labels: Sections 3 and 5 refer to them.
+% Structure: Setup, Baseline results (the method as written), Improvements.
+%   Improvements has one \subsubsection per set of improvements (one per team member).
+% Sources: SPEC.md, the runs/ and runs_vanilla/ folders on the cluster,
+%          python scripts/aggregate.py runs/   (mean +- std over seeds, next to the paper's numbers)
+%          python scripts/trajectory.py runs/<task>   (per-epoch means)
+% Writing rules (same as the rest of the report):
+%  - One idea per sentence, up to about 25 words. Link sentences so the text flows.
+%  - Body text uses only commas and periods. No colons, semicolons or dashes.
+%    Write ranges as "14 to 28", not "14-28".
+%  - Parentheses only around numbers, citations and technical tags.
+%  - Every claim gets a number, and every number points to a table, figure or run folder.
+%  - Exact figures as in SPEC.md or aggregate.py. Bold only the milestone results.
+%  - Tables carry the numbers. Prose carries the interpretation.
+%  - State before/after contrasts explicitly, e.g. "ALL rises from X to Y".
+%  - The "paper as written" runs are the baseline (a reproduction of the method as written).
+%    Label numbers quoted from the paper. Treat differences under 2 points as noise.
+% =====================================================================
+\section{Experiments}\label{sec:experiments}
+
+\subsection{Setup}\label{sec:exp-setup}
+\paragraph{Datasets.}
+We use the three benchmarks of the paper.
+Digits has three domains, MNIST~\citep{lecun1998mnist}, USPS~\citep{hull1994usps} and SVHN~\citep{netzer2011svhn}, and we run the transfers M$\to$U, U$\to$M and S$\to$M.
+Digits 0 to 4 are shared and digits 5 to 9 are private to the target.
+Images are resized to $32\times32$, and greyscale digits are copied to three channels.
+Office-31~\citep{saenko2010office} has 31 classes in three domains, Amazon (2{,}817 images), DSLR (498) and Webcam (795), and we run all six transfers.
+Classes are ranked alphabetically, and we use the two settings of the paper.
+In the 10/20 setting, classes 1 to 10 are shared and classes 21 to 30 are private, so $|\Cs|=10$ and $|\Ct|=20$ (\cref{sec:inconsistencies}).
+In the 20/31 setting, classes 1 to 20 are shared and classes 21 to 31 are private, so $|\Cs|=20$ and $|\Ct|=31$.
+VisDA-2017~\citep{peng2017visda} has 12 classes, with 152{,}397 synthetic renderings and 55{,}388 real images, and we run Syn$\to$Real and Real$\to$Syn.
+Bicycle, bus, car, motorcycle, train and truck are shared, and the other six classes are private.
+In every task the source domain holds only the shared classes, and the target domain holds all classes of $\Ct$.
+
+\paragraph{Protocol.}
+For each transfer and configuration we train one source model and then run adaptation with 5 seeds.
+Each seed draws a different labelled target image for every private class and sets the random state of adaptation.
+Digits adapts on the target training split and is evaluated on the target test split.
+Office-31 and VisDA have no official split, so they adapt and are evaluated on the whole target domain, without the labelled images.
+Office-31 and VisDA images are resized so that the shorter side is 256 pixels and cropped to $224\times224$.
+During training they are augmented with the flips, rotations up to 15 degrees, random crops, colour jitter and channel swaps of the supplementary material.
+Epoch counts and the other settings the paper leaves open are listed in \cref{tab:choices}.
+Results are compared at a fixed epoch, as described at the end of this subsection.
+
+\paragraph{Metrics.}
+ALL is the accuracy over all target samples, and PRIV is the accuracy over the samples of the private classes $\Cp$.
+Both are per-sample accuracies in \%, and as in the paper we report the mean over the 5 seeds.
+For analysis only, we also log the share of shared samples predicted as private, the share of private samples predicted as shared, and the accuracy of the pseudo-labels.
+These diagnostics use target labels and never influence training.
+
+\paragraph{Configurations.}
+We evaluate two configurations.
+The baseline follows the method as written, with the four changes of \cref{sec:changes} switched off (\texttt{preset=vanilla}).
+The second configuration switches on all four changes where they apply, and the frozen ResNet-50 does not apply to Digits.
+
+\paragraph{Hardware and run time.}
+All experiments run in PyTorch on the GPU cluster of the NTU College of Computing and Data Science, with one NVIDIA A40 per job.
+A job may run for at most 6 hours, so every run saves a checkpoint every 20 minutes and resumes after a requeue.
+With the frozen ResNet-50, Office-31 adaptation takes about 10 to 45 minutes per seed in the 20/31 setting.
+In the baseline, VisDA source training takes about 7 minutes per epoch on Syn$\to$Real.
+Adaptation then takes about 2 hours per seed on Syn$\to$Real and about 6 hours per seed on Real$\to$Syn.
+
+\paragraph{Results table.}
+\Cref{tab:results} collects the results of both configurations next to the numbers reported in the paper, and \cref{sec:exp-vanilla,sec:exp-improvements} refer to it.
+We compare the configurations at one fixed epoch for every task, epoch 15 on Digits and Office-31.
+VisDA adapts for only 10 epochs, so its rows show the last epoch.
+The epoch is the same for every task and is not tuned per task with target labels.
+
+\begin{table}[t]
+  \centering
+  \footnotesize
+  \setlength{\tabcolsep}{3.5pt}
+  \caption{Results of the baseline (\cref{sec:exp-vanilla}) and of our changes (\cref{sec:exp-improvements}) against the numbers reported in the paper. ALL and PRIV accuracy in \%, mean over 5 seeds, at epoch 15. $^\dagger$VisDA adapts for 10 epochs, so its rows are at the last epoch. Bold marks values above the paper. The Improved columns are to be filled in. The paper reports one number per task and does not give its epoch.}
+  \label{tab:results}
+  \begin{tabular}{@{}llcccccc@{}}
+    \toprule
+    & & \multicolumn{2}{c}{Baseline} & \multicolumn{2}{c}{Improved} & \multicolumn{2}{c}{Paper (reported)} \\
+    \cmidrule(lr){3-4}\cmidrule(lr){5-6}\cmidrule(lr){7-8}
+    Setting & Task & ALL & PRIV & ALL & PRIV & ALL & PRIV \\
+    \midrule
+    Digits & M$\to$U & 47.0 & 54.0 & 71.6 & 57.5 & 72.5 & 71.6 \\
+     & U$\to$M & 49.6 & 59.0 & 68.3 & 54.4 & 69.4 & 68.6 \\
+     & S$\to$M & 35.1 & 44.2 & \textbf{58.2} & \textbf{52.6} & 46.4 & 45.7 \\
+    \midrule
+    Office 10/20 & A$\to$D & 55.8 & 33.1 &  &  & 72.2 & 72.6 \\
+     & A$\to$W & 59.2 & 38.2 &  &  & 62.1 & 62.0 \\
+     & D$\to$A & 48.6 & 26.8 &  &  & 62.6 & 61.8 \\
+     & D$\to$W & 66.2 & 33.8 &  &  & 78.5 & 78.7 \\
+     & W$\to$A & 45.5 & 24.5 &  &  & 62.1 & 62.4 \\
+     & W$\to$D & 68.6 & 39.9 &  &  & 87.8 & 87.6 \\
+    \midrule
+    Office 20/31 & A$\to$D & 53.3 & 31.6 &  &  & 73.3 & 73.1 \\
+     & A$\to$W & 52.3 & 35.4 &  &  & 63.6 & 62.6 \\
+     & D$\to$A & 39.4 & 9.0 &  &  & 64.1 & 64.3 \\
+     & D$\to$W & 69.9 & 22.0 &  &  & 80.3 & 79.4 \\
+     & W$\to$A & 39.0 & 11.7 &  &  & 63.7 & 62.8 \\
+     & W$\to$D & 69.8 & 22.8 &  &  & 89.5 & 88.4 \\
+    \midrule
+    VisDA$^\dagger$ & Syn$\to$Real & 6.2 & 16.1 &  &  & 56.4 & 56.3 \\
+     & Real$\to$Syn & 7.7 & 13.9 &  &  & 55.8 & 55.7 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{Baseline results}\label{sec:exp-vanilla}
+\Cref{tab:results} reports the baseline next to the numbers reported in the paper.
+The baseline stays below the paper on every task.
+At epoch 15, ALL is 11 to 26 points lower on Digits and 3 to 25 points lower on Office-31.
+On VisDA the gap is about 50 points.
+PRIV suffers most on Office-31, at 9.0 to 39.9 against 61.8 to 88.4 in the paper.
+The errors run in a different direction on each benchmark.
+
+\paragraph{Digits.}
+On Digits, shared samples are pulled into the private classes, and 57 to 60\% of them are predicted as private by epoch 30.
+PRIV stays at 44.2 to 59.0 at epoch 15 only because so many samples are predicted as private.
+
+\paragraph{Office-31.}
+On Office-31, private samples drift into the shared classes instead, and 53 to 94\% of them are predicted as shared by epoch 60 in the 10/20 setting.
+PRIV on A$\to$D peaks at 35.6 in epoch 10 and ends at 16.9, and with Amazon as the target shared accuracy collapses as well.
+
+\paragraph{VisDA.}
+On VisDA the source model still reaches 37.3 on the real shared images, against 16.7 for chance.
+The first pseudo-labels, however, are only 10.4\% correct, and by epoch 10 every target image is assigned to one class.
+On Syn$\to$Real the best epoch is epoch 0, so adaptation only lowers accuracy.
+
+\Cref{sec:disc-baseline} explains these failures.
+
+\subsection{Improvement results}\label{sec:exp-improvements}
+\Cref{tab:results} reports the results with our changes next to the baseline and the paper.
+% Emptied on request. The previous text, Nikita's improvements and tables tab:imp-pseudo and
+% tab:imp-pseudo-epochs are in commit a42c640.
