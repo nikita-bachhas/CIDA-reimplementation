@@ -81,9 +81,9 @@ Here is our baseline: CIDA exactly as the paper describes it, with none of our f
 
 **[click]** On digits it lands 14 to 29 points below the paper.
 
-**[click]** On office photos, 11 to 54 points below.
+**[click]** On office photos, 11 to 54 points below, and on the new classes it is far worse: 1.4 to 26.9 percent, where the paper reports 61.8 to 88.4.
 
-**[click]** On VisDA, about 50 points below. And on the new classes the gap is worse. Office photos reach 1.4 to 26.9 percent, where the paper reports 61.8 to 88.4.
+**[click]** And on VisDA, about 50 points below.
 
 ## Slide 7. Why the baseline fails (40 s)
 
@@ -113,19 +113,21 @@ So we made four changes, one for each cause.
 
 Read the table left to right. As written, the method sits 14 to 50 points below the paper on every task.
 
-**[click]** With our four changes, digits recover: 71.9 against the paper's 72.5 on MNIST to USPS, within noise,
+**[click]** With our four changes, digits recover: 71.9 against the paper's 72.5 on MNIST to USPS, within noise.
 
-**[click]** and 58.8 against 46.4 on SVHN to MNIST, above the paper.
+**[click]** 65.5 against 69.4 on USPS to MNIST, a little short.
 
-**[click]** Office photos recover 19 points, to 61.3 on average.
+**[click]** And 58.8 against 46.4 on SVHN to MNIST, above the paper.
 
-**[click]** What remains is the new classes on office photos, 36.2 against 70.8.
+**[click]** Office photos recover 19 points to 61.3 overall, but the new classes reach only 36.2 against 70.8.
 
-**[click]** And separately, with the one labelled image per new class chosen by eye and reported at epoch 15, all three digit transfers land above the paper: 83.7 against 72.5, 77.1 against 69.4, and 60.4 against 46.4. That is a different protocol from the table, so we keep it apart.
+**[click]** VisDA with our changes we did not run, and I will come back to that.
+
+**[click]** Separately, with the one labelled image chosen by eye and reported at epoch 15, all three digit transfers land above the paper: 83.7 against 72.5, 77.1 against 69.4, and 60.4 against 46.4. A different protocol from the table, so we keep it apart.
 
 ## Slide 10. Limitations (25 s)
 
-Three limits.
+Four limits.
 
 **[click]** We never ran VisDA with our changes. The cluster gives one GPU for six hours at a time, and ResNet-50 over VisDA with five seeds did not fit what we had left.
 
