@@ -743,18 +743,19 @@ The user asked on 2026-11-23 for the same results in the Table 3 setting (10 sha
 
 | Task | Ours | Paper | Baseline (epoch 15) | Shared at epoch 0 | shared → priv | priv → shared | Best ALL (epoch) |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| A→D | not in this log | 72.2 / 72.6 | 55.8 / 33.1 | | | | |
+| A→D | **77.0** / 64.4 / 90.3 | 72.2 / 72.6 | 55.8 / 33.1 | not logged | 7.1 | 26.4 | not logged |
 | A→W | **70.7 / 61.9** / 79.6 | 62.1 / 62.0 | 59.2 / 38.2 | 90.2 | 10.6 | 25.8 | 70.7 (20) |
 | D→W | **80.0** / 70.8 / 89.4 | 78.5 / 78.7 | 66.2 / 33.8 | 100.0 | 10.6 | 10.2 | 81.7 (8) |
 | W→D | **88.6** / 79.8 / 98.1 | 87.8 / 87.6 | 68.6 / 39.9 | 100.0 | 1.3 | 3.1 | 89.6 (18) |
 | D→A | 58.3 / 43.7 / 74.9 | 62.6 / 61.8 | 48.6 / 26.8 | 82.5 | 12.5 | 37.5 | 59.8 (8) |
 | W→A | 58.4 / 50.0 / 68.0 | 62.1 / 62.4 | 45.5 / 24.5 | 78.9 | 25.4 | 15.2 | 60.3 (15) |
-| Avg. (5, no A→D) | 71.2 / 61.2 | 70.6 / 70.5 | 57.6 / 32.6 | | | | |
+| Avg. (6) | 72.2 / 61.8 | 70.9 / 70.9 | 57.3 / 32.7 | | | | |
 
-- **A→D is missing from this log.** The job found `runs/office_a2d_final/adapt_1shot_abl-none_final_seed0/final_metrics.json` already on the cluster (an earlier job whose log we don't have) and skipped it. Read that file to complete the table.
+- **A→D comes from an earlier job** whose log we don't have. Job 56873 found `runs/office_a2d_final/adapt_1shot_abl-none_final_seed0/final_metrics.json` already on the cluster and skipped the task. The user pasted the file on 2026-11-23. It has no per-epoch values, so epoch-0 shared accuracy and the best epoch are unknown.
+- **A→D is worse than the earlier, simpler configuration.** `office_a2d_fixedshot.yaml` (job 56473: same DSLR picks, nearest guide, 50-epoch source, 60 epochs) gave seed 0 82.0 / 69.9 / 94.8 (mean 81.9 / 69.8 / 94.7). The final config gives 77.0 / 64.4 / 90.3, so −5.0 ALL, −5.5 PRIV, −4.5 shared. Both errors are larger: priv_as_shared 26.4 against a 15.6 mean, shared_as_priv 7.1 against 1.0. Three things changed at once (lp, 150-epoch source, 20 epochs), so the cause is not isolated. lp is one candidate for the shared → private drift seen on four of the six tasks. One seed.
 - **Source models settled.** Webcam (181 epochs, 1,260 steps): Ls2 0.80, 88.5% of negatives detected, source accuracy 100. DSLR (318 epochs, 1,268 steps): Ls2 0.77, 89.9%, 100. Both close to the Table 2 W→D model at ~1,600 steps (Ls2 0.79, 94.5%), far from the under-trained one (2.17, 38.9%). The Amazon source model comes from the earlier job.
-- **ALL is at or above the paper on A→W, D→W, W→D** (+8.6, +1.5, +0.8; the last two within noise) and 3.7 to 4.3 below on the Amazon targets. Averaged over the five, ALL 71.2 against 70.6.
-- **PRIV is level with the paper only on A→W** (61.9 against 62.0). It is 7.8 to 7.9 short on D→W and W→D, 12.4 on W→A and 18.1 on D→A. Average 61.2 against 70.5.
+- **ALL is at or above the paper on A→D, A→W, D→W, W→D** (+4.8, +8.6, +1.5, +0.8; the last two within noise) and 3.7 to 4.3 below on the Amazon targets. Averaged over the six, ALL 72.2 against 70.9.
+- **PRIV is level with the paper only on A→W** (61.9 against 62.0). It is 7.8 to 8.2 short on D→W, W→D and A→D, 12.4 on W→A and 18.1 on D→A. Average 61.8 against 70.9.
 - **New in this setting: adaptation costs shared accuracy.** Shared accuracy falls from epoch 0 to 20 by 10.6 (A→W), 10.6 (D→W), 7.6 (D→A), 10.9 (W→A) and only 1.9 on W→D. 10.6 to 25.4% of shared images end up predicted as private (W→D 1.3%). In the Table 2 final runs (5 seeds) shared_as_priv was 0.8–10.2% and shared accuracy moved −4.0 to +2.6 from epoch 0 (A→W 85.4 → 88.0, D→W 99.4 → 95.4, W→A 70.2 → 71.5, D→A 70.4 → 70.6). Likely reason: half the target classes are private here (10 of 20, against 11 of 31), so the private guides and the class-balanced lp claim a larger share of the images, and with only 10 shared guides each private cluster borders fewer shared ones. Not tested.
 - **Against Table 2** (5-seed means): ALL is lower here on A→W (70.7 against 80.6), D→W (80.0 / 85.1), D→A (58.3 / 62.9), W→A (58.4 / 63.8), equal on W→D (88.6 / 88.5). PRIV is higher on W→D (79.8 / 74.1) and D→W (70.8 / 63.8), equal on W→A (50.0 / 49.8), lower on A→W (61.9 / 65.5) and D→A (43.7 / 49.1). One seed against five; Table 2 seed sd was 0.6–2.0 ALL and 1.5–4.4 PRIV.
 - **Epoch 20 is within 1.9 points of the best ALL on every task** (best at epochs 8 to 20); D→W and D→A peak at epoch 8, as in Table 2.
