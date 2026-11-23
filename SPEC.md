@@ -619,7 +619,30 @@ The report's configuration (user's decision, 2026-11-23) on A→W, D→W, D→A 
 
 - **Not the paper's protocol:** picked by eye from every labelled image of each class; epoch count read off earlier test curves.
 - **Untested parts:** no hand-picked or lp run has used a Webcam or Amazon target before; the Amazon-source length (150) waits on the A→D src150 result; lp on an Amazon target builds a 2,817-image graph (under LP_MAX).
-- **Compare with:** paper Table 2 A→W 63.6 / 62.6, D→W 80.3 / 79.4, D→A 64.1 / 64.3, W→A 63.7 / 62.8; our lp random-shot runs at epoch 20 (A→W 75.7 / 54.5 / 85.9, D→W 81.0 / 60.1 / 91.2); vanilla (A→W 42.5 / 20.9, D→W 53.2 / 17.7, D→A 9.9 / 4.4, W→A 14.7 / 1.4). Not yet run.
+- **Compare with:** paper Table 2 A→W 63.6 / 62.6, D→W 80.3 / 79.4, D→A 64.1 / 64.3, W→A 63.7 / 62.8; our lp random-shot runs at epoch 20 (A→W 75.7 / 54.5 / 85.9, D→W 81.0 / 60.1 / 91.2); vanilla (A→W 42.5 / 20.9, D→W 53.2 / 17.7, D→A 9.9 / 4.4, W→A 14.7 / 1.4).
+
+**Results, Webcam targets** (job 56786, `logs/cida_56786.out`, 2026-11-23; ALL / PRIV / shared at epoch 20):
+
+| Seed | A→W | D→W |
+| --- | --- | --- |
+| 0 | 78.6 / 57.8 / 88.6 | 85.6 / 63.7 / 96.2 |
+| 1 | 79.0 / 66.0 / 85.2 | 85.7 / 62.1 / 97.2 |
+| 2 | 82.8 / 68.8 / 89.6 | 84.1 / 64.1 / 93.8 |
+| 3 | 80.9 / 66.4 / 87.9 | 82.9 / 62.1 / 93.0 |
+| 4 | 81.9 / 68.4 / 88.4 | 87.1 / 66.8 / 97.0 |
+| **Mean** | **80.6 / 65.5 / 88.0** | **85.1 / 63.8 / 95.4** |
+| sd ALL / PRIV / shared | 1.8 / 4.4 / 1.6 | 1.6 / 1.9 / 1.9 |
+| Class-averaged ALL / PRIV | 80.4 / 68.3 | 84.5 / 64.6 |
+| Private → shared / → wrong private / shared → private | 25.9 / 8.7 / 4.2 | 23.7 / 12.6 / 2.1 |
+| Paper (Table 2) ALL / PRIV | 63.6 / 62.6 | 80.3 / 79.4 |
+| lp, random shots, 50-epoch source, epoch 20 (jobs 56615) | 75.7 / 54.5 / 85.9 | 81.0 / 60.1 / 91.2 |
+
+- **A→W is above the paper on both ALL (+17.0) and PRIV (+2.9).** D→W is above on ALL (+4.8) and 15.6 short on PRIV.
+- Against the lp random-shot runs at epoch 20 (not seed-paired: different shots and source models): A→W +4.9 / +11.0 / +2.1, D→W +4.1 / +3.7 / +4.2.
+- **Source models:** Amazon 150 epochs: Ls2 0.17, 99.1% of negatives detected (51 epochs: 0.61 / 97.6), Ls1 median 2.7 at the end. DSLR 317 epochs: Ls2 0.28, 99.3% (51 epochs: 3.10 / 2.3), Ls1 mostly 0. The DSLR source was the most under-trained of all at 50 epochs.
+- **Curves:** A→W is still rising at epoch 20 (seed-mean ALL 79.5 / 80.0 / 80.6 at 10 / 15 / 20; 4 of 5 seeds peak at 18–20). D→W peaks early: ALL 86.5 at epoch 5 and 87.0 at 10, then 85.1 at 20; best ALL per seed at epochs 6–14 (0.8–3.5 above the last epoch). The last epoch is kept.
+- PRIV's remaining loss is mostly private → shared (24–26%); D→W also has 12.6% private ↔ private confusion.
+- Time: source 21.2 min (Amazon) and 25.9 min (DSLR); 8.3–8.7 min per adaptation seed on Webcam.
 
 ## Investigated, not adopted
 
