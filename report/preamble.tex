@@ -3,23 +3,6 @@
 
 
 %%
-%% Official support for 2-column teaser figure
-%%
-\usepackage{cuted} %< for strip environment
-
-%%
-%% For auto-referencing of figures (see fig/teaser.tex and \label{} therein) 
-%%
-\usepackage{currfile} %< for \currfilebase macro
-
-%%
-%% caption and (global) spacing overrides
-%%
-\usepackage{caption} %< for "\captionof" commands (teaser)
-% \setlength{\abovecaptionskip}{.5em} % space above caption
-% \setlength{\belowcaptionskip}{1em} % space below caption
-
-%%
 %% Inline annotations; for predefined colors, refer to "dvipsnames" in the xcolor package:
 %% https://tinyurl.com/overleaf-colors
 %%
@@ -74,16 +57,23 @@
 
 %%
 %% ----------------------------------------------------------------------------
-%% Additions for the CIDA report (everything above is the unchanged author-kit preamble).
-%% cvpr.sty already loads times, amsmath, amssymb, graphicx, xcolor, booktabs,
-%% natbib, caption, enumitem and cleveref, so they are not repeated here.
+%% Additions for the CIDA report (the tweaks above came with the original CVPR kit preamble).
+%% aaai2027.sty loads the fonts (newtxtext, helvet, courier), T1 encoding and xcolor, and main.tex
+%% loads graphicx, natbib, caption and booktabs, so they are not repeated here.
+%% Do not add hyperref or any other package that AAAI forbids (see the kit's CameraReady2027.tex).
 %% ----------------------------------------------------------------------------
 %%
-\usepackage[T1]{fontenc} %< Times (ptm) also under XeTeX/tectonic; harmless under pdfLaTeX
+\usepackage{amsmath}
+\usepackage{amssymb}
 \usepackage{bm}         %< bold math symbols
 \usepackage{tabularx}   %< Table 2
 \usepackage{tikz}       %< Figure 1 (fig/arch.tex)
 \usetikzlibrary{positioning,arrows.meta,calc,fit,backgrounds,shapes.geometric}
+\usepackage[capitalize]{cleveref}  %< \cref; works without hyperref
+\crefname{section}{Sec.}{Secs.}
+\Crefname{section}{Section}{Sections}
+\Crefname{table}{Table}{Tables}
+\crefname{table}{Tab.}{Tabs.}
 
 %% Notation
 \newcommand{\Cs}{\mathcal{C}_s}

@@ -1,40 +1,47 @@
 % AI6103 team report: reimplementation of CIDA (Kundu et al., ECCV 2020).
-% Format: CVPR author kit (https://github.com/cvpr-org/author-kit, release CVPR2027-v1).
-% Sections are in sec/, figures in fig/. Section 4 (Experiments) is written by the team.
-% Placeholders use \TODO{...} (defined in preamble.tex). Remove them all before submission.
+% Format: AAAI-27 author kit (aaai2027.sty, aaai2027.bst; https://aaai.org/authorkit27/).
+% Lines marked "DO NOT CHANGE THIS" follow the AAAI template. AAAI forbids hyperref and the other
+% packages listed in the kit's CameraReady2027.tex.
+% Sections are in sec/, figures in fig/. Placeholders use \TODO{...} (defined in preamble.tex).
 
-\documentclass[10pt,twocolumn,letterpaper]{article}
+\documentclass[letterpaper]{article} % DO NOT CHANGE THIS
+\usepackage{aaai2027}  % DO NOT CHANGE THIS
+\usepackage[hyphens]{url}  % DO NOT CHANGE THIS
+\usepackage{graphicx} % DO NOT CHANGE THIS
+\urlstyle{rm} % DO NOT CHANGE THIS
+\def\UrlFont{\rm}  % DO NOT CHANGE THIS
+\usepackage{natbib}  % DO NOT CHANGE THIS AND DO NOT ADD ANY OPTIONS TO IT
+\usepackage{caption} % DO NOT CHANGE THIS AND DO NOT ADD ANY OPTIONS TO IT
+\frenchspacing  % DO NOT CHANGE THIS
+\usepackage{booktabs}
 
-%%%%%%%%% PAPER TYPE
-% Camera-ready layout (author names shown, no review line numbers) with page numbers.
-\usepackage[pagenumbers]{cvpr}
-
-% Import additional packages in the preamble file, before hyperref
+% Report packages and notation
 \input{preamble}
 
-\definecolor{cvprblue}{rgb}{0.21,0.49,0.74}
-\usepackage[pagebackref,breaklinks,colorlinks,allcolors=cvprblue]{hyperref}
+\pdfinfo{
+/TemplateVersion (2027.2)
+}
 
-\def\confName{CVPR}
-\def\confYear{2027}
+% A course report, not an AAAI publication: drop the AAAI copyright line from the first page.
+\nocopyright
+
+% Numbered sections, so that \cref{sec:...} prints a number (the template allows 1 or 2).
+\setcounter{secnumdepth}{2}
 
 %%%%%%%%% TITLE
 \title{Reimplementing Class-Incremental Domain Adaptation}
 
 %%%%%%%%% AUTHORS
-% Author block in the AAAI style: names 11 pt bold, details and affiliation 9 pt roman.
-\newcommand{\authorname}[1]{{\fontsize{11}{13}\selectfont\bfseries #1}}
-\newcommand{\authordetail}[1]{{\fontsize{9}{11}\selectfont #1}}
-\author{%
-\begin{tabular}[t]{@{}c@{\hspace{3em}}c@{}}
-  \authorname{Bachhas Nikita} & \authorname{Kieu Son Tung} \\
-  \authordetail{Matriculation Number: G2609941B} & \authordetail{Matriculation Number: G2603142J} \\
-  \authordetail{NTU Email Address: BACH0005@e.ntu.edu.sg} & \authordetail{NTU Email Address: kieu0003@e.ntu.edu.sg} \\[0.8em]
-  \authorname{Siddharth Paliwal} & \authorname{Sourabh Sooraj} \\
-  \authordetail{Matriculation Number: G2510801L} & \authordetail{Matriculation Number: G2509657B} \\
-  \authordetail{NTU Email Address: siddhart022@e.ntu.edu.sg} & \authordetail{NTU Email Address: sourabh002@e.ntu.edu.sg}
-\end{tabular}\\[1em]
-\authordetail{AI6103 Deep Learning and Applications, Nanyang Technological University}
+\author{
+    Bachhas Nikita (Matriculation Number: G2609941B),
+    Kieu Son Tung (Matriculation Number: G2603142J),\\
+    Siddharth Paliwal (Matriculation Number: G2510801L),
+    Sourabh Sooraj (Matriculation Number: G2509657B)
+}
+\affiliations{
+    AI6103 Deep Learning and Applications, Nanyang Technological University\\
+    % Emails in the same order as the authors, in roman type as AAAI requires.
+    BACH0005@e.ntu.edu.sg, kieu0003@e.ntu.edu.sg, siddhart022@e.ntu.edu.sg, sourabh002@e.ntu.edu.sg
 }
 
 \begin{document}
@@ -46,10 +53,8 @@
 \input{sec/4_experiments}
 \input{sec/5_discussion}
 \input{sec/6_conclusion}
-{
-    \small
-    \bibliographystyle{ieeenat_fullname}
-    \bibliography{main}
-}
+
+% aaai2027.sty sets \bibliographystyle{aaai2027} itself, so it is not repeated here.
+\bibliography{main}
 
 \end{document}
