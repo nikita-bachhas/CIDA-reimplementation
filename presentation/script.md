@@ -9,21 +9,21 @@ How to use this script.
 - Times are targets. The total is 4:55, which leaves 5 seconds of slack.
 - Text in square brackets is for the team to fill in before the talk.
 
-| Slide | Topic                                            | Time | Running |
-| ----- | ------------------------------------------------ | ---- | ------- |
-| 1     | Title                                            | 5 s  | 0:05    |
-| 2     | The problem                                      | 25 s | 0:30    |
-| 3     | Earlier work and its limits                      | 35 s | 1:05    |
-| 4     | How CIDA works, at home                          | 25 s | 1:30    |
-| 5     | How CIDA works, in the new place                 | 25 s | 1:55    |
-| 6     | Reimplementation 1, built and tested             | 30 s | 2:25    |
-| 7     | Reimplementation 2, why the paper's recipe fails | 35 s | 3:00    |
-| 8     | Reimplementation 3, four fixes                   | 40 s | 3:40    |
-| 9     | Reimplementation 4, gaps in the paper            | 25 s | 4:05    |
-| 10    | Results                                          | 30 s | 4:35    |
-| 11    | Take-aways                                       | 20 s | 4:55    |
+| Slide | Topic                                | Time | Running |
+| ----- | ------------------------------------ | ---- | ------- |
+| 1     | Title                                | 5 s  | 0:05    |
+| 2     | The problem                          | 25 s | 0:30    |
+| 3     | Earlier work and its limits          | 35 s | 1:05    |
+| 4     | How CIDA works, at home              | 25 s | 1:30    |
+| 5     | How CIDA works, in the new place     | 25 s | 1:55    |
+| 6     | The baseline                         | 30 s | 2:25    |
+| 7     | Why the baseline fails               | 40 s | 3:05    |
+| 8     | Four changes                         | 35 s | 3:40    |
+| 9     | Results                              | 30 s | 4:10    |
+| 10    | Limitations                          | 20 s | 4:30    |
+| 11    | Future work                          | 15 s | 4:45    |
 
-The reimplementation, slides 6 to 9, takes 130 seconds, the largest share of the talk.
+The reimplementation, slides 6 to 9, takes 135 seconds, the largest share of the talk. The total is 4:45, which leaves 15 seconds of slack.
 
 ---
 
@@ -75,76 +75,83 @@ This is how CIDA prepares before leaving home.
 
 **[click]** Samples from the bubbles stop it forgetting old classes.
 
-## Slide 6. Reimplementation 1, built and tested (30 s)
+## Slide 6. The baseline (30 s)
 
-Now our part, which is the core of this project. There was no public code, so we wrote approximately a thousand lines for the method and 500 for analysis. We also wrote 23 tests and cluster jobs that resume themselves. We added a switch that runs the paper exactly as written. That version fell short on all seventeen transfers. On this chart, the gap runs from 13.6 points on SVHN to MNIST to 50.2 points on VisDA.
+Here is our baseline: CIDA exactly as the paper describes it, with none of our four changes. There was no public code, so this is our own build.
 
-## Slide 7. Reimplementation 2, why the paper's recipe fails (35 s)
+**[click]** On digits it lands 14 to 29 points below the paper.
 
-Small errors start early and then snowball.
+**[click]** On office photos, 11 to 54 points below.
 
-**[click]**
+**[click]** On VisDA, about 50 points below. And on the new classes the gap is worse. Office photos reach 1.4 to 26.9 percent, where the paper reports 61.8 to 88.4.
 
-Before any learning, the bridge only roughly passes features through, so 52 percent of known images already land on the new side.
+## Slide 7. Why the baseline fails (40 s)
 
-**[click]**
+The method as written has no safeguard against its own early mistakes. One image per new class is labelled, so the model labels the rest itself, training pulls every image towards whichever guide it picked, and the features move towards the guide that was wrong. The next round of labels is then worse, which is why the best epoch is always an early one.
 
-Next, the calibration still fits the city, so known images sit closer to the new-thing magnets. Only 37.5 to 43.9 percent of the first labels are right.
+**[click]** On digits, known images drift into the new classes. Only 38 to 44 percent of the first labels are right.
 
-**[click]**
+**[click]** On office photos it runs the other way, with up to 94 percent of new-class images called known.
 
-Then it keeps training on its own wrong labels, until 57 to 60 percent of known images are called new.
+**[click]** On VisDA everything collapses onto a single class.
 
-**[click]**
+**[click]** This is the method, not our code. Even at the best epoch, chosen with target labels we would not have, the baseline stays 1 to 19 points short on office photos and 24 to 33 on VisDA.
 
-So our fixes target the points where the errors start.
+## Slide 8. Four changes (35 s)
 
-## Slide 8. Reimplementation 3, four fixes (40 s)
+So we made four changes, one for each cause.
 
-We made four fixes.
+**[click]** First, we recalibrate on the new photos, known as AdaBN. Known images wrongly labelled new drop from 74 to 78 percent, down to 14 to 21 percent.
 
-**[click]**
+**[click]** Second, we build the bridge to start as an exact pass-through, which lifts accuracy from 44.8 to 71.9 on MNIST to USPS.
 
-First, we recalibrate on the new photos, known as AdaBN. Known images wrongly labelled new drop from 74 to 78 percent, down to 14 to 21 percent.
+**[click]** Third, the model learns only from its most confident 20 percent of labels, which lifts accuracy from 55.1 to 71.9.
 
-**[click]**
+**[click]** Fourth, for office photos we keep the pretrained image network fixed. Retraining it on about 900 photos dropped the new-thing accuracy of its features from 72.4 to 33.1.
 
-Second, we build the bridge to start as an exact pass-through, which lifts accuracy from 44.8 to 71.9 on MNIST to USPS.
+## Slide 9. Results (30 s)
 
-**[click]**
+Read the table left to right. As written, the method sits 14 to 50 points below the paper on every task.
 
-Third, the model learns only from its most confident 20 percent of labels, which lifts accuracy from 55.1 to 71.9.
+**[click]** With our four changes, digits recover: 71.9 against the paper's 72.5 on MNIST to USPS, within noise,
 
-**[click]**
+**[click]** and 58.8 against 46.4 on SVHN to MNIST, above the paper.
 
-Fourth, for office photos we keep the pretrained image network fixed. Retraining it on approximately 900 photos dropped the new-thing accuracy of its features from 72.4 to 33.1.
+**[click]** Office photos recover 19 points, to 61.3 on average.
 
-## Slide 9. Reimplementation 4, gaps in the paper (25 s)
+**[click]** What remains is the new classes on office photos, 36.2 against 70.8.
 
-We also found rules in the paper that do not hold up. Its test for unusual points uses a cut-off of 9, but in 100 dimensions a typical real point already scores about 100. So almost everything passes, and our stricter test changed nothing either. The paper also contradicts itself on the office classes and leaves 11 settings missing or unclear.
+## Slide 10. Limitations (20 s)
 
-## Slide 10. Results (30 s)
+Three limits.
 
-Read the table left to right. As written, the method sits 14 to 50 points below the paper on every task. With our four fixes, Digits recovers: 71.9 against 72.5 on MNIST to USPS, within noise, and 58.8 against 46.4 on SVHN to MNIST, above the paper. Office recovers 19 points to 61.3 on average, matching the paper on two of six transfers. What remains is new things on Office, 36.2 against 70.8. The VisDA run with fixes is still pending.
+**[click]** We never ran VisDA with our changes. The cluster gives one GPU for six hours at a time, and ResNet-50 over VisDA with five seeds did not fit what we had left.
 
-## Slide 11. Take-aways (20 s)
+**[click]** New classes on office photos are still the gap.
 
-Three lessons stand out. Run a paper exactly as written first, because it shows where accuracy is lost. Treat unstated details as part of the method. And test every cut-off in high dimensions. Next, we want to close the gap on new things on office photos, finish the runs still in flight, and add the paper's two remaining experiments. Thank you.
+**[click]** And without target labels we cannot pick the best epoch, so we report the last one.
 
----
+## Slide 11. Future work (15 s)
+
+Next, **[click]** run VisDA with the four changes, **[click]** close the new-class gap on office photos, **[click]** and find a label-free way to choose the epoch. The take-away: running the paper exactly as written, first, is what made all of this visible. Thank you.
 
 ## Where each number comes from
 
-| Slide | Number                                                                              | Source                                                                                                                                                                                        |
-| ----- | ----------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 3     | 28.6, 62.1, 66.3, 63.0, 70.8                                                        | Paper, Table 3 (Office-31 average, accuracy on new classes). Earlier methods use 5% labelled new photos.                                                                                      |
-| 3     | Check marks                                                                         | Paper, Table 1                                                                                                                                                                                |
-| 6     | 940 and 410 lines, 23 tests                                                         | Repo count of non-blank, non-comment lines in `cida/`, `train_source.py`, `adapt.py` and `scripts/`, and `tests/`                                                                   |
-| 6     | 72.5 vs 43.7, 69.4 vs 47.2, 46.4 vs 32.8, 72.2 vs 45.2, 56.4 vs 6.2; 17 transfers   | Paper, Tables 2 and 3. Report, Table 3 (preset=vanilla, 5 seeds)                                                                                                                              |
-| 7     | 52%, 37.5 to 43.9%, 58 to 65%, 57 to 60%, 53 to 94%, single-class collapse          | Report, §4.2 / SPEC.md, vanilla preset                                                                                                                                                       |
-| 8     | 74 to 78% and 14 to 21%, 44.8, 55.1, 71.9, 33.1 and 72.4, approximately 900 photos  | SPEC.md, "Our choices"                                                                                                                                                                        |
-| 9     | Cut-off 9, typical distance about 100, 100% accepted, 11 vs 10 classes, 11 settings | SPEC.md, "Inconsistencies in the paper". Report, Table 2                                                                                                                                      |
-| 10    | Paper columns                                                                       | Paper, Tables 2 and 3                                                                                                                                                                         |
-| 10    | As written: 43.7/50.5, 47.2/60.7, 32.8/46.5, 6.2/16.1, 7.7/13.9                     | Report, Table 3 (preset=vanilla, 5 seeds, `runs_vanilla/`)                                                                                                                                  |
-| 10    | With fixes: 71.9/55.3, 65.5/51.0, 58.8/44.0, 61.3/36.2                              | SPEC.md, "Vanilla results, Digits" (our main runs) and "Main configuration on Office-31". Office row = mean of the six 10/20 transfers (main 367.8/6 and 217.2/6; vanilla 253.0/6 and 91.8/6) |
-| 11    | 36.2 against 70.8                                                                   | Same sources as slide 10, Office averages                                                                                                                                                     |
+| Slide | Number | Source |
+| --- | --- | --- |
+| 3 | 28.6, 62.1, 66.3, 63.0, 70.8 | Paper, Table 3 (Office-31 average, accuracy on new classes). Earlier methods use 5% labelled new photos. |
+| 3 | Check marks | Paper, Table 1 |
+| 6 | 14 to 29, 11 to 54, about 50 points below; new-class ranges 46.5–60.7, 1.4–26.9, 13.9–16.1 against 45.7–71.6, 61.8–88.4, 55.7–56.3 | Nikkita's baseline report, "Why the CIDA baseline underperforms" (2026-11-23), summary table |
+| 6 | 72.5 vs 43.7, 69.4 vs 47.2, 46.4 vs 32.8, 72.2 vs 45.2, 56.4 vs 6.2; 17 transfers | Paper, Tables 2 and 3. Report, Table 3 (preset=vanilla, 5 seeds) |
+| 6 | 11 settings unspecified, 10 vs 11 Office classes, "unusual point" test accepts about 100% | SPEC.md, "Inconsistencies in the paper". Report, Table 2 |
+| 7 | The feedback loop; best epoch between 0 and 12 | Nikkita's report, "The core problem" |
+| 7 | 38 to 44%, 57 to 60%; up to 94%; 10% and single-class collapse | Nikkita's report, "How the failure shows up on each benchmark" |
+| 7 | 1 to 19 points on Office-31, 24 to 33 on VisDA at the best epoch | Nikkita's report, "Is it our reproduction or the method?" |
+| 8 | 74 to 78% and 14 to 21%, 44.8, 55.1, 71.9, 33.1 and 72.4, approximately 900 photos | SPEC.md, "Our choices". **To confirm with Sourabh and Siddharth.** |
+| 8 | 13% on Digits, 24% on VisDA, projection error after pretraining | Nikkita's report, "Why the early pseudo-labels are wrong" |
+| 9 | Paper columns | Paper, Tables 2 and 3 |
+| 9 | As written: 43.7/50.5, 47.2/60.7, 32.8/46.5, 6.2/16.1, 7.7/13.9 | Report, Table 3 (preset=vanilla, 5 seeds, `runs_vanilla/`) |
+| 9 | With our changes: 71.9/55.3, 65.5/51.0, 58.8/44.0, 61.3/36.2 | SPEC.md, "Vanilla results, Digits" (our main runs) and "Main configuration on Office-31". Office row = mean of the six 10/20 transfers. **To confirm with Sourabh and Siddharth.** |
+| 10 | One GPU, six hours, one job at a time | `README.md` line 34, CCDS GPU TC2 QoS `normal` |
+| 10 | Peak near epoch 30, drift to epoch 60 | SPEC.md, Office A→D frozen run (ALL 72.2 / PRIV 52.3 at epoch 30, PRIV 48.5 at epoch 60) |
+| 10, 11 | 36.2 against 70.8; 26% of new-class images pulled into known classes | Same sources as slide 9, Office averages; SPEC.md, A→D confusion at epoch 60 |

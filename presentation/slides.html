@@ -9,8 +9,9 @@
   Keys: Right, Space, click = next | Left = back | Home, End | N notes | P presenter window | F full screen | ? help
   URL: slides.html#5 opens slide 5, slides.html#5.9 opens it with all reveals shown.
   Script with timings: presentation/script.md (same text as the notes below).
-  TEAM: Results (slide 10) filled from
-  report Table 3 and SPEC.md on 2026-11-22; VisDA with fixes still pending.
+  TEAM: slides 6 to 11 follow Nikkita's baseline report (2026-11-23). Results (slide 9)
+  from report Table 3 and SPEC.md; the improvement numbers are Sourabh's and
+  Siddharth's to confirm. VisDA with our changes was not run.
 -->
 <style>
 :root{
@@ -133,7 +134,17 @@ svg.arw{width:64px;height:26px;flex:none;stroke:var(--ink2);stroke-width:3;fill:
 .chart-legend{display:flex;gap:34px;font-size:26px;color:var(--ink);margin-bottom:6px}
 .chart-legend i{display:inline-block;width:26px;height:26px;border-radius:4px;vertical-align:-4px;margin-right:10px}
 
-/* slide 6 */
+/* slide 6, the baseline gap */
+.lead{font-size:32px;line-height:1.3;font-weight:600}
+.lead .tag{display:block;font-weight:400;margin-top:6px}
+.gaps{display:flex;flex-direction:column;gap:26px;margin-top:4px}
+.gap{display:grid;grid-template-columns:1fr auto;gap:6px 18px;border-top:3px solid var(--ink);padding-top:14px}
+.gap .b{font-size:36px;font-weight:700}
+.gap .d{font-size:36px;font-weight:800;white-space:nowrap;text-align:right}
+.gap .n{grid-column:1/-1;font-size:26px;color:var(--ink2);line-height:1.3}
+/* slide 7, the feedback loop */
+.loop-wrap{flex:1;min-width:0;display:flex;flex-direction:column}
+.defence{font-size:34px;font-weight:700;line-height:1.3;margin-top:26px;border-top:4px solid var(--ink);padding-top:18px}
 .timeline{display:grid;grid-template-columns:1fr 1fr 1fr;gap:34px;align-items:stretch;margin-top:10px}
 .tcard{background:var(--card);border-radius:22px;padding:34px 34px 38px;display:flex;flex-direction:column;gap:18px;position:relative}
 .tcard .when{font-size:26px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2)}
@@ -153,10 +164,10 @@ svg.arw{width:64px;height:26px;flex:none;stroke:var(--ink2);stroke-width:3;fill:
 .fix td.i{font-size:34px;font-weight:800}
 
 /* slide 8 */
-.cards{display:flex;flex-direction:column;gap:22px;width:760px;flex:none}
-.card{background:var(--card);border-radius:20px;padding:24px 30px}
-.card h2{font-size:34px;margin:0 0 8px}
-.card p{font-size:29px;line-height:1.32}
+.cards{display:flex;flex-direction:column;gap:20px;width:760px;flex:none}
+.card{background:var(--card);border-radius:20px;padding:22px 28px}
+.card h2{font-size:32px;margin:0 0 6px;line-height:1.15}
+.card p{font-size:28px;line-height:1.3}
 .card .tag{display:block;margin-top:6px;font-size:24px}
 
 /* slide 9 */
@@ -205,6 +216,7 @@ aside.notes{display:none}
 <!-- icon sprite -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
+    <marker id="arw-ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="4.5" markerHeight="4.5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#52514e"/></marker>
     <marker id="arw-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="4.5" markerHeight="4.5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#d92b2b"/></marker>
     <symbol id="ic-car" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"><path d="M6 44V36Q6 32 10 31L17 21Q19 18 23 18H41Q45 18 47 21L54 31Q58 32 58 36V44Z"/><path d="M19 31H45"/></g><circle cx="18" cy="46" r="6" fill="#fff" stroke="currentColor" stroke-width="4"/><circle cx="46" cy="46" r="6" fill="#fff" stroke="currentColor" stroke-width="4"/></symbol>
     <symbol id="ic-person" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="14" r="8"/><path d="M18 58V40Q18 28 32 28Q46 28 46 40V58"/></g></symbol>
@@ -435,136 +447,135 @@ aside.notes{display:none}
 </section>
 
 <!-- ============================================================ 6 -->
-<section class="slide" data-title="Reimplementation, built and tested">
+<section class="slide" data-title="The baseline">
   <div class="kicker"><b>Our reimplementation</b>, 1 of 4</div>
-  <h1>We rebuilt CIDA, and the paper's recipe fell short</h1>
+  <h1>The paper as written falls short on every task</h1>
   <div class="body">
     <div class="built">
-      <div class="stat"><div class="v">940</div><div class="l">lines of Python for the method, approximately</div></div>
-      <div class="stat"><div class="v">410</div><div class="l">lines of analysis tools, approximately</div></div>
-      <div class="stat"><div class="v">23</div><div class="l">automated tests</div></div>
-      <div class="stat"><div class="v">1</div><div class="l">switch that runs the paper exactly as written<span class="tag">(preset=vanilla)</span></div></div>
-      <p class="stat-note" style="font-size:28px;line-height:1.3;color:var(--ink2)">Cluster jobs save, requeue and resume on their own within the 6-hour limit.</p>
+      <p class="lead">Our baseline is CIDA exactly as the paper describes it, with none of our four changes.<span class="tag">(preset=vanilla; there was no public code to start from)</span></p>
+      <div class="gaps">
+        <div class="gap step"><div class="b">Digits</div><div class="d">14 to 29 points below</div>
+          <div class="n">new classes 46.5 to 60.7%, paper 45.7 to 71.6</div></div>
+        <div class="gap step"><div class="b">Office-31</div><div class="d">11 to 54 points below</div>
+          <div class="n">new classes 1.4 to 26.9%, paper 61.8 to 88.4</div></div>
+        <div class="gap step"><div class="b">VisDA</div><div class="d">about 50 points below</div>
+          <div class="n">new classes 13.9 to 16.1%, paper 55.7 to 56.3</div></div>
+      </div>
     </div>
     <div class="chart-wrap">
       <div class="chart-title">Overall accuracy (%), paper against our run of the paper as written</div>
       <div class="chart-legend"><span><i style="background:var(--paper)"></i>Paper, as reported</span><span><i style="background:var(--ours)"></i>Ours, paper as written</span></div>
       <svg id="bars" viewBox="0 0 1000 560" style="width:100%;height:auto" role="img" aria-label="Paired bars, paper against our run of the paper as written, for five tasks"></svg>
-      <p class="source">Paper, Tables 2 and 3. Ours, mean of 5 seeds (report, Table 3). Every one of the 17 transfers falls short; on the five shown, the gap runs 13.6 to 50.2 points.</p>
+      <p class="source">Paper, Tables 2 and 3. Ours, mean of 5 seeds. Every one of the 17 transfers falls short. The paper also leaves 11 settings unspecified, lists 10 new Office classes in one place and 11 in another, and its “unusual point” test accepts about 100% of points in 100 dimensions; we chose and documented each one.</p>
     </div>
   </div>
-  <aside class="notes">Now our part, which is the core of this project. There was no public code, so we wrote approximately a thousand lines for the method and 500 for analysis. We also wrote 23 tests and cluster jobs that resume themselves. We added a switch that runs the paper exactly as written. That version fell short on all seventeen transfers. On this chart, the gap runs from 13.6 points on SVHN to MNIST to 50.2 points on VisDA.</aside>
+  <aside class="notes">Here is our baseline: CIDA exactly as the paper describes it, with none of our four changes. There was no public code, so this is our own build. [click] On digits it lands 14 to 29 points below the paper. [click] On office photos, 11 to 54 points below. [click] On VisDA, about 50 points below. And on the new classes the gap is worse. Office photos reach 1.4 to 26.9 percent, where the paper reports 61.8 to 88.4.</aside>
 </section>
 
 <!-- ============================================================ 7 -->
-<section class="slide" data-title="Reimplementation, why it fails">
+<section class="slide" data-title="Why the baseline fails">
   <div class="kicker"><b>Our reimplementation</b>, 2 of 4</div>
-  <h1>Small mistakes early on snowball</h1>
-  <div class="timeline">
-    <div class="tcard step">
-      <svg class="ball" width="60" height="60" viewBox="0 0 60 60"><circle cx="30" cy="30" r="12" fill="#fff" stroke="#52514e" stroke-width="3"/></svg>
-      <div class="when">Before learning starts</div>
-      <div class="why">The bridge only roughly passes features through</div>
-      <div class="big">52%</div>
-      <div class="what">of known images already land on the new-thing side<span class="tag" style="display:block">(MNIST→USPS, plain-MLP bridge and city calibration)</span></div>
+  <h1>The baseline trains on its own early mistakes</h1>
+  <div class="body">
+    <div class="loop-wrap">
+      <svg viewBox="0 0 740 500" style="width:100%;height:auto" role="img" aria-label="A loop: each image takes the label of its nearest guide, training pulls it towards that guide, the features drift to the guide that was wrong, and the next round of labels is worse">
+        <g fill="#f3f2ee"><rect x="60" y="10" width="620" height="130" rx="22"/><rect x="400" y="250" width="300" height="170" rx="22"/><rect x="30" y="250" width="300" height="170" rx="22"/></g>
+        <g fill="#0b0b0b" text-anchor="middle">
+          <g font-size="29"><text x="400" y="70">Each image takes the label</text><text x="400" y="110">of its nearest guide</text></g>
+          <g font-size="28">
+            <text x="550" y="342">Training pulls each</text><text x="550" y="380">image to its guide</text>
+            <text x="180" y="342">Features drift to</text><text x="180" y="380">the wrong guide</text>
+          </g>
+        </g>
+        <g><circle cx="100" cy="48" r="22" fill="#0b0b0b"/><circle cx="440" cy="288" r="22" fill="#0b0b0b"/><circle cx="70" cy="288" r="22" fill="#0b0b0b"/>
+          <g fill="#fff" font-size="26" font-weight="700" text-anchor="middle"><text x="100" y="57">1</text><text x="440" y="297">2</text><text x="70" y="297">3</text></g></g>
+        <g fill="none" stroke="#52514e" stroke-width="5" stroke-linecap="round" marker-end="url(#arw-ink)">
+          <path d="M580 148V242"/><path d="M392 335H342"/><path d="M180 242V148"/>
+        </g>
+        <text x="370" y="468" text-anchor="middle" font-size="27" fill="#52514e">and the next round of labels is worse than the last</text>
+      </svg>
+      <p class="source">One image per new class is labelled, so the model labels the rest of the new photos itself. Guides come from the source class means, and for a new class from its single labelled image. The best epoch is always early, between 0 and 12.</p>
     </div>
-    <div class="tcard step">
-      <svg class="ball" width="60" height="60" viewBox="0 0 60 60"><circle cx="30" cy="30" r="20" fill="#fff" stroke="#52514e" stroke-width="3"/></svg>
-      <div class="when">First automatic labels</div>
-      <div class="why">Known images sit closer to the new-thing magnets</div>
-      <div class="big">37.5 to 43.9%</div>
-      <div class="what">of its first labels are right, against 58 to 65% with our fixes<span class="tag" style="display:block">(calibration still from the city, source BatchNorm statistics)</span></div>
-    </div>
-    <div class="tcard step">
-      <svg class="ball" width="60" height="60" viewBox="0 0 60 60"><circle cx="30" cy="30" r="27" fill="#fff" stroke="#52514e" stroke-width="3"/></svg>
-      <div class="when">Every later round</div>
-      <div class="why">The model keeps training on its own wrong labels</div>
-      <div class="big">57 to 60%</div>
-      <div class="what">of known images end up labelled as new things<span class="tag" style="display:block">(loss L<sub>a1</sub> on every photo)</span></div>
+    <div class="cards">
+      <div class="card step"><h2>Digits: known images drift into the new classes</h2><p>First labels 38 to 44% right. By epoch 30, 57 to 60% of known images are called new.</p></div>
+      <div class="card step"><h2>Office-31: new classes drift into the known ones</h2><p>By epoch 60, up to 94% of new-class images are called known.</p></div>
+      <div class="card step"><h2>VisDA: everything collapses onto one class</h2><p>The first labels are 10% right. By epoch 10 every image gets the same label.</p></div>
     </div>
   </div>
-  <p class="step" style="font-size:36px;font-weight:700;margin-top:34px">Each step feeds the next, so our fixes target the points where the errors start.</p>
-  <p class="source" style="margin-top:auto">Digits, paper as written, 5 seeds per task (report, §4.2). On office photos the errors flow the other way, with 53 to 94% of new things absorbed into known classes, and on VisDA every run collapses onto a single class.</p>
-  <aside class="notes">Small errors start early and then snowball. [click] Before any learning, the bridge only roughly passes features through, so 52 percent of known images already land on the new side. [click] Next, the calibration still fits the city, so known images sit closer to the new-thing magnets. Only 37.5 to 43.9 percent of the first labels are right. [click] Then it keeps training on its own wrong labels, until 57 to 60 percent of known images are called new. [click] So our fixes target the points where the errors start.</aside>
+  <p class="defence step">This is the method, not our code. Even at the best epoch, chosen with target labels we would not have, the baseline stays 1 to 19 points short on Office-31 and 24 to 33 on VisDA.</p>
+  <aside class="notes">The method as written has no safeguard against its own early mistakes. One image per new class is labelled, so the model labels the rest itself, training pulls every image towards whichever guide it picked, and the features move towards the guide that was wrong. The next round of labels is then worse, which is why the best epoch is always an early one. [click] On digits, known images drift into the new classes. Only 38 to 44 percent of the first labels are right. [click] On office photos it runs the other way, with up to 94 percent of new-class images called known. [click] On VisDA everything collapses onto a single class. [click] This is the method, not our code. Even at the best epoch, chosen with target labels we would not have, the baseline stays 1 to 19 points short on office photos and 24 to 33 on VisDA.</aside>
 </section>
 
 <!-- ============================================================ 8 -->
-<section class="slide" data-title="Reimplementation, four fixes">
+<section class="slide" data-title="Four changes">
   <div class="kicker"><b>Our reimplementation</b>, 3 of 4</div>
-  <h1>Four fixes, each backed by evidence</h1>
+  <h1>Four changes, one for each cause</h1>
   <table class="fix">
-    <thead><tr><th style="width:60px"></th><th style="width:520px">What went wrong</th><th style="width:520px">Our fix</th><th style="text-align:right">Before</th><th></th><th style="text-align:right">After</th><th style="width:330px">Measured as</th></tr></thead>
+    <thead><tr><th style="width:60px"></th><th style="width:520px">Cause in the baseline</th><th style="width:520px">Our change</th><th style="text-align:right">Before</th><th></th><th style="text-align:right">After</th><th style="width:330px">Measured as</th></tr></thead>
     <tbody>
       <tr class="step"><td class="i">1</td><td>Internal calibration still matches the old photos<span class="tag">(source BatchNorm statistics)</span></td><td>Recalibrate on the new photos<span class="tag">(AdaBN)</span></td><td class="num">74 to 78%</td><td class="arrow">→</td><td class="num">14 to 21%</td><td class="meas">known images labelled as new, lower is better, Digits</td></tr>
-      <tr class="step"><td class="i">2</td><td>The bridge starts slightly bent<span class="tag">(plain MLP, about 13% error after pretraining)</span></td><td>Build it to start as an exact pass-through<span class="tag">(u + MLP(u), last layer set to zero)</span></td><td class="num">44.8</td><td class="arrow">→</td><td class="num">71.9</td><td class="meas">overall accuracy, MNIST→USPS</td></tr>
+      <tr class="step"><td class="i">2</td><td>The bridge starts slightly bent<span class="tag">(plain MLP, about 13% error on Digits and 24% on VisDA after pretraining)</span></td><td>Build it to start as an exact pass-through<span class="tag">(u + MLP(u), last layer set to zero)</span></td><td class="num">44.8</td><td class="arrow">→</td><td class="num">71.9</td><td class="meas">overall accuracy, MNIST→USPS</td></tr>
       <tr class="step"><td class="i">3</td><td>The model learns from all its own guesses<span class="tag">(loss L<sub>a1</sub> on every photo)</span></td><td>Learn only from the most confident 20%<span class="tag">(loss L<sub>a1</sub> on B<sub>t</sub>)</span></td><td class="num">55.1</td><td class="arrow">→</td><td class="num">71.9</td><td class="meas">overall accuracy, MNIST→USPS</td></tr>
-      <tr class="step"><td class="i">4</td><td>Retraining the image network on approximately 900 photos erases general vision</td><td>Keep the pretrained network fixed<span class="tag">(frozen ResNet-50, office photos)</span></td><td class="num">33.1</td><td class="arrow">→</td><td class="num">72.4</td><td class="meas">accuracy on new things from the features alone, Office Amazon→DSLR</td></tr>
+      <tr class="step"><td class="i">4</td><td>Retraining the image network on approximately 900 photos erases general vision<span class="tag">(Office and VisDA only)</span></td><td>Keep the pretrained network fixed<span class="tag">(frozen ResNet-50)</span></td><td class="num">33.1</td><td class="arrow">→</td><td class="num">72.4</td><td class="meas">accuracy on new things from the features alone, Office Amazon→DSLR</td></tr>
     </tbody>
   </table>
-  <p class="source" style="margin-top:auto">From SPEC.md, section “Our choices”. Rows 2 and 3 compare the paper's version of one part against our full configuration.</p>
-  <aside class="notes">We made four fixes. [click] First, we recalibrate on the new photos, known as AdaBN. Known images wrongly labelled new drop from 74 to 78 percent, down to 14 to 21 percent. [click] Second, we build the bridge to start as an exact pass-through, which lifts accuracy from 44.8 to 71.9 on MNIST to USPS. [click] Third, the model learns only from its most confident 20 percent of labels, which lifts accuracy from 55.1 to 71.9. [click] Fourth, for office photos we keep the pretrained image network fixed. Retraining it on approximately 900 photos dropped the new-thing accuracy of its features from 72.4 to 33.1.</aside>
+  <p class="source" style="margin-top:auto">Each row undoes one cause from the previous slide. From SPEC.md, section “Our choices”; rows 2 and 3 compare the paper's version of one part against our full configuration.</p>
+  <aside class="notes">So we made four changes, one for each cause. [click] First, we recalibrate on the new photos, known as AdaBN. Known images wrongly labelled new drop from 74 to 78 percent, down to 14 to 21 percent. [click] Second, we build the bridge to start as an exact pass-through, which lifts accuracy from 44.8 to 71.9 on MNIST to USPS. [click] Third, the model learns only from its most confident 20 percent of labels, which lifts accuracy from 55.1 to 71.9. [click] Fourth, for office photos we keep the pretrained image network fixed. Retraining it on about 900 photos dropped the new-thing accuracy of its features from 72.4 to 33.1.</aside>
 </section>
 
 <!-- ============================================================ 9 -->
-<section class="slide" data-title="Reimplementation, gaps in the paper">
-  <div class="kicker"><b>Our reimplementation</b>, 4 of 4</div>
-  <h1>Some of the paper's rules do not hold up</h1>
-  <div class="body">
-    <div class="chart-wrap">
-      <div class="chart-title">How far real photos sit from their own class centre</div>
-      <svg id="chi" viewBox="0 0 900 540" style="width:100%;height:auto" role="img" aria-label="Distribution of squared distance for real points in 100 dimensions, centred near 100, with the paper's cut-off of 9 far to the left"></svg>
-      <p class="source">Squared distance in units of the class spread, 100 dimensions as in our digit model. Everything right of the dashed line counts as “unusual”, which is approximately 100% of real photos.</p>
-    </div>
-    <div class="cards">
-      <div class="card"><h2>The “unusual point” test accepts almost everything</h2><p>A real photo already sits near 100, far past the cut-off of 9. Our stricter cut-off also accepted 100%.</p><span class="tag">(3σ rule in Algorithm 1, 100 to 256 dimensions)</span></div>
-      <div class="card"><h2>The paper contradicts itself</h2><p>It lists 11 new office classes in one place and 10 in another, and Algorithm 1 has a typo.</p></div>
-      <div class="card"><h2>11 settings are missing or unclear</h2><p>We chose each one and documented it in our report's Table 2.</p><span class="tag">(for example epochs, batch size, data splits)</span></div>
-    </div>
-  </div>
-  <aside class="notes">We also found rules in the paper that do not hold up. Its test for unusual points uses a cut-off of 9, but in 100 dimensions a typical real point already scores about 100. So almost everything passes, and our stricter test changed nothing either. The paper also contradicts itself on the office classes and leaves 11 settings missing or unclear.</aside>
-</section>
-
-<!-- ============================================================ 10 -->
 <section class="slide" data-title="Results">
-  <div class="kicker">Results</div>
-  <h1>Our fixes recover the overall accuracy; new things on Office remain the gap</h1>
+  <div class="kicker"><b>Our reimplementation</b>, 4 of 4</div>
+  <h1>Our changes recover the overall accuracy; new things on Office remain the gap</h1>
   <table class="res">
     <thead>
-      <tr><th class="l" rowspan="2" style="vertical-align:bottom;border-bottom:3px solid var(--ink)">Task</th><th colspan="2"><span class="sw" style="background:var(--paper)"></span>Paper</th><th colspan="2"><span class="sw" style="background:var(--ours)"></span>Ours, as written</th><th colspan="2">Ours, with our four fixes</th></tr>
+      <tr><th class="l" rowspan="2" style="width:470px">Task</th><th colspan="2"><span class="sw" style="background:var(--paper)"></span>Paper</th><th colspan="2"><span class="sw" style="background:var(--ours)"></span>Ours, as written</th><th colspan="2">Ours, with our four changes</th></tr>
       <tr><th>overall</th><th>new things</th><th>overall</th><th>new things</th><th>overall</th><th>new things</th></tr>
     </thead>
     <tbody>
-      <tr><td class="l">Digits, MNIST→USPS</td><td>72.5</td><td>71.6</td><td>43.7</td><td>50.5</td><td><b>71.9</b></td><td>55.3</td></tr>
-      <tr><td class="l">Digits, USPS→MNIST</td><td>69.4</td><td>68.6</td><td>47.2</td><td>60.7</td><td>65.5</td><td>51.0</td></tr>
-      <tr><td class="l">Digits, SVHN→MNIST</td><td>46.4</td><td>45.7</td><td>32.8</td><td>46.5</td><td><b>58.8</b></td><td>44.0</td></tr>
-      <tr><td class="l">Office-31<span class="tag">10/20 setting, average of six tasks</span></td><td>70.7</td><td>70.8</td><td>42.2</td><td>15.3</td><td>61.3</td><td>36.2</td></tr>
-      <tr><td class="l">VisDA, synthetic→real<span class="tag">as written, real→syn: 7.7 / 13.9</span></td><td>56.4</td><td>56.3</td><td>6.2</td><td>16.1</td><td>—</td><td>—</td></tr>
+      <tr class="step"><td class="l">Digits, MNIST→USPS</td><td>72.5</td><td>71.6</td><td>43.7</td><td>50.5</td><td><b>71.9</b></td><td>55.3</td></tr>
+      <tr class="step"><td class="l">Digits, USPS→MNIST</td><td>69.4</td><td>68.6</td><td>47.2</td><td>60.7</td><td>65.5</td><td>51.0</td></tr>
+      <tr class="step"><td class="l">Digits, SVHN→MNIST</td><td>46.4</td><td>45.7</td><td>32.8</td><td>46.5</td><td><b>58.8</b></td><td>44.0</td></tr>
+      <tr class="step"><td class="l">Office-31<span class="tag">10/20 setting, average of six tasks</span></td><td>70.7</td><td>70.8</td><td>42.2</td><td>15.3</td><td>61.3</td><td>36.2</td></tr>
+      <tr class="step"><td class="l">VisDA, synthetic→real<span class="tag">as written, real→syn: 7.7 / 13.9</span></td><td>56.4</td><td>56.3</td><td>6.2</td><td>16.1</td><td>not run</td><td>not run</td></tr>
     </tbody>
   </table>
-  <p class="source" style="margin-top:auto">Accuracy in %, mean of 5 seeds. Paper, Tables 2 and 3. As written: report, Table 3 (runs_vanilla/). With fixes: SPEC.md (runs/); the Office row averages the six 10/20 transfers. —: run with fixes still pending, 22 Nov 2026. Bold: matches or beats the paper.</p>
-  <aside class="notes">Read the table left to right. As written, the method sits 14 to 50 points below the paper on every task. With our four fixes, Digits recovers: 71.9 against 72.5 on MNIST to USPS, within noise, and 58.8 against 46.4 on SVHN to MNIST, above the paper. Office recovers 19 points to 61.3 on average, matching the paper on two of six transfers. What remains is new things on Office, 36.2 against 70.8. The VisDA run with fixes is still pending.</aside>
+  <p class="source" style="margin-top:auto">Accuracy in %, mean of 5 seeds. Paper, Tables 2 and 3. As written: report, Table 3 (runs_vanilla/). With our changes: SPEC.md (runs/); the Office row averages the six 10/20 transfers. Bold: matches or beats the paper. VisDA with our changes was not run, see the next slide.</p>
+  <aside class="notes">Read the table left to right. As written, the method sits 14 to 50 points below the paper on every task. [click] With our four changes, digits recover: 71.9 against the paper's 72.5 on MNIST to USPS, within noise, [click] and 58.8 against 46.4 on SVHN to MNIST, above the paper. [click] Office photos recover 19 points, to 61.3 on average. [click] What remains is the new classes on office photos, 36.2 against 70.8.</aside>
+</section>
+
+<!-- ============================================================ 10 -->
+<section class="slide" data-title="Limitations">
+  <div class="kicker">Limitations</div>
+  <h1>What our changes do not cover</h1>
+  <div class="lesson step"><div class="dot">1</div><p>We never ran VisDA with our changes<span>The course cluster gives one GPU for six hours at a time, one job at a time. ResNet-50 over VisDA, five seeds and two training stages, did not fit the budget we had left. The VisDA row above is the baseline only.</span></p></div>
+  <div class="lesson step"><div class="dot">2</div><p>New classes on Office photos are still the gap<span>Overall accuracy recovers to 61.3, but accuracy on the new classes reaches only 36.2 against the paper's 70.8. Most of what is lost is new-class images assigned to a known class.</span></p></div>
+  <div class="lesson step"><div class="dot">3</div><p>We cannot choose the epoch without target labels<span>New-class accuracy peaks near epoch 30 and drifts down by epoch 60. We report the last epoch, which costs a few points but uses no label we would not have.</span></p></div>
+  <p class="source" style="margin-top:auto">Five seeds per task throughout. Treat differences under about two points between variants as noise.</p>
+  <aside class="notes">Three limits. [click] We never ran VisDA with our changes. The cluster gives one GPU for six hours at a time, and ResNet-50 over VisDA with five seeds did not fit what we had left. [click] New classes on office photos are still the gap. [click] And without target labels we cannot pick the best epoch, so we report the last one.</aside>
 </section>
 
 <!-- ============================================================ 11 -->
-<section class="slide" data-title="Take-aways">
-  <div class="kicker">Take-aways</div>
-  <h1>What we learned, and what comes next</h1>
+<section class="slide" data-title="Future work">
+  <div class="kicker">Future work</div>
+  <h1>What we would do next</h1>
   <div class="two">
     <div>
-      <div class="lesson"><div class="dot">1</div><p>Run the paper exactly as written first<span>It showed where accuracy goes, for example 43.7 against 72.5 on MNIST→USPS.</span></p></div>
-      <div class="lesson"><div class="dot">2</div><p>Treat unstated details as part of the method<span>Recalibrating on the new photos cut wrong “new” labels from 74 to 78% down to 14 to 21%.</span></p></div>
-      <div class="lesson"><div class="dot">3</div><p>Test every cut-off in high dimensions<span>A cut-off of 9 meets real photos that sit near 100.</span></p></div>
+      <div class="lesson step"><div class="dot">1</div><p>Run VisDA with the four changes<span>The one benchmark our changes have never been tested on.</span></p></div>
+      <div class="lesson step"><div class="dot">2</div><p>Close the new-class gap on Office photos<span>By epoch 60, 26% of new-class images are pulled into a known class.</span></p></div>
+      <div class="lesson step"><div class="dot">3</div><p>Choose the epoch without target labels<span>Then the drift after epoch 30 would cost us nothing.</span></p></div>
     </div>
     <div style="display:flex;flex-direction:column">
-      <h2>Next steps</h2>
+      <h2>Also left from the paper</h2>
       <ul class="future" style="padding-left:30px;margin:6px 0 0">
-        <li>Close the remaining gap on new things on office photos<span class="tag">(36.2 against 70.8)</span></li>
-        <li>Finish the runs still in flight, then add the paper's two remaining experiments<span class="tag">(Office 20/31 and VisDA with fixes; Ours-d, the two-step upgrade A→D→W)</span></li>
+        <li>Office 20/31, the larger split</li>
+        <li>Ours-d, the two-step upgrade<span class="tag">(A→D→W)</span></li>
       </ul>
+      <p class="lead" style="margin-top:30px">Running the paper exactly as written, first, is what made all of this visible.</p>
       <div class="thanks">Thank you. Questions?</div>
     </div>
   </div>
-  <aside class="notes">Three lessons stand out. Run a paper exactly as written first, because it shows where accuracy is lost. Treat unstated details as part of the method. And test every cut-off in high dimensions. Next, we want to close the gap on new things on office photos, finish the runs still in flight, and add the paper's two remaining experiments. Thank you. ---</aside>
+  <aside class="notes">Next, [click] run VisDA with the four changes, [click] close the new-class gap on office photos, [click] and find a label-free way to choose the epoch. The take-away: running the paper exactly as written, first, is what made all of this visible. Thank you.</aside>
 </section>
 
 </div><!-- /stage -->
@@ -651,34 +662,6 @@ aside.notes{display:none}
       el("text",{x:sx(d[3])+10,y:y+bh+gap+bh-9,"font-size":26,"font-weight":700,fill:"#0b0b0b"},svg,d[3].toFixed(1));
     });
     el("line",{x1:x0,x2:x0,y1:top-6,y2:top+gh*data.length,stroke:"#52514e","stroke-width":2},svg);
-  })();
-
-  /* ---------- slide 9 chart, chi-square(100) density with the paper's cut-off at 9 ---------- */
-  (function chi(){
-    var svg=document.getElementById("chi"); if(!svg) return;
-    function lgamma(z){var g=7,c=[0.99999999999980993,676.5203681218851,-1259.1392167224028,771.32342877765313,-176.61502916214059,12.507343278686905,-0.13857109526572012,9.9843695780195716e-6,1.5056327351493116e-7];z-=1;var x=c[0];for(var i=1;i<g+2;i++)x+=c[i]/(z+i);var t=z+g+0.5;return 0.5*Math.log(2*Math.PI)+(z+0.5)*Math.log(t)-t+Math.log(x);}
-    var k=100,lg=lgamma(k/2);
-    function pdf(x){return x<=0?0:Math.exp((k/2-1)*Math.log(x)-x/2-(k/2)*Math.log(2)-lg);}
-    var X0=60,X1=870,XM=170,base=440,topY=60,YM=0.03;
-    var sx=function(v){return X0+(X1-X0)*v/XM;}, sy=function(v){return base-(base-topY)*v/YM;};
-    [0,25,50,75,100,125,150].forEach(function(t){
-      el("line",{x1:sx(t),x2:sx(t),y1:base,y2:base+10,stroke:"#52514e","stroke-width":2},svg);
-      el("text",{x:sx(t),y:base+40,"text-anchor":"middle","font-size":24,fill:"#52514e"},svg,t);
-    });
-    el("text",{x:(X0+X1)/2,y:base+82,"text-anchor":"middle","font-size":26,fill:"#0b0b0b"},svg,"squared distance from the class centre");
-    var pts=[],area="M"+sx(9)+" "+base;
-    for(var v=0.5;v<=XM;v+=0.5){pts.push(sx(v).toFixed(1)+" "+sy(pdf(v)).toFixed(1)); if(v>=9) area+="L"+sx(v).toFixed(1)+" "+sy(pdf(v)).toFixed(1);}
-    area+="L"+sx(XM)+" "+base+"Z";
-    el("path",{d:area,fill:"#2a78d6","fill-opacity":0.16},svg);
-    el("path",{d:"M"+pts.join("L"),fill:"none",stroke:"#2a78d6","stroke-width":3},svg);
-    el("line",{x1:X0,x2:X1,y1:base,y2:base,stroke:"#52514e","stroke-width":2},svg);
-    el("line",{x1:sx(9),x2:sx(9),y1:base,y2:topY-10,stroke:"#0b0b0b","stroke-width":3,"stroke-dasharray":"8 6"},svg);
-    var g=el("g",{"font-size":28,fill:"#0b0b0b"},svg);
-    el("text",{x:sx(9)+14,y:250,"font-weight":700},g,"Paper's cut-off");
-    el("text",{x:sx(9)+14,y:286},g,"for “unusual”, 9");
-    el("text",{x:sx(98),y:sy(pdf(98))-22,"text-anchor":"middle","font-weight":700},g,"A typical real photo sits near 100");
-    var hit=el("rect",{x:X0,y:topY,width:X1-X0,height:base-topY,fill:"transparent"},svg);
-    el("title",{},hit,"Squared distance of real points, 100 dimensions. Share below 9 is about 2e-34.");
   })();
 
   /* ---------- deck engine ---------- */
