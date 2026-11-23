@@ -129,7 +129,7 @@ Read the table left to right. As written, the method sits 14 to 50 points below 
 
 **[click]** VisDA with our changes we did not run, and I will come back to that.
 
-**[click]** Separately, with the one labelled image chosen by eye and reported at epoch 15, all three digit transfers land above the paper: 83.7 against 72.5, 77.1 against 69.4, and 60.4 against 46.4. A different protocol from the table, so we keep it apart.
+**[click]** Separately, with the one labelled image chosen by eye and reported at epoch 15, all three digit transfers land above the paper. It's a different protocol from the table, so we keep it apart.
 
 ## Slide 10. Limitations (25 s)
 
@@ -141,7 +141,7 @@ Four limits.
 
 **[click]** And without target labels we cannot pick the best epoch, so we report the last one.
 
-**[click]** Finally, the one labelled image matters more than the paper suggests, and we have not isolated how much.
+**[click]** Finally, the model’s whole idea of a new class comes from one photo, and choosing a clear one instead of a random one moves the numbers a lot. But that experiment also scored the model halfway through training instead of at the end, so we cannot say how much of the gain belongs to which.
 
 ## Slide 11. Future work (15 s)
 
