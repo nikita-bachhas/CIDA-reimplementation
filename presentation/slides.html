@@ -1,0 +1,789 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CIDA Reimplementation Talk</title>
+<!--
+  5-minute talk, one speaker. Self-contained, works offline.
+  Keys: Right, Space, click = next | Left = back | Home, End | N notes | P presenter window | F full screen | ? help
+  URL: slides.html#5 opens slide 5, slides.html#5.9 opens it with all reveals shown.
+  Script with timings: presentation/script.md (same text as the notes below).
+  TEAM: slides 6 to 11 follow the team report (report branch, d153099), Table 3 and
+  Sections 3 to 5, all at epoch 15. Office with our changes is "pending" on slide 9
+  until report Table 3 has it. VisDA with our changes was not run.
+-->
+<style>
+:root{
+  --bg:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#8f8d87; --rule:#e2e0da; --card:#f3f2ee;
+  --known:#2a78d6; --known-bg:#e6effa; --new:#eb6834; --new-bg:#fdece4; --frozen:#8f8d87; --frozen-bg:#ecebe7;
+  --paper:#6250d6; --ours:#e34948; --todo:#d03b3b; --hot:#d92b2b;
+  --sans: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, "Noto Sans", "DejaVu Sans", sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1d1d1c;overflow:hidden;font-family:var(--sans)}
+#stage{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0}
+.slide{position:absolute;inset:0;background:var(--bg);color:var(--ink);padding:70px 110px 64px;display:none;flex-direction:column;overflow:hidden}
+.slide.active{display:flex}
+.kicker{font-size:26px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--ink2)}
+.kicker b{color:var(--ink)}
+h1{font-size:58px;line-height:1.12;margin:10px 0 34px;font-weight:750;letter-spacing:-.01em;max-width:1700px}
+h2{font-size:40px;margin:0 0 14px;font-weight:700}
+p{margin:0}
+.body{flex:1;min-height:0;display:flex;gap:56px}
+.source{font-size:24px;color:var(--ink2);margin-top:18px;line-height:1.35}
+.tag{font-size:26px;color:var(--ink2)}
+.k{color:var(--known)} .n{color:var(--new)}
+.counter{position:absolute;right:40px;bottom:22px;font-size:22px;color:var(--muted)}
+.step{opacity:0;transform:translateY(10px);transition:opacity .35s ease,transform .35s ease}
+.step.shown{opacity:1;transform:none}
+.static .step{transition:none}
+.todo{color:var(--todo);font-weight:700}
+.tbd{display:inline-block;border:3px dashed var(--todo);color:var(--todo);border-radius:8px;padding:0 14px;font-weight:700;font-size:28px}
+svg text{font-family:var(--sans)}
+
+/* slide 1 */
+.title-slide{justify-content:center}
+.title-slide h1{font-size:84px;margin:24px 0 30px;max-width:1500px}
+.title-slide .sub{font-size:38px;color:var(--ink2);line-height:1.35;max-width:1400px}
+.title-slide .meta{margin-top:70px;font-size:30px;line-height:1.6;color:var(--ink2)}
+.title-slide .meta b{color:var(--ink)}
+
+/* slide 2 */
+.scene{display:grid;grid-template-columns:1fr 120px 1.25fr;align-items:stretch}
+.panel{background:var(--card);border-radius:22px;padding:30px 36px;display:flex;flex-direction:column;gap:18px}
+.panel h2{font-size:38px;margin:0}
+.panel h2 .tag{display:block;font-weight:400;margin-top:2px}
+.panel .cap{font-size:30px;color:var(--ink2);line-height:1.35}
+.icons{display:flex;gap:18px;flex-wrap:wrap}
+.chip{display:flex;flex-direction:column;align-items:center;gap:6px;width:150px;padding:16px 8px 12px;border-radius:16px;background:#fff;border:3px solid currentColor;font-size:28px;font-weight:600}
+.chip svg{width:84px;height:84px}
+.chip.k{color:var(--known)} .chip.n{color:var(--new)}
+.chip.look{border-style:dashed;background:var(--known-bg)}
+.chip span{color:var(--ink)}
+.group-label{font-size:28px;font-weight:700}
+.ship{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;font-size:24px;color:var(--ink2);text-align:center}
+.limits{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;margin-top:30px}
+.limit{display:flex;gap:20px;align-items:flex-start;border-top:4px solid var(--ink);padding-top:16px}
+.limit .num{font-size:52px;font-weight:800;line-height:1}
+.limit .txt{font-size:32px;font-weight:600;line-height:1.25}
+.limit .tag{display:block;font-weight:400;margin-top:4px}
+/* Red focus boxes. A .focusbox is lit only while it is the most recent reveal;
+   the engine puts .dim on the others. .hl fits its parent, .fitbox covers the
+   element named by data-target, .rowbox covers table rows data-from..data-to. */
+.step.focusbox.dim{opacity:0}
+.limit{position:relative}
+.hl{position:absolute;left:-16px;right:-16px;top:-14px;bottom:-14px;border:5px solid var(--hot);border-radius:14px;pointer-events:none}
+.fitbox{position:absolute;border:5px solid var(--hot);border-radius:14px;pointer-events:none}
+
+/* tables */
+table{border-collapse:collapse;width:100%}
+.cmp th{font-size:26px;font-weight:700;text-align:left;vertical-align:bottom;padding:0 18px 14px;color:var(--ink2);border-bottom:3px solid var(--ink);line-height:1.25}
+.cmp td{font-size:32px;padding:16px 18px;border-bottom:2px solid var(--rule);vertical-align:middle}
+.cmp td .tag{display:block;font-size:24px;margin-top:2px}
+.cmp .c{text-align:center}
+.cmp svg.ic{width:40px;height:40px;vertical-align:middle}
+.cmp tr.cida td{background:var(--new-bg);border-bottom:none}
+/* red focus box around a group of table rows, placed by script, revealed by a click */
+.tbl-wrap{position:relative}
+.rowbox{position:absolute;left:-16px;right:-16px;border:5px solid var(--hot);border-radius:14px;pointer-events:none}
+.cmp tr.cida td:first-child{border-radius:14px 0 0 14px}
+.cmp tr.cida td:last-child{border-radius:0 14px 14px 0}
+.acc{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;font-weight:700}
+.acc .bar{flex:none;height:26px;border-radius:0 4px 4px 0;background:var(--new)}
+.acc small{flex-basis:100%;font-size:24px;font-weight:400;color:var(--ink2)}
+
+/* flow strips (slides 4, 5) */
+.flow{display:flex;align-items:center;gap:0;margin-bottom:30px}
+.blk{border-radius:14px;padding:14px 22px;font-size:30px;font-weight:600;line-height:1.2;text-align:center;border:3px solid currentColor;background:#fff}
+.blk small{display:block;font-size:24px;font-weight:400;color:var(--ink2)}
+.blk.known{color:var(--known);background:var(--known-bg)} .blk.known span{color:var(--ink)}
+.blk.new{color:var(--new);background:var(--new-bg)} .blk.new span{color:var(--ink)}
+.blk.frozen{color:var(--frozen);background:var(--frozen-bg);border-style:dashed} .blk.frozen span{color:var(--ink)}
+.blk.space{color:var(--ink2);border-radius:999px;background:var(--card)} .blk.space span{color:var(--ink)}
+.blk.bridge{color:var(--ink2)} .blk.bridge span{color:var(--ink)}
+.io{font-size:30px;font-weight:600;text-align:center;line-height:1.2;max-width:240px}
+.io small{display:block;font-size:24px;font-weight:400;color:var(--ink2)}
+svg.arw{width:64px;height:26px;flex:none;stroke:var(--ink2);stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.split{display:flex;flex-direction:column;gap:14px}
+.split .row{display:flex;align-items:center}
+.concept{display:grid;grid-template-columns:840px 1fr;gap:50px;flex:1;min-height:0;position:relative}
+/* red arrows and rings that point at what the lit box is talking about */
+.ptr{opacity:0;transition:opacity .3s ease}
+.ptr.on{opacity:1}
+.static .ptr{transition:none}
+.ovl{position:absolute;inset:0;pointer-events:none}
+.concept svg.pic{width:840px;height:470px;background:var(--card);border-radius:22px}
+.legend{display:grid;grid-template-columns:auto auto;justify-content:start;gap:6px 36px;font-size:24px;color:var(--ink2);margin-top:12px}
+.legend span{display:inline-flex;align-items:center;gap:8px}
+.legend svg{width:28px;height:28px}
+.caps{display:flex;flex-direction:column;gap:26px;justify-content:center}
+.cap-item{display:grid;grid-template-columns:56px 1fr;gap:18px;align-items:start}
+.cap-item .dot{width:52px;height:52px;border-radius:50%;background:var(--ink);color:#fff;font-size:28px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.cap-item p{font-size:33px;line-height:1.28;font-weight:600}
+.cap-item .tag{display:block;font-weight:400;margin-top:4px}
+
+/* slide 5 */
+.built{width:600px;flex:none;display:flex;flex-direction:column;gap:24px}
+.stat{display:grid;grid-template-columns:150px 1fr;align-items:baseline;gap:16px}
+.stat .v{font-size:64px;font-weight:800;line-height:1}
+.stat .l{font-size:30px;line-height:1.25}
+.stat .l .tag{display:block}
+.chart-wrap{flex:1;min-width:0;display:flex;flex-direction:column}
+.chart-title{font-size:30px;font-weight:700;margin-bottom:6px}
+.chart-legend{display:flex;gap:34px;font-size:26px;color:var(--ink);margin-bottom:6px}
+.chart-legend i{display:inline-block;width:26px;height:26px;border-radius:4px;vertical-align:-4px;margin-right:10px}
+
+/* slide 6, the baseline gap */
+.lead{font-size:32px;line-height:1.3;font-weight:600}
+.lead .tag{display:block;font-weight:400;margin-top:6px}
+.gaps{display:flex;flex-direction:column;gap:26px;margin-top:4px}
+.gap{display:grid;grid-template-columns:1fr auto;gap:6px 18px;border-top:3px solid var(--ink);padding-top:14px}
+.gap .b{font-size:36px;font-weight:700}
+.gap .d{font-size:36px;font-weight:800;white-space:nowrap;text-align:right}
+.gap .n{grid-column:1/-1;font-size:26px;color:var(--ink2);line-height:1.3}
+/* slide 7, the feedback loop */
+.loop-wrap{flex:1;min-width:0;display:flex;flex-direction:column}
+.defence{font-size:34px;font-weight:700;line-height:1.3;margin-top:26px;border-top:4px solid var(--ink);padding-top:18px}
+.timeline{display:grid;grid-template-columns:1fr 1fr 1fr;gap:34px;align-items:stretch;margin-top:10px}
+.tcard{background:var(--card);border-radius:22px;padding:34px 34px 38px;display:flex;flex-direction:column;gap:18px;position:relative}
+.tcard .when{font-size:26px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2)}
+.tcard .why{font-size:34px;line-height:1.28;font-weight:600;min-height:88px}
+.tcard .big{font-size:70px;font-weight:800;line-height:1;margin-top:18px;color:var(--ink)}
+.tcard .what{font-size:30px;line-height:1.3}
+.tcard .tag{margin-top:4px}
+.tcard svg.ball{position:absolute;right:26px;top:22px}
+
+/* slide 7 */
+.fix th{font-size:26px;font-weight:700;text-align:left;padding:0 16px 12px;color:var(--ink2);border-bottom:3px solid var(--ink)}
+.fix td{font-size:30px;padding:14px 16px;border-bottom:2px solid var(--rule);vertical-align:top;line-height:1.25}
+.fix td .tag{display:block;font-size:24px;margin-top:4px}
+.fix td.num{font-size:40px;font-weight:800;white-space:nowrap;text-align:right}
+.fix td.arrow{font-size:36px;color:var(--ink2);padding-left:0;padding-right:0;text-align:center}
+.fix td.meas{font-size:24px;color:var(--ink2)}
+.fix td.i{font-size:34px;font-weight:800}
+
+/* slide 8 */
+.cards{display:flex;flex-direction:column;gap:20px;width:760px;flex:none}
+.card{background:var(--card);border-radius:20px;padding:22px 28px}
+.card h2{font-size:32px;margin:0 0 6px;line-height:1.15}
+.card p{font-size:28px;line-height:1.3}
+.card .tag{display:block;margin-top:6px;font-size:24px}
+
+/* slide 9 */
+.res th{font-size:26px;font-weight:700;padding:0 18px 12px;color:var(--ink2);text-align:center}
+.res th.l{text-align:left}
+.res thead tr:last-child th{border-bottom:3px solid var(--ink);font-weight:600}
+.res td{font-size:32px;padding:10px 18px;border-bottom:2px solid var(--rule);text-align:center}
+.res td.l{text-align:left}
+.res td.l .tag{display:block;font-size:24px}
+.res .sw{display:inline-block;width:22px;height:22px;border-radius:4px;vertical-align:-3px;margin-right:8px}
+/* a number the speaker names: the box appears with its row, the space is always reserved */
+.numbox{display:inline-block;padding:2px 10px;border:4px solid transparent;border-radius:10px;transition:border-color .3s ease}
+.numbox.on{border-color:var(--hot)}
+.static .numbox{transition:none}
+
+/* slide 10 */
+.two{display:grid;grid-template-columns:1.25fr 1fr;gap:70px;flex:1}
+.lesson{display:grid;grid-template-columns:56px 1fr;gap:18px;margin-bottom:28px}
+.lesson .dot{width:52px;height:52px;border-radius:50%;background:var(--ink);color:#fff;font-size:28px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.lesson{margin-bottom:44px}
+.lesson p{font-size:40px;font-weight:700;line-height:1.22}
+.lesson p span{display:block;font-weight:400;font-size:32px;color:var(--ink2);margin-top:8px;line-height:1.3}
+.callout{background:var(--known-bg);border-radius:20px;padding:20px 32px;margin-top:22px}
+.callout h2{font-size:32px;margin:0 0 10px}
+.callout .row{display:flex;gap:48px;font-size:34px;font-weight:700}
+.callout .row b{font-size:40px}
+.callout .n{font-size:26px;color:var(--ink2);margin-top:10px;line-height:1.3}
+.future li{font-size:34px;line-height:1.3;margin-bottom:26px}
+.future li .tag{display:block}
+.thanks{font-size:56px;font-weight:800;margin-top:auto}
+
+/* chrome */
+#progress{position:fixed;left:0;bottom:0;height:5px;background:var(--known);transition:width .25s;z-index:5}
+#notes{position:fixed;left:0;right:0;bottom:0;max-height:34vh;overflow:auto;background:rgba(20,20,19,.94);color:#f0efec;font:18px/1.5 var(--sans);padding:16px 26px 22px;display:none;z-index:6}
+#notes.on{display:block}
+#notes .hd{font-weight:700;color:#c3c2b7;margin-bottom:6px}
+#help{position:fixed;right:20px;top:20px;background:rgba(20,20,19,.94);color:#f0efec;font:17px/1.7 var(--sans);padding:16px 22px;border-radius:12px;display:none;z-index:7}
+#help.on{display:block}
+#help kbd{display:inline-block;min-width:26px;padding:0 6px;border:1px solid #777;border-radius:5px;text-align:center;margin-right:8px}
+aside.notes{display:none}
+
+@media print{
+  @page{size:1920px 1080px;margin:0}
+  html,body{background:#fff;overflow:visible;height:auto}
+  #stage{position:static;transform:none!important;height:auto}
+  .slide{display:flex!important;position:relative;width:1920px;height:1080px;break-after:page;page-break-after:always}
+  .step{opacity:1!important;transform:none!important}
+  .hl, .rowbox, .fitbox, .ptr{display:none!important}
+  #notes,#progress,#help{display:none!important}
+}
+</style>
+</head>
+<body>
+
+<!-- icon sprite -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <marker id="arw-ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="4.5" markerHeight="4.5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#52514e"/></marker>
+    <marker id="arw-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="4.5" markerHeight="4.5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#d92b2b"/></marker>
+    <symbol id="ic-car" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"><path d="M6 44V36Q6 32 10 31L17 21Q19 18 23 18H41Q45 18 47 21L54 31Q58 32 58 36V44Z"/><path d="M19 31H45"/></g><circle cx="18" cy="46" r="6" fill="#fff" stroke="currentColor" stroke-width="4"/><circle cx="46" cy="46" r="6" fill="#fff" stroke="currentColor" stroke-width="4"/></symbol>
+    <symbol id="ic-person" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="14" r="8"/><path d="M18 58V40Q18 28 32 28Q46 28 46 40V58"/></g></symbol>
+    <symbol id="ic-sign" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M32 6L56 44H8Z"/><path d="M32 44V60"/><path d="M32 19V31"/></g><circle cx="32" cy="37" r="2.5" fill="currentColor"/></symbol>
+    <symbol id="ic-tractor" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 32V12H30L34 30"/><path d="M30 31H54V42"/><path d="M46 31V20"/></g><circle cx="20" cy="45" r="13" fill="#fff" stroke="currentColor" stroke-width="4"/><circle cx="50" cy="50" r="7" fill="#fff" stroke="currentColor" stroke-width="4"/></symbol>
+    <symbol id="ic-cow" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="22" width="40" height="22" rx="9"/><rect x="45" y="13" width="14" height="16" rx="5"/><path d="M15 44V58M25 44V58M36 44V58M44 44V58M8 27L3 37"/></g><circle cx="25" cy="32" r="5" fill="currentColor"/></symbol>
+    <symbol id="ic-yes" viewBox="0 0 40 40"><path d="M8 21L17 30L33 11" fill="none" stroke="#0b0b0b" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-no" viewBox="0 0 40 40"><path d="M11 11L29 29M29 11L11 29" fill="none" stroke="#8f8d87" stroke-width="4.5" stroke-linecap="round"/></symbol>
+    <symbol id="ic-star" viewBox="-12 -12 24 24"><path d="M0 -11L2.7 -3.72L10.46 -3.4L4.37 1.42L6.47 8.9L0 4.6L-6.47 8.9L-4.37 1.42L-10.46 -3.4L-2.7 -3.72Z" fill="currentColor" stroke="#fcfcfb" stroke-width="1.2" stroke-linejoin="round"/></symbol>
+  </defs>
+</svg>
+
+<div id="stage">
+
+<!-- ============================================================ 1 -->
+<section class="slide title-slide" data-title="Title">
+  <div class="kicker">AI6103 Deep Learning and Applications, team project</div>
+  <h1>Reimplementing Class-Incremental Domain Adaptation</h1>
+  <p class="sub">A from-scratch rebuild of CIDA (Kundu et al., ECCV 2020), a method with no public code</p>
+  <div class="meta">
+    <b>Presented by</b> Kieu Son Tung - Ryan<br>
+    Nanyang Technological University
+  </div>
+  <aside class="notes">Hello, I am Ryan. Our team rebuilt a recent vision method, called CIDA, from scratch.</aside>
+</section>
+
+<!-- ============================================================ 2 -->
+<section class="slide" data-title="The problem">
+  <div class="kicker">The problem</div>
+  <h1>A model moves to a new place and meets new things</h1>
+  <div class="scene">
+    <div class="panel">
+      <h2>At home, in the city <span class="tag">(source domain)</span></h2>
+      <div class="icons">
+        <div class="chip k"><svg><use href="#ic-car"/></svg><span>car</span></div>
+        <div class="chip k"><svg><use href="#ic-person"/></svg><span>person</span></div>
+        <div class="chip k"><svg><use href="#ic-sign"/></svg><span>sign</span></div>
+      </div>
+      <p class="cap">Thousands of photos with labels. The model learns here.</p>
+    </div>
+    <div class="ship">
+      <svg viewBox="0 0 100 40" width="100" height="40"><path d="M6 20H86M76 9L90 20L76 31" fill="none" stroke="#52514e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      shipped
+    </div>
+    <div class="panel">
+      <h2>After shipping, in the countryside <span class="tag">(target domain)</span></h2>
+      <div style="display:flex;gap:40px">
+        <div>
+          <div class="group-label k">Same things, new look</div>
+          <div class="tag">(domain shift)</div>
+          <div class="icons" style="margin-top:10px">
+            <div class="chip k look"><svg><use href="#ic-car"/></svg><span>car</span></div>
+            <div class="chip k look"><svg><use href="#ic-person"/></svg><span>person</span></div>
+          </div>
+        </div>
+        <div>
+          <div class="group-label n">Brand-new things</div>
+          <div class="tag">(target-private classes)</div>
+          <div class="icons" style="margin-top:10px">
+            <div class="chip n"><svg><use href="#ic-tractor"/></svg><span>tractor</span></div>
+            <div class="chip n"><svg><use href="#ic-cow"/></svg><span>cow</span></div>
+          </div>
+        </div>
+      </div>
+      <p class="cap">Photos arrive without labels.</p>
+    </div>
+  </div>
+  <div class="limits">
+    <div class="limit"><div class="num">1</div><div class="txt">The city photos are gone<span class="tag">(source-free)</span></div><div class="hl focusbox step"></div></div>
+    <div class="limit"><div class="num">2</div><div class="txt">New photos have no labels<span class="tag">(unsupervised target)</span></div><div class="hl focusbox step"></div></div>
+    <div class="limit"><div class="num">3</div><div class="txt">One example photo per new thing<span class="tag">(one-shot)</span></div><div class="hl focusbox step"></div></div>
+  </div>
+  <aside class="notes">Picture a self-driving car camera trained in the city and then shipped to the countryside. Familiar things like cars now look different, and things like tractors it has never seen. The upgrade has three limits. [click] The city photos are gone, [click] the new photos have no labels, [click] and we get one example photo per new thing.</aside>
+</section>
+
+<!-- ============================================================ 3 -->
+<section class="slide" data-title="Earlier work">
+  <div class="kicker">Earlier work and its limits</div>
+  <h1>Existing methods solve only half the problem</h1>
+  <div class="tbl-wrap">
+  <div class="rowbox focusbox step" data-from="0" data-to="0"></div>
+  <div class="rowbox focusbox step" data-from="1" data-to="3"></div>
+  <table class="cmp">
+    <thead><tr>
+      <th style="width:600px">Approach</th>
+      <th class="c" style="width:210px">Needs no<br>old photos</th>
+      <th class="c" style="width:210px">Names each<br>new thing</th>
+      <th class="c" style="width:210px">Copes with<br>the new look</th>
+      <th>Accuracy on new things (%)</th>
+    </tr></thead>
+    <tbody>
+      <tr><td>Domain adaptation<span class="tag">DANN, OSBP, STA, UAN</span></td>
+        <td class="c"><svg class="ic"><use href="#ic-no"/></svg></td><td class="c"><svg class="ic"><use href="#ic-no"/></svg></td><td class="c"><svg class="ic"><use href="#ic-yes"/></svg></td>
+        <td><div class="acc"><div class="bar" style="width:86px"></div>28.6 <small>best, UAN</small></div></td></tr>
+      <tr><td>Class-incremental learning<span class="tag">iCaRL, E2E</span></td>
+        <td class="c"><svg class="ic"><use href="#ic-no"/></svg></td><td class="c"><svg class="ic"><use href="#ic-yes"/></svg></td><td class="c"><svg class="ic"><use href="#ic-no"/></svg></td>
+        <td><div class="acc"><div class="bar" style="width:186px"></div>62.1 <small>best, iCaRL</small></div></td></tr>
+      <tr><td>Class-incremental with adaptation<span class="tag">LETR</span></td>
+        <td class="c"><svg class="ic"><use href="#ic-no"/></svg></td><td class="c"><svg class="ic"><use href="#ic-yes"/></svg></td><td class="c"><svg class="ic"><use href="#ic-yes"/></svg></td>
+        <td><div class="acc"><div class="bar" style="width:199px"></div>66.3</div></td></tr>
+      <tr><td>Class-incremental without old photos<span class="tag">LwF-MC, LwM</span></td>
+        <td class="c"><svg class="ic"><use href="#ic-yes"/></svg></td><td class="c"><svg class="ic"><use href="#ic-yes"/></svg></td><td class="c"><svg class="ic"><use href="#ic-no"/></svg></td>
+        <td><div class="acc"><div class="bar" style="width:189px"></div>63.0 <small>best, LwF-MC</small></div></td></tr>
+      <tr class="cida step"><td><b>CIDA</b><span class="tag">Kundu et al., ECCV 2020</span></td>
+        <td class="c"><svg class="ic"><use href="#ic-yes"/></svg></td><td class="c"><svg class="ic"><use href="#ic-yes"/></svg></td><td class="c"><svg class="ic"><use href="#ic-yes"/></svg></td>
+        <td><div class="acc"><div class="bar" style="width:212px"></div><b>70.8</b> <small>with one photo per new thing</small></div></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="source" style="margin-top:auto">Office-31 photos, average of six tasks, from the paper's Tables 1 and 3. Earlier methods were given 5% of the new photos with labels, while CIDA was given one photo per new thing.</p>
+  <aside class="notes">Earlier research solves only half of this. [click] Domain adaptation copes with the new look, but it needs the old photos and lumps all new things into one unknown pile. So even its best method gets only 28.6 percent on new things. [click] Class-incremental learning adds new names, but most of it ignores the new look and needs old photos or many labels. [click] CIDA is the only approach that ticks all three boxes, and it reaches 70.8 percent with one photo per new thing.</aside>
+</section>
+
+<!-- ============================================================ 4 -->
+<section class="slide" data-title="How CIDA works, at home">
+  <div class="kicker">How CIDA works, 1 of 2</div>
+  <h1>CIDA packs a summary, not photos, before leaving home</h1>
+  <div class="flow" id="s4-flow">
+    <div class="io">City photo<small>with a label</small></div>
+    <svg class="arw" viewBox="0 0 64 26"><path d="M4 13H56M48 5L58 13L48 21"/></svg>
+    <div class="blk known"><span>Feature extractor</span><small><i>f</i><sub>s</sub>, turns a photo into numbers</small></div>
+    <svg class="arw" viewBox="0 0 64 26"><path d="M4 13H56M48 5L58 13L48 21"/></svg>
+    <div class="blk space"><span>Feature space</span><small>where the bubbles live</small></div>
+    <svg class="arw" viewBox="0 0 64 26"><path d="M4 13H56M48 5L58 13L48 21"/></svg>
+    <div class="blk known"><span>Classifier</span><small><i>g</i><sub>s</sub>, names the photo</small></div>
+    <svg class="arw" viewBox="0 0 64 26"><path d="M4 13H56M48 5L58 13L48 21"/></svg>
+    <div class="io">Known class, or<br>“none of the above”</div>
+  </div>
+  <div class="concept">
+    <div class="fitbox focusbox step" data-target="#s4-flow"></div>
+    <div class="fitbox focusbox step" data-target="#s4-c1" data-focus="c1"></div>
+    <div class="fitbox focusbox step" data-target="#s4-c2" data-focus="c2"></div>
+    <div class="fitbox focusbox step" data-target="#s4-c3" data-focus="c3"></div>
+    <div>
+      <svg class="pic" viewBox="0 0 840 470" role="img" aria-label="Three tight blue bubbles of real photos with grey fake points in the gaps between them">
+        <g fill="#2a78d6" fill-opacity=".12" stroke="#2a78d6" stroke-width="3">
+          <ellipse cx="200" cy="160" rx="125" ry="82" transform="rotate(-14 200 160)"/>
+          <ellipse cx="620" cy="145" rx="118" ry="78" transform="rotate(10 620 145)"/>
+          <ellipse cx="420" cy="345" rx="130" ry="80"/>
+        </g>
+        <g fill="#2a78d6" stroke="#fcfcfb" stroke-width="2">
+          <circle cx="140" cy="168" r="10"/><circle cx="175" cy="135" r="10"/><circle cx="205" cy="182" r="10"/><circle cx="238" cy="140" r="10"/><circle cx="262" cy="170" r="10"/><circle cx="160" cy="200" r="10"/><circle cx="225" cy="112" r="10"/><circle cx="120" cy="140" r="10"/>
+          <circle cx="560" cy="140" r="10"/><circle cx="600" cy="110" r="10"/><circle cx="625" cy="160" r="10"/><circle cx="660" cy="130" r="10"/><circle cx="690" cy="170" r="10"/><circle cx="585" cy="180" r="10"/><circle cx="645" cy="95" r="10"/>
+          <circle cx="350" cy="340" r="10"/><circle cx="390" cy="310" r="10"/><circle cx="430" cy="360" r="10"/><circle cx="470" cy="325" r="10"/><circle cx="505" cy="355" r="10"/><circle cx="400" cy="385" r="10"/><circle cx="455" cy="290" r="10"/><circle cx="335" cy="372" r="10"/>
+        </g>
+        <g font-size="30" font-weight="700" fill="#0b0b0b">
+          <text x="70" y="270">car</text>
+          <text x="700" y="262">person</text>
+          <text x="565" y="440">sign</text>
+        </g>
+        <g stroke="#8f8d87" stroke-width="5" stroke-linecap="round">
+          <path d="M400 150l16 16m0-16l-16 16"/><path d="M380 230l16 16m0-16l-16 16"/><path d="M250 300l16 16m0-16l-16 16"/>
+          <path d="M610 290l16 16m0-16l-16 16"/><path d="M745 340l16 16m0-16l-16 16"/><path d="M100 360l16 16m0-16l-16 16"/>
+          <path d="M440 50l16 16m0-16l-16 16"/><path d="M200 420l16 16m0-16l-16 16"/><path d="M770 60l16 16m0-16l-16 16"/>
+        </g>
+        <g fill="none" stroke="#d92b2b" stroke-width="6" stroke-linecap="round">
+          <path class="ptr" data-ptr="c1" d="M832 236Q792 190 726 170" marker-end="url(#arw-red)"/>
+          <path class="ptr" data-ptr="c2" d="M825 325Q735 320 650 303" marker-end="url(#arw-red)"/>
+          <g class="ptr" data-ptr="c3">
+            <ellipse cx="420" cy="345" rx="130" ry="80"/>
+            <path d="M815 395Q690 385 558 346" marker-end="url(#arw-red)"/>
+          </g>
+        </g>
+      </svg>
+      <div class="legend">
+        <span><svg viewBox="0 0 28 28"><circle cx="14" cy="14" r="10" fill="#2a78d6"/></svg>real photo of a known class</span>
+        <span><svg viewBox="0 0 28 28"><path d="M6 6l16 16m0-16L6 22" stroke="#8f8d87" stroke-width="5" stroke-linecap="round"/></svg>fake point, labelled “none of the above”</span>
+      </div>
+    </div>
+    <div class="caps">
+      <div class="cap-item" id="s4-c1"><div class="dot">1</div><p>Each class is squeezed into a tight bubble<span class="tag">(Gaussian prototype, loss L<sub>s1</sub>)</span></p></div>
+      <div class="cap-item" id="s4-c2"><div class="dot">2</div><p>Fake points between the bubbles teach the answer “none of the above”<span class="tag">(negative samples, loss L<sub>s2</sub>)</span></p></div>
+      <div class="cap-item" id="s4-c3"><div class="dot">3</div><p>Only a summary of each bubble travels, never the photos<span class="tag">(mean and covariance per class)</span></p></div>
+    </div>
+  </div>
+  <aside class="notes">This is how CIDA prepares before leaving home. [click] The extractor embeds each image into a feature vector, and the classifier maps that vector to logits over the source classes. [click] Training squeezes each class into a tight bubble. [click] Fake points between the bubbles teach the answer none of the above. [click] And only a summary of the bubbles travels, never the photos.</aside>
+</section>
+
+<!-- ============================================================ 5 -->
+<section class="slide" data-title="How CIDA works, new place">
+  <div class="kicker">How CIDA works, 2 of 2</div>
+  <h1>Magnets sort new photos, bubbles prevent forgetting</h1>
+  <svg class="ovl" viewBox="0 0 1920 1080" preserveAspectRatio="none" aria-hidden="true">
+    <g class="ptr" data-ptr="arch" fill="none" stroke="#d92b2b" stroke-width="6" stroke-linecap="round">
+      <path d="M230 424Q320 430 414 382" marker-end="url(#arw-red)"/>
+      <path d="M1330 424Q1190 426 1058 392" marker-end="url(#arw-red)"/>
+    </g>
+  </svg>
+  <div class="flow" id="s5-flow">
+    <div class="io">New photo<small>no label</small></div>
+    <svg class="arw" viewBox="0 0 64 26"><path d="M4 13H56M48 5L58 13L48 21"/></svg>
+    <div class="blk known"><span>Adapted extractor</span><small><i>f</i><sub>t</sub>, a copy of <i>f</i><sub>s</sub> that keeps learning</small></div>
+    <svg class="arw" viewBox="0 0 64 26"><path d="M4 13H56M48 5L58 13L48 21"/></svg>
+    <div class="split">
+      <div class="row">
+        <div class="blk bridge"><span>Bridge</span><small><i>f</i><sub>d</sub></small></div>
+        <svg class="arw" viewBox="0 0 64 26"><path d="M4 13H56M48 5L58 13L48 21"/></svg>
+        <div class="blk frozen"><span>Old classifier, frozen</span><small><i>g</i><sub>s</sub>, names known classes</small></div>
+      </div>
+      <div class="row">
+        <div class="blk new"><span>New classifier</span><small><i>g</i><sub>t</sub>, names new things</small></div>
+      </div>
+    </div>
+    <svg class="arw" viewBox="0 0 64 26"><path d="M4 13H56M48 5L58 13L48 21"/></svg>
+    <div class="io">Highest<br>score wins</div>
+  </div>
+  <div class="concept">
+    <div class="fitbox focusbox step" data-target="#s5-flow" data-focus="arch"></div>
+    <div class="fitbox focusbox step" data-target="#s5-c1" data-focus="m1"></div>
+    <div class="fitbox focusbox step" data-target="#s5-c2" data-focus="m2"></div>
+    <div class="fitbox focusbox step" data-target="#s5-c3" data-focus="m3"></div>
+    <div>
+      <svg id="mag" class="pic" viewBox="0 0 840 430" style="height:430px" role="img" aria-label="Magnets for old and new classes, photos coloured by their nearest magnet, and samples drawn from the bubbles near the old magnets"></svg>
+      <div class="legend">
+        <span><svg viewBox="0 0 28 28"><circle cx="14" cy="14" r="9" fill="#2a78d6"/><circle cx="14" cy="14" r="12.5" fill="none" stroke="#2a78d6" stroke-width="2"/></svg>old-class magnet</span>
+        <span><svg viewBox="0 0 28 28" color="#eb6834"><use href="#ic-star" x="0" y="0" width="28" height="28"/></svg>magnet from one example photo</span>
+        <span><svg viewBox="0 0 28 28"><circle cx="14" cy="14" r="9" fill="#fdece4" stroke="#eb6834" stroke-width="3"/></svg>photo, by nearest magnet</span>
+        <span><svg viewBox="0 0 28 28"><circle cx="14" cy="14" r="9" fill="none" stroke="#2a78d6" stroke-width="3" stroke-dasharray="4 3"/></svg>sample drawn from a bubble</span>
+      </div>
+    </div>
+    <div class="caps">
+      <div class="cap-item" id="s5-c1"><div class="dot">1</div><p>Every class gets a magnet. New things take theirs from their one example photo<span class="tag">(guides)</span></p></div>
+      <div class="cap-item" id="s5-c2"><div class="dot">2</div><p>Each photo takes its nearest magnet's label, and the closest 20% teach the model<span class="tag">(pseudo-labels, confident set B<sub>t</sub>)</span></p></div>
+      <div class="cap-item" id="s5-c3"><div class="dot">3</div><p>Samples drawn from the bubbles keep the old classes in memory<span class="tag">(proxy-source samples, loss L<sub>r1</sub>)</span></p></div>
+    </div>
+  </div>
+  <aside class="notes">[click] In the new place, CIDA adapts a copy of the extractor and adds a classifier for new things. [click] Every class gets a magnet. New things take their magnet from one example photo. [click] Each photo takes its nearest magnet's label, and the most confident ones teach the model. [click] Samples from the bubbles stop it forgetting old classes.</aside>
+</section>
+
+<!-- ============================================================ 6 -->
+<section class="slide" data-title="The baseline">
+  <div class="kicker"><b>Our reimplementation</b>, 1 of 4</div>
+  <h1>The paper as written falls short on every task</h1>
+  <div class="body">
+    <div class="built">
+      <p class="lead">Our baseline is CIDA exactly as the paper describes it, with none of our four changes.<span class="tag">(preset=vanilla; there was no public code to start from)</span></p>
+      <div class="gaps">
+        <div class="gap step"><div class="b">Digits</div><div class="d">11 to 26 points below</div>
+          <div class="n">new classes 44.2 to 59.0%, paper 45.7 to 71.6</div></div>
+        <div class="gap step"><div class="b">Office-31</div><div class="d">3 to 25 points below</div>
+          <div class="n">new classes 9.0 to 39.9%, paper 61.8 to 88.4</div></div>
+        <div class="gap step"><div class="b">VisDA</div><div class="d">about 50 points below</div>
+          <div class="n">new classes 13.9 to 16.1%, paper 55.7 to 56.3</div></div>
+      </div>
+    </div>
+    <div class="chart-wrap">
+      <div class="chart-title">Overall accuracy (%), paper against our run of the paper as written</div>
+      <div class="chart-legend"><span><i style="background:var(--paper)"></i>Paper, as reported</span><span><i style="background:var(--ours)"></i>Ours, paper as written</span></div>
+      <svg id="bars" viewBox="0 0 1000 560" style="width:100%;height:auto" role="img" aria-label="Paired bars, paper against our run of the paper as written, for five tasks"></svg>
+      <p class="source">Paper, Tables 2 and 3. Ours, mean of 5 seeds at epoch 15 (VisDA at its last epoch, 10); report, Table 3. Every one of the 17 transfers falls short. The paper also leaves 10 settings unspecified, lists 10 new Office classes in one place and 11 in another, and its 3σ “unusual point” test keeps almost every point in 100 or more dimensions; we chose and documented each one.</p>
+    </div>
+  </div>
+  <aside class="notes">Here is our baseline: CIDA exactly as the paper describes it, with none of our four changes. There was no public code, so this is our own build. [click] On digits it lands 11 to 26 points below the paper. [click] On office photos, 3 to 25 points below, and on the new classes it is far worse: 9 to 40 percent, where the paper reports 62 to 88. [click] And on VisDA, about 50 points below.</aside>
+</section>
+
+<!-- ============================================================ 7 -->
+<section class="slide" data-title="Why the baseline fails">
+  <div class="kicker"><b>Our reimplementation</b>, 2 of 4</div>
+  <h1>The baseline trains on its own early mistakes</h1>
+  <div class="body">
+    <div class="loop-wrap">
+      <svg viewBox="-80 0 900 500" style="width:100%;height:auto" role="img" aria-label="A loop: each image takes the label of its nearest guide, training pulls it towards that guide, the features drift to the guide that was wrong, and the next round of labels is worse">
+        <g fill="#f3f2ee"><rect x="60" y="10" width="620" height="130" rx="22"/><rect x="400" y="250" width="300" height="170" rx="22"/><rect x="30" y="250" width="300" height="170" rx="22"/></g>
+        <g fill="#0b0b0b" text-anchor="middle">
+          <g font-size="29"><text x="400" y="70">Each image takes the label</text><text x="400" y="110">of its nearest guide</text></g>
+          <g font-size="28">
+            <text x="550" y="342">Training pulls each</text><text x="550" y="380">image to its guide</text>
+            <text x="180" y="342">Features drift to</text><text x="180" y="380">the wrong guide</text>
+          </g>
+        </g>
+        <g><circle cx="100" cy="48" r="22" fill="#0b0b0b"/><circle cx="440" cy="288" r="22" fill="#0b0b0b"/><circle cx="70" cy="288" r="22" fill="#0b0b0b"/>
+          <g fill="#fff" font-size="26" font-weight="700" text-anchor="middle"><text x="100" y="57">1</text><text x="440" y="297">2</text><text x="70" y="297">3</text></g></g>
+        <g fill="none" stroke="#52514e" stroke-width="5" stroke-linecap="round" marker-end="url(#arw-ink)">
+          <path d="M580 148V242"/><path d="M392 335H342"/><path d="M180 242V148"/>
+        </g>
+        <text x="370" y="468" text-anchor="middle" font-size="27" fill="#52514e">and the next round of labels is worse than the last</text>
+        <g fill="none" stroke="#d92b2b" stroke-width="5" stroke-linecap="round">
+          <g class="ptr" data-ptr="L1"><rect x="60" y="10" width="620" height="130" rx="22"/><path d="M-66 75H46" marker-end="url(#arw-red)"/></g>
+          <g class="ptr" data-ptr="L2"><rect x="400" y="250" width="300" height="170" rx="22"/><path d="M806 335H714" marker-end="url(#arw-red)"/></g>
+          <g class="ptr" data-ptr="L3"><rect x="30" y="250" width="300" height="170" rx="22"/><path d="M-66 335H16" marker-end="url(#arw-red)"/><path d="M180 242V148" marker-end="url(#arw-red)"/></g>
+        </g>
+      </svg>
+      <span class="step" data-focus="L1"></span><span class="step" data-focus="L2"></span><span class="step" data-focus="L3"></span>
+    </div>
+    <div class="cards">
+      <div class="card step"><h2>Digits: known images drift into the new classes</h2><p>First labels 38 to 44% right. By epoch 30, 57 to 60% of known images are called new.</p></div>
+      <div class="card step"><h2>Office-31: new classes drift into the known ones</h2><p>By epoch 60, up to 94% of new-class images are called known.</p></div>
+      <div class="card step"><h2>VisDA: everything collapses onto one class</h2><p>The first labels are 10% right. By epoch 10 every image gets the same label.</p></div>
+    </div>
+  </div>
+  <p class="defence step">This is the method, not our code. Even at the best epoch, chosen with target labels we would not have, the baseline stays 1 to 19 points short on Office-31 and 24 to 33 on VisDA.</p>
+  <aside class="notes">The method as written has no safeguard against its own early mistakes. [click] One image per new class is labelled, so the model labels the rest itself: each image takes the label of its nearest guide. [click] Training then pulls every image towards whichever guide it picked. [click] So the features move towards the guide that was wrong, and the next round of labels is worse. That is why the best epoch is always an early one. [click] On digits, known images drift into the new classes. Only 38 to 44 percent of the first labels are right. [click] On office photos it runs the other way, with up to 94 percent of new-class images called known. [click] On VisDA everything collapses onto a single class. [click] This is the method, not our code. Even at the best epoch, chosen with target labels we would not have, the baseline stays 1 to 19 points short on office photos and 24 to 33 on VisDA.</aside>
+</section>
+
+<!-- ============================================================ 8 -->
+<section class="slide" data-title="Four changes">
+  <div class="kicker"><b>Our reimplementation</b>, 3 of 4</div>
+  <h1>Four changes, one for each cause</h1>
+  <table class="fix">
+    <thead><tr><th style="width:60px"></th><th style="width:520px">Cause in the baseline</th><th style="width:520px">Our change</th><th style="text-align:right">Before</th><th></th><th style="text-align:right">After</th><th style="width:330px">Measured as</th></tr></thead>
+    <tbody>
+      <tr class="step"><td class="i">1</td><td>Internal calibration still matches the old photos<span class="tag">(source BatchNorm statistics)</span></td><td>Recalibrate on the new photos<span class="tag">(AdaBN)</span></td><td class="num">74 to 78%</td><td class="arrow">→</td><td class="num">14 to 21%</td><td class="meas">known images labelled as new, lower is better, Digits</td></tr>
+      <tr class="step"><td class="i">2</td><td>The bridge starts slightly bent<span class="tag">(plain MLP, only pretrained towards the identity)</span></td><td>Build it to start as an exact pass-through<span class="tag">(u + MLP(u), last layer set to zero)</span></td><td class="num">13%</td><td class="arrow">→</td><td class="num">0%</td><td class="meas">bridge error when adaptation starts, Digits (24% on VisDA)</td></tr>
+      <tr class="step"><td class="i">3</td><td>The model learns from all its own guesses<span class="tag">(loss L<sub>a1</sub> on every photo)</span></td><td>Learn only from the most confident 20%<span class="tag">(loss L<sub>a1</sub> on B<sub>t</sub>)</span></td><td class="num">52.8</td><td class="arrow">→</td><td class="num">83.4</td><td class="meas">accuracy on known classes, MNIST→USPS, epoch 30, other three changes on</td></tr>
+      <tr class="step"><td class="i">4</td><td>Retraining the image network on approximately 900 photos erases general vision<span class="tag">(Office and VisDA only)</span></td><td>Keep the pretrained network fixed<span class="tag">(frozen ResNet-50)</span></td><td class="num">27 to 33</td><td class="arrow">→</td><td class="num">72.4</td><td class="meas">accuracy on new things from the features alone, Office Amazon→DSLR</td></tr>
+    </tbody>
+  </table>
+  <p class="source" style="margin-top:auto">Each row undoes one cause from the previous slide. Report, Sections 3.2 and 5.1.</p>
+  <aside class="notes">So we made four changes, one for each cause. [click] First, we recalibrate on the new photos, a technique known as AdaBN. The model re-learns what normal looks like in the new place before it labels anything. Known images mistaken for new ones drop from 74 to 78 percent down to 14 to 21 percent. [click] Second, the bridge, a small translator between the new features and the frozen old classifier. The paper only trains it towards a pass-through, and 13 percent error remains. We build it as an exact pass-through, so it starts with zero error. [click] Third, the model labels the new photos itself, so we let it learn only from the fifth it is surest about. On MNIST to USPS, accuracy on known classes rises from 52.8 to 83.4. [click] Fourth, the image network was already trained on millions of photos, so for office photos we keep it fixed. Retraining it on our 900 photos dropped its accuracy on the new things from 72 to about 30.</aside>
+</section>
+
+<!-- ============================================================ 9 -->
+<section class="slide" data-title="Results">
+  <div class="kicker"><b>Our reimplementation</b>, 4 of 4</div>
+  <h1>With our changes, Digits matches or beats the paper</h1>
+  <table class="res">
+    <thead>
+      <tr><th class="l" rowspan="2" style="width:470px">Task</th><th colspan="2"><span class="sw" style="background:var(--paper)"></span>Paper</th><th colspan="2"><span class="sw" style="background:var(--ours)"></span>Ours, as written</th><th colspan="2">Ours, with our four changes</th></tr>
+      <tr><th>overall</th><th>new things</th><th>overall</th><th>new things</th><th>overall</th><th>new things</th></tr>
+    </thead>
+    <tbody>
+      <tr class="step" data-focus="r1"><td class="l">Digits, MNIST→USPS</td><td><span class="numbox" data-ptr="r1">72.5</span></td><td>71.6</td><td>47.0</td><td>54.0</td><td><span class="numbox" data-ptr="r1">71.6</span></td><td>57.5</td></tr>
+      <tr class="step" data-focus="r2"><td class="l">Digits, USPS→MNIST</td><td><span class="numbox" data-ptr="r2">69.4</span></td><td>68.6</td><td>49.6</td><td>59.0</td><td><span class="numbox" data-ptr="r2">68.3</span></td><td>54.4</td></tr>
+      <tr class="step" data-focus="r3"><td class="l">Digits, SVHN→MNIST</td><td><span class="numbox" data-ptr="r3">46.4</span></td><td><span class="numbox" data-ptr="r3">45.7</span></td><td>35.1</td><td>44.2</td><td><span class="numbox" data-ptr="r3"><b>58.2</b></span></td><td><span class="numbox" data-ptr="r3"><b>52.6</b></span></td></tr>
+      <tr class="step" data-focus="r4"><td class="l">Office-31<span class="tag">10/20 setting, average of six tasks</span></td><td>70.9</td><td>70.8</td><td>57.3</td><td>32.7</td><td><span class="numbox" data-ptr="r4">pending</span></td><td><span class="numbox" data-ptr="r4">pending</span></td></tr>
+      <tr class="step" data-focus="r5"><td class="l">VisDA, synthetic→real<span class="tag">as written, real→syn: 7.7 / 13.9</span></td><td>56.4</td><td>56.3</td><td>6.2</td><td>16.1</td><td><span class="numbox" data-ptr="r5">not run</span></td><td><span class="numbox" data-ptr="r5">not run</span></td></tr>
+    </tbody>
+  </table>
+  <p class="source" style="margin-top:auto">Accuracy in %, mean of 5 seeds, at a fixed epoch 15 for every task (VisDA at its last epoch, 10), chosen without target labels. Paper, Tables 2 and 3. Ours: report, Table 3. The Office row averages the six 10/20 transfers. Bold: above the paper. Differences under 2 points are noise.</p>
+  <aside class="notes">Read the table left to right. As written, the method sits 3 to 50 points below the paper across all 17 transfers. [click] With our four changes, digits recover: 71.6 against the paper's 72.5 on MNIST to USPS, [click] and 68.3 against 69.4 on USPS to MNIST, both within noise. [click] On SVHN to MNIST we reach 58.2 against 46.4, above the paper, and above it on the new classes too. [click] On office photos, [Office result with our changes: fill in once report Table 3 has it]. [click] VisDA with our changes we did not run, and I will come back to that.</aside>
+</section>
+
+<!-- ============================================================ 10 -->
+<section class="slide" data-title="Limitations">
+  <div class="kicker">Limitations</div>
+  <h1>What our changes do not cover</h1>
+  <div class="lesson step"><div class="dot">1</div><p>We never ran VisDA with our changes<span>The course cluster gives one GPU for six hours at a time, one job at a time. ResNet-50 over VisDA, five seeds and two training stages, did not fit the budget we had left. The VisDA row above is the baseline only.</span></p></div>
+  <div class="lesson step"><div class="dot">2</div><p>New classes are still below the paper<span>On Digits, new-class accuracy reaches 57.5 and 54.4 against the paper's 71.6 and 68.6 on MNIST→USPS and USPS→MNIST. SVHN→MNIST is the exception, at 52.6 against 45.7.</span></p></div>
+  <div class="lesson step"><div class="dot">3</div><p>Our changes depart from the paper<span>They alter the method, so we report the method as written separately and the two can be compared side by side.</span></p></div>
+  <div class="lesson step"><div class="dot">4</div><p>Two parts of the paper are not implemented<span>Ours-d, the variant that uses real source features during adaptation, and the two-step upgrade Amazon→DSLR→Webcam.</span></p></div>
+  <p class="source" style="margin-top:auto">Report, Table 3 and Section 5.3. Five seeds per task throughout. Treat differences under about two points as noise.</p>
+  <aside class="notes">Four limits. [click] We never ran VisDA with our changes. The cluster gives one GPU for six hours at a time, and ResNet-50 over VisDA with five seeds did not fit what we had left. [click] Accuracy on the new classes is still below the paper, except on SVHN to MNIST. [click] Our changes alter the method, which is why we report the method as written separately. [click] And we did not implement two parts of the paper: Ours-d, which uses real source features, and the two-step upgrade from Amazon to DSLR to Webcam.</aside>
+</section>
+
+<!-- ============================================================ 11 -->
+<section class="slide" data-title="Future work">
+  <div class="kicker">Future work</div>
+  <h1>What we would do next</h1>
+  <div class="two">
+    <div>
+      <div class="lesson step"><div class="dot">1</div><p>Run VisDA with the four changes<span>The one benchmark our changes have never been tested on.</span></p></div>
+      <div class="lesson step"><div class="dot">2</div><p>Close the new-class gap<span>On MNIST→USPS, new-class accuracy is still 14 points short of the paper.</span></p></div>
+      <div class="lesson step"><div class="dot">3</div><p>Choose the epoch without target labels<span>We fix epoch 15 for every task. As written, accuracy peaks by epoch 12 and then falls.</span></p></div>
+    </div>
+    <div style="display:flex;flex-direction:column">
+      <h2>Lessons that carry over</h2>
+      <ul class="future" style="padding-left:30px;margin:6px 0 0">
+        <li>Recalibrate BatchNorm on the target before the first pseudo-labels</li>
+        <li>Start projections as the exact identity</li>
+        <li>Self-train only on confident samples</li>
+        <li>Check high-dimensional thresholds against χ², not 3σ</li>
+      </ul>
+      <div class="thanks">Thank you. Questions?</div>
+    </div>
+  </div>
+  <aside class="notes">Next, [click] run VisDA with the four changes, [click] close the new-class gap, [click] and find a label-free way to choose the epoch. Four lessons carry over to similar methods: recalibrate on the new data first, start the bridge as an exact pass-through, learn only from confident labels, and check thresholds in high dimensions against the right distribution. Thank you.</aside>
+</section>
+
+</div><!-- /stage -->
+
+<div id="progress"></div>
+<div id="notes"></div>
+<div id="help"><kbd>→</kbd>next, also Space or click<br><kbd>←</kbd>back<br><kbd>N</kbd>speaker notes<br><kbd>P</kbd>presenter window<br><kbd>F</kbd>full screen<br><kbd>?</kbd>this help</div>
+
+<script>
+(function(){
+  "use strict";
+  var NS="http://www.w3.org/2000/svg";
+  function el(tag,attrs,parent,text){var e=document.createElementNS(NS,tag);for(var k in attrs)e.setAttribute(k,attrs[k]);if(text!=null)e.textContent=text;if(parent)parent.appendChild(e);return e;}
+
+  /* ---------- slide 5 picture, magnets in the new feature space ---------- */
+  (function magnets(){
+    var svg=document.getElementById("mag"); if(!svg) return;
+    var R=Math.PI/180;
+    var C=[
+      {x:150,y:115,old:true,name:"car"},
+      {x:420,y:95,old:true,name:"person"},
+      {x:690,y:120,old:true,name:"sign"},
+      {x:270,y:295,old:false,name:"tractor"},
+      {x:580,y:295,old:false,name:"cow"}
+    ];
+    C.forEach(function(c){
+      var ang=c.old?[-20,40,140,200,268]:[-60,0,45,135,180,240], rad=[58,63,56,62,60,64];
+      ang.forEach(function(a,i){
+        el("circle",{cx:c.x+rad[i]*Math.cos(a*R),cy:c.y+rad[i]*Math.sin(a*R),r:10,
+          fill:c.old?"#e6effa":"#fdece4",stroke:c.old?"#2a78d6":"#eb6834","stroke-width":3},svg);
+      });
+      if(c.old){
+        [-55,165].forEach(function(a){
+          el("circle",{cx:c.x+88*Math.cos(a*R),cy:c.y+88*Math.sin(a*R),r:10,fill:"none",stroke:"#2a78d6","stroke-width":3,"stroke-dasharray":"5 4"},svg);
+        });
+        el("circle",{cx:c.x,cy:c.y,r:22,fill:"#2a78d6",stroke:"#fcfcfb","stroke-width":3},svg);
+        el("circle",{cx:c.x,cy:c.y,r:31,fill:"none",stroke:"#2a78d6","stroke-width":3},svg);
+      }else{
+        var u=el("use",{href:"#ic-star",x:c.x-32,y:c.y-32,width:64,height:64},svg); u.setAttribute("color","#eb6834");
+      }
+      el("text",{x:c.x,y:c.y+108,"text-anchor":"middle","font-size":28,"font-weight":700,fill:"#0b0b0b"},svg,c.name);
+    });
+    /* red marks, shown with the matching caption (see updateFocus) */
+    var red={fill:"none",stroke:"#d92b2b","stroke-width":5,"stroke-linecap":"round"};
+    function mark(key){var g=el("g",red,svg);g.setAttribute("class","ptr");g.setAttribute("data-ptr",key);return g;}
+    var g1=mark("m1");                                   /* every class gets a magnet */
+    el("circle",{cx:690,cy:120,r:40},g1);
+    el("circle",{cx:580,cy:295,r:40},g1);
+    var g2=mark("m2");                                   /* photos take the nearest magnet */
+    el("circle",{cx:643,cy:295,r:19},g2);
+    el("path",{d:"M800 332Q730 330 666 301","marker-end":"url(#arw-red)","stroke-width":6},g2);
+    var g3=mark("m3");                                   /* samples drawn from the bubbles */
+    el("circle",{cx:740,cy:48,r:21},g3);
+    el("path",{d:"M824 12Q792 18 766 33","marker-end":"url(#arw-red)","stroke-width":6},g3);
+  })();
+
+  /* ---------- slide 6 chart, paired bars (paper vs ours as written) ---------- */
+  (function bars(){
+    var svg=document.getElementById("bars"); if(!svg) return;
+    var data=[
+      ["MNIST→USPS","Digits",72.5,47.0],
+      ["USPS→MNIST","Digits",69.4,49.6],
+      ["SVHN→MNIST","Digits",46.4,35.1],
+      ["Amazon→DSLR","Office-31",72.2,55.8],
+      ["Synthetic→Real","VisDA",56.4,6.2]
+    ];
+    var x0=250,x1=930,max=80,sx=function(v){return x0+(x1-x0)*v/max;};
+    var top=20,gh=100,bh=36,gap=2;
+    [0,20,40,60,80].forEach(function(t){
+      el("line",{x1:sx(t),x2:sx(t),y1:top-6,y2:top+gh*data.length,stroke:"#e2e0da","stroke-width":2},svg);
+      el("text",{x:sx(t),y:top+gh*data.length+32,"text-anchor":"middle","font-size":24,fill:"#52514e"},svg,t);
+    });
+    function bar(x,y,w,h,color,label){
+      var r=4,d="M"+x+" "+y+"H"+(x+w-r)+"Q"+(x+w)+" "+y+" "+(x+w)+" "+(y+r)+"V"+(y+h-r)+"Q"+(x+w)+" "+(y+h)+" "+(x+w-r)+" "+(y+h)+"H"+x+"Z";
+      var p=el("path",{d:d,fill:color},svg); el("title",{},p,label); return p;
+    }
+    data.forEach(function(d,i){
+      var y=top+i*gh+8;
+      var t=el("text",{x:x0-18,y:y+bh-2,"text-anchor":"end","font-size":28,"font-weight":600,fill:"#0b0b0b"},svg,d[0]);
+      el("text",{x:x0-18,y:y+bh+gap+bh-6,"text-anchor":"end","font-size":24,fill:"#52514e"},svg,d[1]);
+      bar(x0,y,sx(d[2])-x0,bh,"#6250d6",d[1]+" "+d[0]+", paper "+d[2]);
+      bar(x0,y+bh+gap,sx(d[3])-x0,bh,"#e34948",d[1]+" "+d[0]+", ours as written "+d[3]);
+      el("text",{x:sx(d[2])+10,y:y+bh-9,"font-size":26,"font-weight":700,fill:"#0b0b0b"},svg,d[2].toFixed(1));
+      el("text",{x:sx(d[3])+10,y:y+bh+gap+bh-9,"font-size":26,"font-weight":700,fill:"#0b0b0b"},svg,d[3].toFixed(1));
+    });
+    el("line",{x1:x0,x2:x0,y1:top-6,y2:top+gh*data.length,stroke:"#52514e","stroke-width":2},svg);
+  })();
+
+  /* ---------- deck engine ---------- */
+  var stage=document.getElementById("stage");
+  var slides=[].slice.call(document.querySelectorAll(".slide"));
+  var notesEl=document.getElementById("notes"), helpEl=document.getElementById("help"), prog=document.getElementById("progress");
+  if(/[?&]static\b/.test(location.search)) document.documentElement.classList.add("static");
+  var cur=0, step=0, pw=null, t0=null, scale=1;
+  function stepsOf(i){return [].slice.call(slides[i].querySelectorAll(".step"));}
+  slides.forEach(function(s,i){var c=document.createElement("div");c.className="counter";c.textContent=(i+1)+" / "+slides.length;s.appendChild(c);});
+  function fit(){var s=Math.min(innerWidth/1920,innerHeight/1080);scale=s;stage.style.transform="translate("+((innerWidth-1920*s)/2)+"px,"+((innerHeight-1080*s)/2)+"px) scale("+s+")";placeBoxes();}
+  /* Red focus boxes are measured against what they point at, in stage units.
+     .rowbox covers table rows data-from..data-to; .fitbox covers data-target. */
+  function placeBoxes(){
+    var sl=slides[cur]; if(!sl) return;
+    [].slice.call(sl.querySelectorAll(".rowbox")).forEach(function(b){
+      var wrap=b.parentNode, rows=wrap.querySelectorAll("tbody tr");
+      var a=rows[+b.dataset.from], z=rows[+b.dataset.to];
+      if(!a||!z) return;
+      var wr=wrap.getBoundingClientRect();
+      if(!wr.height) return;
+      var ar=a.getBoundingClientRect(), zr=z.getBoundingClientRect();
+      b.style.top=((ar.top-wr.top)/scale-6)+"px";
+      b.style.height=((zr.bottom-ar.top)/scale+12)+"px";
+    });
+    [].slice.call(sl.querySelectorAll(".fitbox[data-target]")).forEach(function(b){
+      var t=sl.querySelector(b.dataset.target), wrap=b.parentNode;
+      if(!t) return;
+      var wr=wrap.getBoundingClientRect();
+      if(!wr.height) return;
+      var tr=t.getBoundingClientRect();
+      b.style.left=((tr.left-wr.left)/scale-16)+"px";
+      b.style.top=((tr.top-wr.top)/scale-14)+"px";
+      b.style.width=(tr.width/scale+32)+"px";
+      b.style.height=(tr.height/scale+28)+"px";
+    });
+  }
+  /* A focus box is lit only while it is the most recent reveal; data-focus on the
+     lit box turns on the matching arrow inside the picture. */
+  function updateFocus(){
+    var sl=slides[cur]; if(!sl) return;
+    var steps=[].slice.call(sl.querySelectorAll(".step")), last=step>0?steps[step-1]:null;
+    steps.forEach(function(e){if(e.classList.contains("focusbox"))e.classList.toggle("dim",e!==last);});
+    var key=last?last.dataset.focus:"";
+    [].slice.call(sl.querySelectorAll("[data-ptr]")).forEach(function(e){
+      e.classList.toggle("on",!!key&&e.dataset.ptr===key);
+    });
+  }
+  function notesHTML(i){var a=slides[i].querySelector("aside.notes");return a?a.innerHTML:"";}
+  function render(){
+    slides.forEach(function(s,i){s.classList.toggle("active",i===cur);});
+    stepsOf(cur).forEach(function(e,k){e.classList.toggle("shown",k<step);});
+    prog.style.width=((cur+1)/slides.length*100)+"%";
+    try{history.replaceState(null,"","#"+(cur+1)+(step?"."+step:""));}catch(e){}
+    notesEl.innerHTML='<div class="hd">'+(cur+1)+" / "+slides.length+", "+slides[cur].dataset.title+"</div>"+notesHTML(cur);
+    placeBoxes();
+    updateFocus();
+    updatePresenter();
+  }
+  function go(i,s){cur=Math.max(0,Math.min(slides.length-1,i));var n=stepsOf(cur).length;step=Math.max(0,Math.min(n,s));render();}
+  function next(){var n=stepsOf(cur).length;if(step<n){step++;render();}else if(cur<slides.length-1){go(cur+1,0);}}
+  function prev(){if(step>0){step--;render();}else if(cur>0){go(cur-1,stepsOf(cur-1).length);}}
+  function fromHash(){var m=/^#(\d+)(?:\.(\d+))?/.exec(location.hash);if(m)go(parseInt(m[1],10)-1,m[2]?parseInt(m[2],10):0);else go(0,0);}
+
+  var PRES='<!doctype html><html><head><meta charset="utf-8"><title>Presenter view</title><style>'+
+    'body{margin:0;font-family:"Segoe UI",system-ui,sans-serif;background:#1a1a19;color:#f0efec;padding:24px 30px}'+
+    '#top{display:flex;justify-content:space-between;align-items:baseline;gap:20px}'+
+    '#cur{font-size:22px;font-weight:700}#timer{font-size:44px;font-weight:800;font-variant-numeric:tabular-nums}'+
+    '#notes{font-size:26px;line-height:1.5;margin:18px 0;color:#fff}#next{font-size:18px;color:#c3c2b7}'+
+    'button{font-size:16px;margin-left:12px}</style></head><body>'+
+    '<div id="top"><div id="cur"></div><div><span id="timer">0:00</span><button id="reset">reset</button></div></div>'+
+    '<div id="notes"></div><div id="next"></div><p style="color:#8f8d87;font-size:15px">Arrow keys work in this window too. Target 5:00.</p></body></html>';
+  function openPresenter(){
+    pw=window.open("","cida_presenter","width=1000,height=720");
+    if(!pw){alert("Allow pop-ups for this file to open the presenter view.");return;}
+    pw.document.open();pw.document.write(PRES);pw.document.close();
+    t0=Date.now();
+    pw.document.addEventListener("keydown",onKey);
+    pw.document.getElementById("reset").onclick=function(){t0=Date.now();};
+    updatePresenter();
+  }
+  function updatePresenter(){
+    if(!pw||pw.closed)return;var d=pw.document;
+    var n=stepsOf(cur).length;
+    d.getElementById("cur").textContent="Slide "+(cur+1)+" / "+slides.length+", "+slides[cur].dataset.title+(n?"  (reveal "+step+" of "+n+")":"");
+    d.getElementById("notes").innerHTML=notesHTML(cur).replace(/\[click\]/g,'<b style="color:#eda100">[click]</b>');
+    d.getElementById("next").textContent=cur<slides.length-1?"Next slide: "+slides[cur+1].dataset.title:"Last slide";
+  }
+  setInterval(function(){if(pw&&!pw.closed&&t0){var s=Math.floor((Date.now()-t0)/1000);pw.document.getElementById("timer").textContent=Math.floor(s/60)+":"+("0"+s%60).slice(-2);}},500);
+
+  function onKey(e){
+    var k=e.key;
+    if(k==="ArrowRight"||k==="ArrowDown"||k==="PageDown"||k===" "||k==="Enter"){e.preventDefault();next();}
+    else if(k==="ArrowLeft"||k==="ArrowUp"||k==="PageUp"||k==="Backspace"){e.preventDefault();prev();}
+    else if(k==="Home"){go(0,0);} else if(k==="End"){go(slides.length-1,99);}
+    else if(k==="n"||k==="N"){notesEl.classList.toggle("on");}
+    else if(k==="p"||k==="P"){openPresenter();}
+    else if(k==="f"||k==="F"){if(!document.fullscreenElement)document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();else document.exitFullscreen();}
+    else if(k==="?"){helpEl.classList.toggle("on");}
+  }
+  document.addEventListener("keydown",onKey);
+  stage.addEventListener("click",function(){next();});
+  window.addEventListener("resize",fit);
+  window.addEventListener("hashchange",function(){var m=/^#(\d+)(?:\.(\d+))?/.exec(location.hash);if(m&&(parseInt(m[1],10)-1!==cur||(m[2]?parseInt(m[2],10):0)!==step))fromHash();});
+  fit();fromHash();
+})();
+</script>
+</body>
+</html>
