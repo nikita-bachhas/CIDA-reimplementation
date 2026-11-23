@@ -548,7 +548,9 @@ Source stage (the first 51 epochs reproduce job 56614's source log exactly, so o
 - Time: source 12.5 min, 11.3–11.4 min per adaptation seed.
 - **Implication:** the 50-epoch default under-trains the small-source tasks (Webcam 16, DSLR 9 steps per epoch, against ~55 for Amazon). The paper gives no epoch count, so matching source steps across tasks is a label-free choice that could apply to the paper-protocol runs (W→D, D→W, and W→A, D→A).
 
-### Under test: step-matched source training, paper protocol (2026-11-23)
+### Dropped: step-matched source training, paper protocol (2026-11-23)
+
+**Not run:** the user decided the report uses only the off-protocol configuration (hand-picked shots + lp + 20 epochs), so paper-protocol runs stop here. The configs are kept.
 
 `configs/office20_w2d_lpref_srcmatch.yaml` and `configs/office20_d2w_lpref_srcmatch.yaml`: the Table 2 lp runs of jobs 56614 / 56615 (random one-shot draws, lp pseudo-labels, 60 adaptation epochs, last epoch kept, ResNet frozen), with the source model trained for about as many steps as an Amazon source model gets in 51 epochs (56 steps per epoch, ~2,850 steps).
 
