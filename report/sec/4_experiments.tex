@@ -107,9 +107,28 @@ The epoch is the same for every task and is not tuned per task with target label
 
 \subsection{Baseline results}\label{sec:exp-vanilla}
 \Cref{tab:results} reports the baseline next to the numbers reported in the paper.
-% Emptied on request. The previous text, tables tab:vanilla and tab:vanilla-epochs are in commit a42c640.
+The baseline stays below the paper on every task.
+At epoch 15, ALL is 11 to 26 points lower on Digits and 3 to 25 points lower on Office-31.
+On VisDA the gap is about 50 points.
+PRIV suffers most on Office-31, at 9.0 to 39.9 against 61.8 to 88.4 in the paper.
+The errors run in a different direction on each benchmark.
 
-\subsection{Improvements}\label{sec:exp-improvements}
+\paragraph{Digits.}
+On Digits, shared samples are pulled into the private classes, and 57 to 60\% of them are predicted as private by epoch 30.
+PRIV stays at 44.2 to 59.0 at epoch 15 only because so many samples are predicted as private.
+
+\paragraph{Office-31.}
+On Office-31, private samples drift into the shared classes instead, and 53 to 94\% of them are predicted as shared by epoch 60 in the 10/20 setting.
+PRIV on A$\to$D peaks at 35.6 in epoch 10 and ends at 16.9, and with Amazon as the target shared accuracy collapses as well.
+
+\paragraph{VisDA.}
+On VisDA the source model still reaches 37.3 on the real shared images, against 16.7 for chance.
+The first pseudo-labels, however, are only 10.4\% correct, and by epoch 10 every target image is assigned to one class.
+On Syn$\to$Real the best epoch is epoch 0, so adaptation only lowers accuracy.
+
+\Cref{sec:disc-baseline} explains these failures.
+
+\subsection{Improvement results}\label{sec:exp-improvements}
 \Cref{tab:results} reports the results with our changes next to the baseline and the paper.
 % Emptied on request. The previous text, Nikita's improvements and tables tab:imp-pseudo and
 % tab:imp-pseudo-epochs are in commit a42c640.
