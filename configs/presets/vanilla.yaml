@@ -9,6 +9,7 @@ src_train:
   neg_mode: paper          # supp Algo 1 3-sigma test
   backbone_lr_mult: 1.0    # whole network (incl. pretrained ResNet-50) trained with Adam 1e-4
 adapt:
+  stop: last               # train all epochs and keep the last (the paper has no stopping rule)
   la1_samples: all         # La1 on all target samples, x_t ~ q_X (Eq. 6, Algo 4)
   la1_temp: 1.0
   adabn: false             # ft <- fs as is, BatchNorm statistics included

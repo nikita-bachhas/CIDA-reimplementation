@@ -10,8 +10,9 @@ Round-robin (iter % 5) over [Lr1, Lr2, Lc, La1, La2], each with its own Adam:
   La1 (ft)          class separability w.r.t. target prototypes P_t, nearest-guide labels  Eq. 6
   La2 (fe, ft)      ||ft(x) - guide_c||^2 for x in B_t^c                     Eq. 6
 Guides: fe(mu_s^c) for shared classes, ft(one-shot sample) for private classes.
-Optional (adapt.stop=share_peak, not in the paper): keep the epoch with the highest predicted
-private-class share, a label-free quantity, and stop once it has not risen for adapt.stop_patience epochs.
+adapt.stop=share_peak (not in the paper, on by default for Office Table 3 only): keep the epoch with the
+highest predicted private-class share, a label-free quantity, and stop once it has not risen for
+adapt.stop_patience epochs. Its runs get "sharestop" in their folder name.
 Optional (adapt.b_sampler=balanced, not in the paper): every pseudo-class gets the same expected share
 of each B_t batch.
 At the end of every epoch: pseudo-label all target samples, refit P_t, reselect B_t (top n%).
@@ -52,6 +53,8 @@ def run_name(cfg, seed):
     a = cfg["adapt"]
     shot = f"few{int(100 * a['fewshot_frac'])}" if a.get("fewshot_frac") else f"{a.get('shots', 1)}shot"
     tag = a.get("tag") or ""
+    if a.get("stop", "last") == "share_peak" and "sharestop" not in tag.split("_"):
+        tag = f"{tag}_sharestop" if tag else "sharestop"  # never share a folder with a 60-epoch run
     return f"adapt_{shot}_abl-{a.get('ablation', 'none')}{('_' + tag) if tag else ''}_seed{seed}"
 
 

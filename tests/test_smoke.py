@@ -186,6 +186,26 @@ def test_vanilla_preset():
     assert load_config(cfgs / "office_a2d.yaml")["out_dir"] == "runs/office_a2d"  # default unchanged
 
 
+def test_office_stop_default():
+    from cida.common import load_config
+    cfgs = Path(CFG).parent
+
+    def stop(name, *ov):
+        return load_config(cfgs / name, list(ov))["adapt"]["stop"]
+
+    assert stop("office_a2d.yaml") == "share_peak" and stop("office_d2a_nols1.yaml") == "share_peak"
+    assert stop("office20_a2d.yaml") == "last" and stop("digits_m2u.yaml") == "last"
+    assert stop("office_a2d.yaml", "preset=vanilla") == "last"
+
+    def name(*ov, seed=0):
+        return adapt.run_name(load_config(cfgs / "office_a2d.yaml", list(ov)), seed)
+
+    assert name() == "adapt_1shot_abl-none_sharestop_seed0"  # never the folder of a 60-epoch run
+    assert name("adapt.tag=sharestop") == "adapt_1shot_abl-none_sharestop_seed0"
+    assert name("adapt.tag=lp", seed=1) == "adapt_1shot_abl-none_lp_sharestop_seed1"
+    assert name("adapt.stop=last", seed=2) == "adapt_1shot_abl-none_seed2"
+
+
 def test_adapt_vanilla(out_dir):
     adapt.main(["--config", CFG, "--seed", "3", "--set", "preset=vanilla", f"out_dir={out_dir}", "adapt.tag=vanilla"])
     assert (out_dir / "adapt_1shot_abl-none_vanilla_seed3" / "final_metrics.json").exists()

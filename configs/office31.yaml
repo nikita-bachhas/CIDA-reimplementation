@@ -18,4 +18,6 @@ batch_size: 32
 model: {backbone: resnet50, pretrained: true, resnet_fc_out: 2, feat_dim: 256, cls_hidden: 64, act: elu, proj_layers: 3}
 # ResNet-50 backbone frozen at its ImageNet weights (lr x 0) in both stages; see SPEC.md.
 src_train: {epochs: 50, backbone_lr_mult: 0.0}
-adapt: {epochs: 60, backbone_lr_mult: 0.0}
+# Keep the share-peak epoch (label-free, not in the paper; see SPEC.md). Table 2 (office20.yaml) and
+# preset=vanilla train all 60 epochs. adapt.stop=last reproduces the earlier 60-epoch runs.
+adapt: {epochs: 60, backbone_lr_mult: 0.0, stop: share_peak}
