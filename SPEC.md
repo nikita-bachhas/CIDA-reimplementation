@@ -515,7 +515,38 @@ Per seed, ALL / PRIV / shared:
 - **Why:** Webcam gives 16 source steps per epoch, so the 50-epoch W→D source model gets ~800 steps (Ls2 ends at 2.17, 39% of negatives detected), against ~2,850 for an Amazon source model. 180 epochs gives ~2,880. The unfrozen 100-epoch run (job 56726) settled Ls2 but changed two things at once; this run changes only the source length.
 - **Read together with job 56726:** if this run matches srcft100 (shared up, PRIV flat), source length explains it; if it keeps the frozen run's PRIV and also gains shared, unfreezing was what cost PRIV.
 - **Watch:** `loss_ls1` (frozen 50 epochs: median 2.9 at the end), `loss_ls2`, `neg_detected`; then ALL / PRIV / shared, private → shared and private → wrong-private against job 56686.
-- **Compare with:** job 56686 W→D (85.4 / 69.0 / 94.8; seed 0: 82.3 / 62.1 / 93.9) and job 56726 seed 0 (84.6 / 59.3 / 99.0). Not yet run.
+- **Compare with:** job 56686 W→D (85.4 / 69.0 / 94.8; seed 0: 82.3 / 62.1 / 93.9) and job 56726 seed 0 (84.6 / 59.3 / 99.0).
+
+**Results** (job 56769, `logs/cida_56769.out`, 2026-11-23; ALL / PRIV / shared at epoch 20, seed-paired with job 56686):
+
+| Seed | Frozen source, 50 epochs (job 56686) | **Frozen source, 180 epochs (job 56769)** | Change |
+| --- | --- | --- | --- |
+| 0 | 82.3 / 62.1 / 93.9 | 89.1 / 73.4 / 98.1 | +6.8 / +11.3 / +4.2 |
+| 1 | 85.6 / 70.1 / 94.5 | 87.5 / 68.9 / 98.1 | +1.8 / −1.1 / +3.5 |
+| 2 | 87.7 / 77.4 / 93.5 | 89.1 / 77.4 / 95.8 | +1.4 / 0.0 / +2.3 |
+| 3 | 86.2 / 71.2 / 94.8 | 87.5 / 73.4 / 95.5 | +1.2 / +2.3 / +0.6 |
+| 4 | 85.2 / 64.4 / 97.1 | 89.3 / 77.4 / 96.1 | +4.1 / +13.0 / −1.0 |
+| **Mean** | **85.4 / 69.0 / 94.8** | **88.5 / 74.1 / 96.7** | **+3.1 / +5.1 / +1.9** |
+| sd ALL / PRIV / shared | 2.0 / 6.0 / 1.4 | 0.9 / 3.5 / 1.3 | |
+| Class-averaged ALL / PRIV | 85.6 / 67.3 | 88.1 / 71.8 | |
+| Private → shared / → wrong private / shared → private | 13.3 / 17.6 / 2.6 | 14.9 / 11.0 / 0.8 | |
+| Paper (Table 2) ALL / PRIV | 89.5 / 88.4 | | |
+
+Source stage (the first 51 epochs reproduce job 56614's source log exactly, so only the extra length differs):
+
+| Source model | Ls2, last epoch | Negatives detected | Ls1 median, last ~25 epochs |
+| --- | --- | --- | --- |
+| Frozen, 50 epochs | 2.17 | 38.9% | 2.9 |
+| Unfrozen, 100 epochs (job 56726) | 0.70 | 95.9% | 9.5 (spikes up to 827) |
+| Frozen, 180 epochs | 0.31 (0.79 at epoch 100) | 99.3% (94.5 at epoch 100) | 0.0 (13 of 26 epochs at 0, max 7) |
+
+- **ALL up on 5 of 5 seeds, PRIV up on 3, level on 1, down 1.1 on 1; shared up on 4.** ALL 88.5 is 1.0 under the paper (from 4.1 under); PRIV is 14.3 short (from 19.4). Both spreads shrink (PRIV sd 6.0 → 3.5).
+- **The gain is in private ↔ private confusion:** private images given the wrong private class fall from 17.6% to 11.0%; the private → shared leak is unchanged (14.9 against 13.3).
+- **Both source objectives settle with the ResNet frozen:** Ls1 tightens steadily to 0 and Ls2 reaches 0.31 with 99% of negatives detected. Unfrozen, Ls1 never settled.
+- **Source length, not unfreezing, is what helps.** At epoch 100 the frozen source model's Ls2 / negatives (0.79 / 94.5%) are close to the unfrozen 100-epoch model's (0.70 / 95.9%), yet seed 0 adapts to 89.1 / 73.4 / 98.1 against 84.6 / 59.3 / 99.0 unfrozen. Freezing keeps the ImageNet features that separate the private classes; the unfrozen model starts adaptation from 67.1% pseudo-label accuracy against 79.3% here.
+- Adaptation is faster too: seed-mean PRIV 73.2 at epoch 10 (50-epoch source: 69.5), peak 75.3 at epoch 15, 74.1 at 20.
+- Time: source 12.5 min, 11.3–11.4 min per adaptation seed.
+- **Implication:** the 50-epoch default under-trains the small-source tasks (Webcam 16, DSLR 9 steps per epoch, against ~55 for Amazon). The paper gives no epoch count, so matching source steps across tasks is a label-free choice that could apply to the paper-protocol runs (W→D, D→W, and W→A, D→A).
 
 ## Investigated, not adopted
 
