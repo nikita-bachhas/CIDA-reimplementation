@@ -1,0 +1,12 @@
+# Table 2 setting on A->D, off-protocol configuration (the report's): hand-picked DSLR one-shot images,
+# lp pseudo-labels, 20 adaptation epochs, ResNet-50 frozen, as configs/office20_a2d_fixedshot_lp20.yaml,
+# but with the source model trained for 150 epochs + 1 warm-up instead of 50 + 1 (Amazon gives 56
+# source steps per epoch: ~2,850 -> ~8,450 steps). On W->D a longer frozen source run gave +3.1 ALL /
+# +5.1 PRIV (job 56769); A->D's 50-epoch source already detected 98% of negatives, but its Ls1 was still
+# at 5.8, so this tests whether tighter source clusters help here too. Seed-paired with job 56686.
+# Trains its own source model: writes runs/office20_a2d_src150/source and
+# runs/office20_a2d_src150/adapt_1shot_abl-none_fixedshot_lp20_src150_seed<k>.
+base: office20_a2d_fixedshot_lp20.yaml
+name: office20_a2d_src150
+src_train: {epochs: 150, backbone_lr_mult: 0.0}
+adapt: {tag: fixedshot_lp20_src150, backbone_lr_mult: 0.0}

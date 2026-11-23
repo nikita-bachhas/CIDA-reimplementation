@@ -1,0 +1,11 @@
+# Office A->D, Table 2 setting (|Cs| = 20, |Ct| = 31: 20 shared + 11 private), with the ResNet-50
+# backbone NOT frozen: the whole network trains at Adam 1e-4 in both stages, the natural reading of
+# the paper ("ResNet-50 pretrained on ImageNet", Adam 1e-4). Every other improvement of the main
+# configuration stays on (AdaBN, residual fe/fd, linear fe/fd last layer, La1 on B_t, two-FC256 head).
+# Isolates the effect of freezing: seed-paired with configs/office20_a2d.yaml (frozen; same seed =
+# same one-shot images).
+# Trains its own source model: writes runs/office20_a2d_ft/source and runs/office20_a2d_ft/adapt_1shot_abl-none_seed<k>.
+base: office20_a2d.yaml
+name: office20_a2d_ft
+src_train: {backbone_lr_mult: 1.0}
+adapt: {backbone_lr_mult: 1.0}

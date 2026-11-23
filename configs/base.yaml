@@ -24,10 +24,14 @@ adapt:
   epochs: 20
   shots: 1                 # [paper] one-shot target-private samples
   fewshot_frac: null       # 0.05 for the few-shot (Ours*) setting
+  fixed_shots: null        # {class name: file name} hand-picked one-shot images (not in the paper; SPEC.md)
   n_percent: 20            # [paper] confident samples per guide
   ablation: none           # none | a | b | c  (Ours-a/b/c) | nola1 (diagnostic)
   la1_samples: confident   # all (paper: x_t ~ q_X) | confident (draw La1 batches from B_t); see SPEC.md
   la1_temp: 1.0            # La1 logits = log-density / la1_temp (1.0 = paper)
+  pseudo_label: nearest    # nearest (paper) | lp: label propagation for the refresh's labels, B_t, P_t, La1 (SPEC.md)
+  lp_knn: 10               # lp graph: cosine k nearest neighbours
+  lp_alpha: 0.99           # lp spreading weight
   tag: null                # appended to the run folder name, e.g. la1conf
   adabn: true              # re-estimate ft's BatchNorm stats on the target first (see SPEC.md)
   proj_pretrain_iters: 2000
@@ -35,3 +39,10 @@ adapt:
   cov_shrink: 0.1
   cov_eps: 1.0e-4
   iters_per_epoch: null    # default: len(target loader) * number of losses
+  rectify:                 # guide rectification (not in the paper; see SPEC.md, cida/rectify.py)
+    enabled: false
+    eps: 10.0              # softmax sharpness of the cosine weights (large = keep the one-shot guide)
+    anchor: 0.3            # minimum weight of the labelled image in its rectified guide
+    iters: 3               # re-assign / re-average rounds per refresh
+    select: distance       # distance (nearest members, as B_t) | margin (smallest d1/d2)
+    shared: false          # also rectify the shared guides fe(mu_c) with their target members

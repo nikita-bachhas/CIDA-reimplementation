@@ -1,6 +1,6 @@
 # CIDA reimplementation
 
-A from-scratch PyTorch reimplementation of *Class-Incremental Domain Adaptation* (Kundu et al., ECCV 2020). The paper has no official code. See [SPEC.md](SPEC.md) for what the paper specifies and what we chose ourselves.
+A from-scratch PyTorch reimplementation of *Class-Incremental Domain Adaptation* (Kundu et al., ECCV 2020). The paper has no official code. See [SPEC.md](SPEC.md) for what the paper specifies and what we chose ourselves. To reproduce our runs exactly, see [REPRODUCE.md](REPRODUCE.md).
 
 ## Layout
 ```
@@ -65,7 +65,7 @@ python -c "import torchvision.models as m; m.resnet50(weights=m.ResNet50_Weights
 ```bash
 sbatch slurm/check.sbatch
 squeue -u $USER                      # wait until the job disappears
-cat logs/cida-check_<jobid>.out      # expect "cuda available: True", "16 passed", "== CHECK PASSED"
+cat logs/cida-check_<jobid>.out      # expect "cuda available: True", "48 passed", "== CHECK PASSED"
 ```
 
 The job scripts use partition `MGPU-TC2`, QoS `normal`, account `stud` and `module load anaconda/25.5.1`. If your account or QoS differs (check with `sacctmgr show assoc user=$USER format=account,qos -P`), edit the `#SBATCH` lines in `slurm/*.sbatch`.

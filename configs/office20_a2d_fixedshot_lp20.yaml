@@ -1,0 +1,10 @@
+# Table 2 setting on A->D: the hand-picked DSLR one-shot images of configs/office20_a2d_fixedshot.yaml,
+# label propagation as the pseudo-labeller (adapt.pseudo_label=lp), and 20 adaptation epochs instead
+# of 60 (accuracy plateaus around epoch 15-20 in the 60-epoch runs; SPEC.md). Not the paper's protocol
+# (hand-picked shots, epoch count chosen from test curves): report separately from Table 2.
+# Writes runs/office20_a2d/adapt_1shot_abl-none_fixedshot_lp20_seed<k>, reusing runs/office20_a2d/source.
+base: office20_a2d_fixedshot.yaml
+adapt:
+  tag: fixedshot_lp20
+  pseudo_label: lp
+  epochs: 20
