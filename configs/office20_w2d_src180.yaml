@@ -1,0 +1,13 @@
+# Table 2 setting on W->D: does a longer-trained source model help, with the ResNet-50 still frozen?
+# Same adaptation as configs/office20_w2d_fixedshot_lp20.yaml (hand-picked DSLR one-shot images, lp
+# pseudo-labels, 20 adaptation epochs, ResNet frozen). The source model is trained for 180 epochs + 1
+# warm-up instead of 50 + 1, backbone frozen as in the main configuration. Webcam gives 16 source steps
+# per epoch, so 180 epochs is ~2,880 steps, about what an Amazon source model gets in 51 epochs (~2,850).
+# Pairs with configs/office20_w2d_srcft100.yaml (unfrozen, 100 epochs) to separate source length from
+# unfreezing. Seed-paired with job 56686 (W->D, seeds 0-4). Not the paper's protocol: report separately.
+# Trains its own source model: writes runs/office20_w2d_src180/source and
+# runs/office20_w2d_src180/adapt_1shot_abl-none_fixedshot_lp20_src180_seed<k>.
+base: office20_w2d_fixedshot_lp20.yaml
+name: office20_w2d_src180
+src_train: {epochs: 180, backbone_lr_mult: 0.0}
+adapt: {tag: fixedshot_lp20_src180, backbone_lr_mult: 0.0}

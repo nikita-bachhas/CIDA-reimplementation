@@ -174,6 +174,12 @@ sbatch --export=ALL,SEEDS="0" slurm/run.sbatch configs/office20_w2d_srcft100.yam
 sbatch --export=ALL,STAGES=adapt,SEEDS="1 2 3 4" slurm/run.sbatch configs/office20_w2d_srcft100.yaml
 ```
 
+**W→D with a frozen source model trained for 180 epochs** (2026-11-23; SPEC "Under test: W→D source model trained longer, ResNet frozen"). Source ~13 min, then 5 adaptation seeds of ~12 min each (~75 min in all):
+
+```bash
+sbatch slurm/run.sbatch configs/office20_w2d_src180.yaml
+```
+
 ```bash
 # 0. Old Digits runs predate the deterministic pipeline: move them aside so they are re-run
 mv runs/digits_u2m runs/digits_u2m_old; mv runs/digits_s2m runs/digits_s2m_old

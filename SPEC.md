@@ -508,6 +508,15 @@ Per seed, ALL / PRIV / shared:
 - **Reading:** a better-trained source model makes the shared side near-perfect but does not separate the private classes better; this fits the feature probe (fine-tuning on the source classes costs target separability). Two changes at once (unfrozen, 100 epochs), so not attributable to either alone.
 - **Next options:** the same seed with 60 adaptation epochs (`adapt.epochs=60 adapt.tag=fixedshot_lp60_srcft100`, `STAGES=adapt`, reusing this source model), to see whether PRIV keeps rising; seeds 1–4 before any conclusion; a frozen 100-epoch source run to separate source length from unfreezing.
 
+### Under test: W→D source model trained longer, ResNet frozen (2026-11-23)
+
+`configs/office20_w2d_src180.yaml`: `office20_w2d_fixedshot_lp20.yaml` with `src_train.epochs: 180` (ResNet frozen, as in the main configuration), its own folder `runs/office20_w2d_src180/` and tag `fixedshot_lp20_src180`. Adaptation unchanged (hand-picked shots, lp, 20 epochs).
+
+- **Why:** Webcam gives 16 source steps per epoch, so the 50-epoch W→D source model gets ~800 steps (Ls2 ends at 2.17, 39% of negatives detected), against ~2,850 for an Amazon source model. 180 epochs gives ~2,880. The unfrozen 100-epoch run (job 56726) settled Ls2 but changed two things at once; this run changes only the source length.
+- **Read together with job 56726:** if this run matches srcft100 (shared up, PRIV flat), source length explains it; if it keeps the frozen run's PRIV and also gains shared, unfreezing was what cost PRIV.
+- **Watch:** `loss_ls1` (frozen 50 epochs: median 2.9 at the end), `loss_ls2`, `neg_detected`; then ALL / PRIV / shared, private → shared and private → wrong-private against job 56686.
+- **Compare with:** job 56686 W→D (85.4 / 69.0 / 94.8; seed 0: 82.3 / 62.1 / 93.9) and job 56726 seed 0 (84.6 / 59.3 / 99.0). Not yet run.
+
 ## Investigated, not adopted
 
 **Prediction-step changes for PRIV** (`scripts/posthoc.py`, re-evaluating the 15 saved Digits models; no target labels used). Mean change from the paper's rule (ALL / PRIV / shared):
