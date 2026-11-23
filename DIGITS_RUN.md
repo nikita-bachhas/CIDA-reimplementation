@@ -1,4 +1,4 @@
-# Siddharth's MNIST -> USPS runs
+# Siddharth's digit support-selection experiments
 
 Reuse your existing uv-created environment; no Conda or package reinstall is needed.
 Run these exports in the cluster shell before the commands below:
@@ -16,6 +16,101 @@ Commands below run from the NEW repository root. `slurm/run.sbatch` inherits
 The target is USPS: shared digits 0-4 and private digits 5-9. Target training uses the
 train split; final accuracy is measured on the test split. One-shot means five labelled
 target images total, one for each private digit.
+
+## Reproduce the reported epoch-15 comparison (all three transfers)
+
+This section specifies Siddharth's random-versus-hand-picked comparison. The
+historical Office results and default `1000 + seed` schedule in REPRODUCE.md are
+separate experiments. The digit configs below explicitly use training RNG seeds
+0-4. The random suite was implemented at commit `5bbcc71`; local integration
+commit `d300029` retains that implementation and adds develop's AdaBN singleton
+batch guard. That guard only skips a final batch containing one image.
+
+Common configured settings:
+
+| Item | Setting |
+|---|---|
+| Transfers | MNIST -> USPS; USPS -> MNIST; SVHN -> MNIST |
+| Class split | Shared 0-4; target-private 5-9 |
+| Target supervision | One target-training image per private digit; five images total |
+| Evaluation | Target test split; ALL, SHARED and PRIV from epoch 15 |
+| Training seeds | Actual Python/NumPy/PyTorch seeds 0, 1, 2, 3, 4 (`adapt.seed_offset=0`) |
+| Source | Seed 0; one warm-up epoch plus ten source-training epochs |
+| Adaptation | Thirty epochs; batch size 64; Adam learning rate 1e-4 |
+| Model | Trainable LeNet; residual identity-initialised fe/fd with linear outputs |
+| Adaptation settings | AdaBN; all five losses; confident La1; top 20% per guide |
+| Gaussian scores | Existing log-density logits; no density-softmax change |
+| Pseudo-labels | Nearest guide; label propagation and guide rectification disabled |
+
+Random supports change with support seed 0-4. Hand-picked supports stay fixed
+while the training seed changes. Candidate-column numbers below are support
+sampler seeds, not global dataset indices or training-seed choices. Selection
+uses visual appearance, not model/test accuracy.
+
+### Generate the exact selected-support configurations
+
+Run from this repository root after exporting CIDA_PYTHON and CIDA_DATA above.
+The candidate count is 20 for every command; picks are ordered by digits 5-9.
+Keep the generated YAML files: they record the fixed per-class dataset positions
+and the data root used for the run.
+
+```bash
+"$CIDA_PYTHON" scripts/choose_digit_supports.py --config configs/digits_m2u_improved.yaml --data-root "$CIDA_DATA" --candidates 20 --picks 0,11,10,11,14
+"$CIDA_PYTHON" scripts/choose_digit_supports.py --config configs/digits_u2m.yaml --data-root "$CIDA_DATA" --candidates 20 --picks 12,6,4,14,19
+"$CIDA_PYTHON" scripts/choose_digit_supports.py --config configs/digits_s2m.yaml --data-root "$CIDA_DATA" --candidates 20 --picks 12,6,4,14,19
+```
+
+The picker writes `configs/digits_m2u_clearshot.yaml`,
+`configs/digits_u2m_clearshot.yaml`, and `configs/digits_s2m_clearshot.yaml`.
+M->U inherits the task name `digits_m2u` but keeps the improved config's output
+directory `runs/digits_m2u_siddharth`.
+
+### Submit the selected-support runs
+
+```bash
+mkdir -p logs
+sbatch --export=ALL,SEEDS="0 1 2 3 4",STAGES="source adapt" slurm/run.sbatch configs/digits_m2u_clearshot.yaml adapt.la1_samples=confident adapt.tag=clearshot_0-11-10-11-14
+sbatch --export=ALL,SEEDS="0 1 2 3 4",STAGES="source adapt" slurm/run.sbatch configs/digits_u2m_clearshot.yaml adapt.la1_samples=confident adapt.tag=clearshot_12-6-4-14-19_la1conf
+sbatch --export=ALL,SEEDS="0 1 2 3 4",STAGES="source adapt" slurm/run.sbatch configs/digits_s2m_clearshot.yaml adapt.la1_samples=confident adapt.tag=clearshot_12-6-4-14-19_la1conf
+```
+
+These write to `runs/digits_m2u_siddharth`, `runs/digits_u2m`, and
+`runs/digits_s2m`. Source training is skipped when its final checkpoint exists.
+The random-suite submission commands in section 1 below write separately to
+`runs_digits_random_confident/<task>`. Both groups use the common configured
+training settings above; the source is shared by adaptation seeds within a task.
+
+### Summarise the recorded results
+
+```bash
+"$CIDA_PYTHON" scripts/best_epoch_summary.py runs/ --csv digits_selected_summary.csv
+"$CIDA_PYTHON" scripts/best_epoch_summary.py runs_digits_random_confident/ --csv digits_random_summary.csv
+```
+
+For this comparison, use only the `EPOCH 15` rows with the exact confident-La1
+tags above and `random_la1conf`. The script also prints BEST and FINAL diagnostics;
+neither is the reported checkpoint here. Require epoch-15 coverage of 5/5 seeds.
+CSV columns beginning `epoch15_` contain the corresponding per-seed measurements.
+Epoch 15 is a common reporting checkpoint, not a demonstrated convergence rule.
+
+Recorded epoch-15 scores (percent mean +/- sample standard deviation, n=5):
+
+| Transfer | Supports | ALL | SHARED | PRIV |
+|---|---|---|---|---|
+| M->U | Random | 71.61 +/- 10.01 | 81.36 +/- 8.47 | 57.49 +/- 14.21 |
+| M->U | Selected | 83.73 +/- 1.83 | 89.42 +/- 1.23 | 75.49 +/- 2.84 |
+| U->M | Random | 68.30 +/- 4.95 | 81.41 +/- 2.76 | 54.43 +/- 12.74 |
+| U->M | Selected | 77.10 +/- 4.65 | 82.86 +/- 1.52 | 71.02 +/- 8.76 |
+| S->M | Random | 58.15 +/- 11.31 | 63.37 +/- 11.96 | 52.63 +/- 10.71 |
+| S->M | Selected | 60.37 +/- 4.07 | 61.57 +/- 4.25 | 59.09 +/- 4.54 |
+
+Preserve each source `final.pt`, the generated support YAML, checkpoint `cfg` and
+`labelled` entries, Python/package versions, and run logs to audit an exact rerun.
+The supplied log archive validates the recorded scores but contains no checkpoint
+weights, so it cannot establish source-checkpoint identity between the two groups.
+Fresh training is a repeat of the configured procedure, not a guarantee of
+bitwise-identical numbers. Existing completed outputs are skipped; use a separate
+output location when intentionally starting a fresh experiment.
 
 ## 1. Improved baseline with random supports
 

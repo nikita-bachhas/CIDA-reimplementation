@@ -1,5 +1,12 @@
 # Reproducing our CIDA runs
 
+> **Siddharth's digit support-selection comparison:** use
+> [DIGITS_RUN.md](DIGITS_RUN.md#reproduce-the-reported-epoch-15-comparison-all-three-transfers)
+> for the exact support picks, actual training seeds 0-4, confident-La1 commands,
+> and epoch-15 result table. The sections below retain the earlier Office-focused
+> reproduction plan and historical results. Their branch name, `1000 + seed`
+> schedule, and last-epoch reporting do not describe that digit comparison.
+
 This lists every change we made on top of the paper's method, the config switch for each, and the exact commands that reproduce our numbers. The evidence behind each change is in [SPEC.md](SPEC.md); environment setup and cluster rules are in [README.md](README.md).
 
 ## 1. Code version
