@@ -487,7 +487,26 @@ Per seed, ALL / PRIV / shared:
 - **Two changes against job 56686 W→D, not one:** unfrozen backbone and 100 instead of 50 source epochs. A difference cannot be attributed to either alone.
 - **Watch:** `loss_ls1` (on A→D, unfrozen source training never settled: median 38 in epochs 41–51 against 5.8 frozen), `loss_ls2` and `neg_detected`; then PRIV and priv_as_shared against job 56686 seed by seed.
 - **Compare with:** job 56686 W→D (85.4 / 69.0 / 94.8; seed 0: 82.3 / 62.1 / 93.9).
-- **Plan:** seed 0 first, then seeds 1–4 reusing the source model (REPRODUCE.md). Not yet run.
+- **Plan:** seed 0 first, then seeds 1–4 reusing the source model (REPRODUCE.md).
+
+**Results, seed 0** (job 56726, `logs/cida_56726.out`; ALL / PRIV / shared at epoch 20, against job 56686 W→D seed 0):
+
+| | Frozen source, 50 epochs (job 56686) | Unfrozen source, 100 epochs (job 56726) |
+| --- | --- | --- |
+| ALL / PRIV / shared | 82.3 / 62.1 / 93.9 | **84.6 / 59.3 / 99.0** |
+| Class-averaged ALL / PRIV | 82.7 / 58.9 | 84.6 / 58.5 |
+| Private → shared / private → wrong private / shared → private | 17.5 / 20.3 / 3.2 | 15.3 / 25.4 / 0.3 |
+| Pseudo-label accuracy, epoch 0 → 20 | 82.3 → 85.9 | 67.1 → 86.3 |
+| ALL / PRIV at epoch 10 | 85.2 / 66.7 | 79.1 / 42.9 |
+| Source: Ls2, negatives detected (last epoch) | 2.17, 38.9% | 0.70, 95.9% |
+| Source: Ls1 median, last ~25 epochs | 2.9 (steady) | 9.5 (12 of 26 epochs at 0, spikes up to 827) |
+
+- **Ls2 settled, Ls1 did not.** 100 unfrozen epochs finished the "unknown" class (96% of negatives detected, against 39%), but Ls1 kept jumping between 0 and several hundred to the end, as on unfrozen A→D. Source accuracy was ~100% from epoch 4.
+- **Shared improved, PRIV did not:** shared +5.1 (99.0, nearly every shared image right), PRIV −2.8, ALL +2.3. Class-averaged PRIV is unchanged (58.5 against 58.9). One seed, and W→D's PRIV seed spread is about 6, so the PRIV change is within noise.
+- **The private loss moved, it did not shrink:** fewer private images go to shared classes (15.3 against 17.5), more to the wrong private class (25.4 against 20.3).
+- **Adaptation starts from worse target features and is still climbing at epoch 20.** Pseudo-labels start at 67.1 (frozen: 82.3); PRIV is 42.9 at epoch 10 (frozen: 66.7) and still rising at epoch 20 (55.9 at 19 → 59.3), while the frozen run peaked at epoch 12 (69.5). The 20-epoch cut, chosen from the frozen runs' curves, may stop this run early.
+- **Reading:** a better-trained source model makes the shared side near-perfect but does not separate the private classes better; this fits the feature probe (fine-tuning on the source classes costs target separability). Two changes at once (unfrozen, 100 epochs), so not attributable to either alone.
+- **Next options:** the same seed with 60 adaptation epochs (`adapt.epochs=60 adapt.tag=fixedshot_lp60_srcft100`, `STAGES=adapt`, reusing this source model), to see whether PRIV keeps rising; seeds 1–4 before any conclusion; a frozen 100-epoch source run to separate source length from unfreezing.
 
 ## Investigated, not adopted
 
