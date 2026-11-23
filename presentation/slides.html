@@ -9,13 +9,14 @@
   Keys: Right, Space, click = next | Left = back | Home, End | N notes | P presenter window | F full screen | ? help
   URL: slides.html#5 opens slide 5, slides.html#5.9 opens it with all reveals shown.
   Script with timings: presentation/script.md (same text as the notes below).
-  TEAM: slide 9 (Results) and the [TODO ...] markers are yours to fill.
+  TEAM: Results (slide 10) filled from
+  report Table 3 and SPEC.md on 2026-11-22; VisDA with fixes still pending.
 -->
 <style>
 :root{
   --bg:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#8f8d87; --rule:#e2e0da; --card:#f3f2ee;
   --known:#2a78d6; --known-bg:#e6effa; --new:#eb6834; --new-bg:#fdece4; --frozen:#8f8d87; --frozen-bg:#ecebe7;
-  --paper:#6250d6; --ours:#e34948; --todo:#d03b3b;
+  --paper:#6250d6; --ours:#e34948; --todo:#d03b3b; --hot:#d92b2b;
   --sans: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, "Noto Sans", "DejaVu Sans", sans-serif;
 }
 *{box-sizing:border-box}
@@ -66,6 +67,13 @@ svg text{font-family:var(--sans)}
 .limit .num{font-size:52px;font-weight:800;line-height:1}
 .limit .txt{font-size:32px;font-weight:600;line-height:1.25}
 .limit .tag{display:block;font-weight:400;margin-top:4px}
+/* Red focus boxes. A .focusbox is lit only while it is the most recent reveal;
+   the engine puts .dim on the others. .hl fits its parent, .fitbox covers the
+   element named by data-target, .rowbox covers table rows data-from..data-to. */
+.step.focusbox.dim{opacity:0}
+.limit{position:relative}
+.hl{position:absolute;left:-16px;right:-16px;top:-14px;bottom:-14px;border:5px solid var(--hot);border-radius:14px;pointer-events:none}
+.fitbox{position:absolute;border:5px solid var(--hot);border-radius:14px;pointer-events:none}
 
 /* tables */
 table{border-collapse:collapse;width:100%}
@@ -75,6 +83,9 @@ table{border-collapse:collapse;width:100%}
 .cmp .c{text-align:center}
 .cmp svg.ic{width:40px;height:40px;vertical-align:middle}
 .cmp tr.cida td{background:var(--new-bg);border-bottom:none}
+/* red focus box around a group of table rows, placed by script, revealed by a click */
+.tbl-wrap{position:relative}
+.rowbox{position:absolute;left:-16px;right:-16px;border:5px solid var(--hot);border-radius:14px;pointer-events:none}
 .cmp tr.cida td:first-child{border-radius:14px 0 0 14px}
 .cmp tr.cida td:last-child{border-radius:0 14px 14px 0}
 .acc{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;font-weight:700}
@@ -95,7 +106,12 @@ table{border-collapse:collapse;width:100%}
 svg.arw{width:64px;height:26px;flex:none;stroke:var(--ink2);stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round}
 .split{display:flex;flex-direction:column;gap:14px}
 .split .row{display:flex;align-items:center}
-.concept{display:grid;grid-template-columns:840px 1fr;gap:50px;flex:1;min-height:0}
+.concept{display:grid;grid-template-columns:840px 1fr;gap:50px;flex:1;min-height:0;position:relative}
+/* red arrows and rings that point at what the lit box is talking about */
+.ptr{opacity:0;transition:opacity .3s ease}
+.ptr.on{opacity:1}
+.static .ptr{transition:none}
+.ovl{position:absolute;inset:0;pointer-events:none}
 .concept svg.pic{width:840px;height:470px;background:var(--card);border-radius:22px}
 .legend{display:grid;grid-template-columns:auto auto;justify-content:start;gap:6px 36px;font-size:24px;color:var(--ink2);margin-top:12px}
 .legend span{display:inline-flex;align-items:center;gap:8px}
@@ -179,6 +195,7 @@ aside.notes{display:none}
   #stage{position:static;transform:none!important;height:auto}
   .slide{display:flex!important;position:relative;width:1920px;height:1080px;break-after:page;page-break-after:always}
   .step{opacity:1!important;transform:none!important}
+  .hl, .rowbox, .fitbox, .ptr{display:none!important}
   #notes,#progress,#help{display:none!important}
 }
 </style>
@@ -188,6 +205,7 @@ aside.notes{display:none}
 <!-- icon sprite -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
+    <marker id="arw-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="4.5" markerHeight="4.5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#d92b2b"/></marker>
     <symbol id="ic-car" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"><path d="M6 44V36Q6 32 10 31L17 21Q19 18 23 18H41Q45 18 47 21L54 31Q58 32 58 36V44Z"/><path d="M19 31H45"/></g><circle cx="18" cy="46" r="6" fill="#fff" stroke="currentColor" stroke-width="4"/><circle cx="46" cy="46" r="6" fill="#fff" stroke="currentColor" stroke-width="4"/></symbol>
     <symbol id="ic-person" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="14" r="8"/><path d="M18 58V40Q18 28 32 28Q46 28 46 40V58"/></g></symbol>
     <symbol id="ic-sign" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M32 6L56 44H8Z"/><path d="M32 44V60"/><path d="M32 19V31"/></g><circle cx="32" cy="37" r="2.5" fill="currentColor"/></symbol>
@@ -207,10 +225,10 @@ aside.notes{display:none}
   <h1>Reimplementing Class-Incremental Domain Adaptation</h1>
   <p class="sub">A from-scratch rebuild of CIDA (Kundu et al., ECCV 2020), a method with no public code</p>
   <div class="meta">
-    <b>Presented by</b> <span class="todo">[TODO speaker name]</span><br>
+    <b>Presented by</b> Kieu Son Tung - Ryan<br>
     Nanyang Technological University
   </div>
-  <aside class="notes">Hello, I am [name]. Our team rebuilt a recent vision method, called CIDA, from scratch.</aside>
+  <aside class="notes">Hello, I am Ryan. Our team rebuilt a recent vision method, called CIDA, from scratch.</aside>
 </section>
 
 <!-- ============================================================ 2 -->
@@ -255,17 +273,20 @@ aside.notes{display:none}
     </div>
   </div>
   <div class="limits">
-    <div class="limit"><div class="num">1</div><div class="txt">The city photos are gone<span class="tag">(source-free)</span></div></div>
-    <div class="limit"><div class="num">2</div><div class="txt">New photos have no labels<span class="tag">(unsupervised target)</span></div></div>
-    <div class="limit"><div class="num">3</div><div class="txt">One example photo per new thing<span class="tag">(one-shot)</span></div></div>
+    <div class="limit"><div class="num">1</div><div class="txt">The city photos are gone<span class="tag">(source-free)</span></div><div class="hl focusbox step"></div></div>
+    <div class="limit"><div class="num">2</div><div class="txt">New photos have no labels<span class="tag">(unsupervised target)</span></div><div class="hl focusbox step"></div></div>
+    <div class="limit"><div class="num">3</div><div class="txt">One example photo per new thing<span class="tag">(one-shot)</span></div><div class="hl focusbox step"></div></div>
   </div>
-  <aside class="notes">Picture a self-driving car camera trained in the city and then shipped to the countryside. Familiar things like cars now look different, and things like tractors it has never seen. The upgrade has three limits. The city photos are gone, the new photos have no labels, and we get one example photo per new thing.</aside>
+  <aside class="notes">Picture a self-driving car camera trained in the city and then shipped to the countryside. Familiar things like cars now look different, and things like tractors it has never seen. The upgrade has three limits. [click] The city photos are gone, [click] the new photos have no labels, [click] and we get one example photo per new thing.</aside>
 </section>
 
 <!-- ============================================================ 3 -->
 <section class="slide" data-title="Earlier work">
   <div class="kicker">Earlier work and its limits</div>
   <h1>Existing methods solve only half the problem</h1>
+  <div class="tbl-wrap">
+  <div class="rowbox focusbox step" data-from="0" data-to="0"></div>
+  <div class="rowbox focusbox step" data-from="1" data-to="3"></div>
   <table class="cmp">
     <thead><tr>
       <th style="width:600px">Approach</th>
@@ -292,15 +313,16 @@ aside.notes{display:none}
         <td><div class="acc"><div class="bar" style="width:212px"></div><b>70.8</b> <small>with one photo per new thing</small></div></td></tr>
     </tbody>
   </table>
+  </div>
   <p class="source" style="margin-top:auto">Office-31 photos, average of six tasks, from the paper's Tables 1 and 3. Earlier methods were given 5% of the new photos with labels, while CIDA was given one photo per new thing.</p>
-  <aside class="notes">Earlier research solves only half of this. Domain adaptation copes with the new look, but it needs the old photos and lumps all new things into one unknown pile. So even its best method gets only 28.6 percent on new things. Class-incremental learning adds new names, but most of it ignores the new look and needs old photos or many labels. [click] CIDA is the only approach that ticks all three boxes, and it reaches 70.8 percent with one photo per new thing.</aside>
+  <aside class="notes">Earlier research solves only half of this. [click] Domain adaptation copes with the new look, but it needs the old photos and lumps all new things into one unknown pile. So even its best method gets only 28.6 percent on new things. [click] Class-incremental learning adds new names, but most of it ignores the new look and needs old photos or many labels. [click] CIDA is the only approach that ticks all three boxes, and it reaches 70.8 percent with one photo per new thing.</aside>
 </section>
 
 <!-- ============================================================ 4 -->
 <section class="slide" data-title="How CIDA works, at home">
   <div class="kicker">How CIDA works, 1 of 2</div>
   <h1>CIDA packs a summary, not photos, before leaving home</h1>
-  <div class="flow">
+  <div class="flow" id="s4-flow">
     <div class="io">City photo<small>with a label</small></div>
     <svg class="arw" viewBox="0 0 64 26"><path d="M4 13H56M48 5L58 13L48 21"/></svg>
     <div class="blk known"><span>Feature extractor</span><small><i>f</i><sub>s</sub>, turns a photo into numbers</small></div>
@@ -312,6 +334,10 @@ aside.notes{display:none}
     <div class="io">Known class, or<br>“none of the above”</div>
   </div>
   <div class="concept">
+    <div class="fitbox focusbox step" data-target="#s4-flow"></div>
+    <div class="fitbox focusbox step" data-target="#s4-c1" data-focus="c1"></div>
+    <div class="fitbox focusbox step" data-target="#s4-c2" data-focus="c2"></div>
+    <div class="fitbox focusbox step" data-target="#s4-c3" data-focus="c3"></div>
     <div>
       <svg class="pic" viewBox="0 0 840 470" role="img" aria-label="Three tight blue bubbles of real photos with grey fake points in the gaps between them">
         <g fill="#2a78d6" fill-opacity=".12" stroke="#2a78d6" stroke-width="3">
@@ -334,6 +360,14 @@ aside.notes{display:none}
           <path d="M610 290l16 16m0-16l-16 16"/><path d="M745 340l16 16m0-16l-16 16"/><path d="M100 360l16 16m0-16l-16 16"/>
           <path d="M440 50l16 16m0-16l-16 16"/><path d="M200 420l16 16m0-16l-16 16"/><path d="M770 60l16 16m0-16l-16 16"/>
         </g>
+        <g fill="none" stroke="#d92b2b" stroke-width="6" stroke-linecap="round">
+          <path class="ptr" data-ptr="c1" d="M832 236Q792 190 726 170" marker-end="url(#arw-red)"/>
+          <path class="ptr" data-ptr="c2" d="M825 325Q735 320 650 303" marker-end="url(#arw-red)"/>
+          <g class="ptr" data-ptr="c3">
+            <ellipse cx="420" cy="345" rx="130" ry="80"/>
+            <path d="M815 395Q690 385 558 346" marker-end="url(#arw-red)"/>
+          </g>
+        </g>
       </svg>
       <div class="legend">
         <span><svg viewBox="0 0 28 28"><circle cx="14" cy="14" r="10" fill="#2a78d6"/></svg>real photo of a known class</span>
@@ -341,19 +375,25 @@ aside.notes{display:none}
       </div>
     </div>
     <div class="caps">
-      <div class="cap-item"><div class="dot">1</div><p>Each class is squeezed into a tight bubble<span class="tag">(Gaussian prototype, loss L<sub>s1</sub>)</span></p></div>
-      <div class="cap-item"><div class="dot">2</div><p>Fake points between the bubbles teach the answer “none of the above”<span class="tag">(negative samples, loss L<sub>s2</sub>)</span></p></div>
-      <div class="cap-item"><div class="dot">3</div><p>Only a summary of each bubble travels, never the photos<span class="tag">(mean and covariance per class)</span></p></div>
+      <div class="cap-item" id="s4-c1"><div class="dot">1</div><p>Each class is squeezed into a tight bubble<span class="tag">(Gaussian prototype, loss L<sub>s1</sub>)</span></p></div>
+      <div class="cap-item" id="s4-c2"><div class="dot">2</div><p>Fake points between the bubbles teach the answer “none of the above”<span class="tag">(negative samples, loss L<sub>s2</sub>)</span></p></div>
+      <div class="cap-item" id="s4-c3"><div class="dot">3</div><p>Only a summary of each bubble travels, never the photos<span class="tag">(mean and covariance per class)</span></p></div>
     </div>
   </div>
-  <aside class="notes">CIDA prepares before leaving home. The model has an extractor that turns photos into numbers, and a classifier that names them. Training squeezes each class into a tight bubble, and fake points between bubbles teach the answer none of the above. Only a summary of the bubbles travels, never the photos.</aside>
+  <aside class="notes">This is how CIDA prepares before leaving home. [click] The extractor embeds each image into a feature vector, and the classifier maps that vector to logits over the source classes. [click] Training squeezes each class into a tight bubble. [click] Fake points between the bubbles teach the answer none of the above. [click] And only a summary of the bubbles travels, never the photos.</aside>
 </section>
 
 <!-- ============================================================ 5 -->
 <section class="slide" data-title="How CIDA works, new place">
   <div class="kicker">How CIDA works, 2 of 2</div>
   <h1>Magnets sort new photos, bubbles prevent forgetting</h1>
-  <div class="flow">
+  <svg class="ovl" viewBox="0 0 1920 1080" preserveAspectRatio="none" aria-hidden="true">
+    <g class="ptr" data-ptr="arch" fill="none" stroke="#d92b2b" stroke-width="6" stroke-linecap="round">
+      <path d="M230 424Q320 430 414 382" marker-end="url(#arw-red)"/>
+      <path d="M1330 424Q1190 426 1058 392" marker-end="url(#arw-red)"/>
+    </g>
+  </svg>
+  <div class="flow" id="s5-flow">
     <div class="io">New photo<small>no label</small></div>
     <svg class="arw" viewBox="0 0 64 26"><path d="M4 13H56M48 5L58 13L48 21"/></svg>
     <div class="blk known"><span>Adapted extractor</span><small><i>f</i><sub>t</sub>, a copy of <i>f</i><sub>s</sub> that keeps learning</small></div>
@@ -372,6 +412,10 @@ aside.notes{display:none}
     <div class="io">Highest<br>score wins</div>
   </div>
   <div class="concept">
+    <div class="fitbox focusbox step" data-target="#s5-flow" data-focus="arch"></div>
+    <div class="fitbox focusbox step" data-target="#s5-c1" data-focus="m1"></div>
+    <div class="fitbox focusbox step" data-target="#s5-c2" data-focus="m2"></div>
+    <div class="fitbox focusbox step" data-target="#s5-c3" data-focus="m3"></div>
     <div>
       <svg id="mag" class="pic" viewBox="0 0 840 430" style="height:430px" role="img" aria-label="Magnets for old and new classes, photos coloured by their nearest magnet, and samples drawn from the bubbles near the old magnets"></svg>
       <div class="legend">
@@ -382,12 +426,12 @@ aside.notes{display:none}
       </div>
     </div>
     <div class="caps">
-      <div class="cap-item"><div class="dot">1</div><p>Every class gets a magnet. New things take theirs from their one example photo<span class="tag">(guides)</span></p></div>
-      <div class="cap-item"><div class="dot">2</div><p>Each photo takes its nearest magnet's label, and the closest 20% teach the model<span class="tag">(pseudo-labels, confident set B<sub>t</sub>)</span></p></div>
-      <div class="cap-item"><div class="dot">3</div><p>Samples drawn from the bubbles keep the old classes in memory<span class="tag">(proxy-source samples, loss L<sub>r1</sub>)</span></p></div>
+      <div class="cap-item" id="s5-c1"><div class="dot">1</div><p>Every class gets a magnet. New things take theirs from their one example photo<span class="tag">(guides)</span></p></div>
+      <div class="cap-item" id="s5-c2"><div class="dot">2</div><p>Each photo takes its nearest magnet's label, and the closest 20% teach the model<span class="tag">(pseudo-labels, confident set B<sub>t</sub>)</span></p></div>
+      <div class="cap-item" id="s5-c3"><div class="dot">3</div><p>Samples drawn from the bubbles keep the old classes in memory<span class="tag">(proxy-source samples, loss L<sub>r1</sub>)</span></p></div>
     </div>
   </div>
-  <aside class="notes">In the new place, CIDA adapts a copy of the extractor and adds a classifier for new things. Every class gets a magnet. New things take theirs from their one example photo. Each photo takes its nearest magnet's label, and the most confident ones teach the model. Samples from the bubbles stop it forgetting old classes.</aside>
+  <aside class="notes">[click] In the new place, CIDA adapts a copy of the extractor and adds a classifier for new things. [click] Every class gets a magnet. New things take their magnet from one example photo. [click] Each photo takes its nearest magnet's label, and the most confident ones teach the model. [click] Samples from the bubbles stop it forgetting old classes.</aside>
 </section>
 
 <!-- ============================================================ 6 -->
@@ -406,10 +450,10 @@ aside.notes{display:none}
       <div class="chart-title">Overall accuracy (%), paper against our run of the paper as written</div>
       <div class="chart-legend"><span><i style="background:var(--paper)"></i>Paper, as reported</span><span><i style="background:var(--ours)"></i>Ours, paper as written</span></div>
       <svg id="bars" viewBox="0 0 1000 560" style="width:100%;height:auto" role="img" aria-label="Paired bars, paper against our run of the paper as written, for five tasks"></svg>
-      <p class="source">Paper, Tables 2 and 3. Ours, mean of 5 seeds (SPEC.md, vanilla preset). Gap 13.6 to 50.2 points.</p>
+      <p class="source">Paper, Tables 2 and 3. Ours, mean of 5 seeds (report, Table 3). Every one of the 17 transfers falls short; on the five shown, the gap runs 13.6 to 50.2 points.</p>
     </div>
   </div>
-  <aside class="notes">Now our part, which is the core of this project. There was no public code, so we wrote approximately 940 lines for the method and 410 for analysis. We also wrote 23 tests and cluster jobs that resume themselves. We added a switch that runs the paper exactly as written. That version fell short on every task. On the five shown here, the gap runs from 13.6 points on SVHN to MNIST to 50.2 points on VisDA.</aside>
+  <aside class="notes">Now our part, which is the core of this project. There was no public code, so we wrote approximately a thousand lines for the method and 500 for analysis. We also wrote 23 tests and cluster jobs that resume themselves. We added a switch that runs the paper exactly as written. That version fell short on all seventeen transfers. On this chart, the gap runs from 13.6 points on SVHN to MNIST to 50.2 points on VisDA.</aside>
 </section>
 
 <!-- ============================================================ 7 -->
@@ -440,7 +484,7 @@ aside.notes{display:none}
     </div>
   </div>
   <p class="step" style="font-size:36px;font-weight:700;margin-top:34px">Each step feeds the next, so our fixes target the points where the errors start.</p>
-  <p class="source" style="margin-top:auto">Digits, paper as written, 5 seeds per task (SPEC.md, vanilla preset). On office photos the errors flow the other way, with 53 to 94% of new things absorbed into known classes.</p>
+  <p class="source" style="margin-top:auto">Digits, paper as written, 5 seeds per task (report, §4.2). On office photos the errors flow the other way, with 53 to 94% of new things absorbed into known classes, and on VisDA every run collapses onto a single class.</p>
   <aside class="notes">Small errors start early and then snowball. [click] Before any learning, the bridge only roughly passes features through, so 52 percent of known images already land on the new side. [click] Next, the calibration still fits the city, so known images sit closer to the new-thing magnets. Only 37.5 to 43.9 percent of the first labels are right. [click] Then it keeps training on its own wrong labels, until 57 to 60 percent of known images are called new. [click] So our fixes target the points where the errors start.</aside>
 </section>
 
@@ -483,22 +527,22 @@ aside.notes{display:none}
 <!-- ============================================================ 10 -->
 <section class="slide" data-title="Results">
   <div class="kicker">Results</div>
-  <h1>Results <span class="todo" style="display:block;font-size:34px;margin-top:6px">[TODO replace with a one-sentence take-away, e.g. how much of the gap the fixes close]</span></h1>
+  <h1>Our fixes recover the overall accuracy; new things on Office remain the gap</h1>
   <table class="res">
     <thead>
       <tr><th class="l" rowspan="2" style="vertical-align:bottom;border-bottom:3px solid var(--ink)">Task</th><th colspan="2"><span class="sw" style="background:var(--paper)"></span>Paper</th><th colspan="2"><span class="sw" style="background:var(--ours)"></span>Ours, as written</th><th colspan="2">Ours, with our four fixes</th></tr>
       <tr><th>overall</th><th>new things</th><th>overall</th><th>new things</th><th>overall</th><th>new things</th></tr>
     </thead>
     <tbody>
-      <tr><td class="l">Digits, MNIST→USPS</td><td>72.5</td><td>71.6</td><td><span class="tbd">TBD</span></td><td><span class="tbd">TBD</span></td><td><span class="tbd">TBD</span></td><td><span class="tbd">TBD</span></td></tr>
-      <tr><td class="l">Digits, USPS→MNIST</td><td>69.4</td><td>68.6</td><td><span class="tbd">TBD</span></td><td><span class="tbd">TBD</span></td><td><span class="tbd">TBD</span></td><td><span class="tbd">TBD</span></td></tr>
-      <tr><td class="l">Digits, SVHN→MNIST</td><td>46.4</td><td>45.7</td><td><span class="tbd">TBD</span></td><td><span class="tbd">TBD</span></td><td><span class="tbd">TBD</span></td><td><span class="tbd">TBD</span></td></tr>
-      <tr><td class="l">Office-31<span class="tag">average of six tasks</span></td><td>70.7</td><td>70.8</td><td><span class="tbd">TBD</span></td><td><span class="tbd">TBD</span></td><td><span class="tbd">TBD</span></td><td><span class="tbd">TBD</span></td></tr>
-      <tr><td class="l">VisDA, synthetic→real</td><td>56.4</td><td>56.3</td><td><span class="tbd">TBD</span></td><td><span class="tbd">TBD</span></td><td><span class="tbd">TBD</span></td><td><span class="tbd">TBD</span></td></tr>
+      <tr><td class="l">Digits, MNIST→USPS</td><td>72.5</td><td>71.6</td><td>43.7</td><td>50.5</td><td><b>71.9</b></td><td>55.3</td></tr>
+      <tr><td class="l">Digits, USPS→MNIST</td><td>69.4</td><td>68.6</td><td>47.2</td><td>60.7</td><td>65.5</td><td>51.0</td></tr>
+      <tr><td class="l">Digits, SVHN→MNIST</td><td>46.4</td><td>45.7</td><td>32.8</td><td>46.5</td><td><b>58.8</b></td><td>44.0</td></tr>
+      <tr><td class="l">Office-31<span class="tag">10/20 setting, average of six tasks</span></td><td>70.7</td><td>70.8</td><td>42.2</td><td>15.3</td><td>61.3</td><td>36.2</td></tr>
+      <tr><td class="l">VisDA, synthetic→real<span class="tag">as written, real→syn: 7.7 / 13.9</span></td><td>56.4</td><td>56.3</td><td>6.2</td><td>16.1</td><td>—</td><td>—</td></tr>
     </tbody>
   </table>
-  <p class="source" style="margin-top:auto">Accuracy in %. Paper, Tables 2 and 3. Ours, mean of 5 seeds from scripts/aggregate.py on runs/ and runs_vanilla/ <span class="todo">[TODO team fills the TBD cells]</span></p>
-  <aside class="notes">[TEAM, replace this paragraph once results are in, about 70 words.] With all four fixes, our version reaches [X] overall on MNIST to USPS, against 72.5 in the paper. On office photos it averages [X], against 70.7. The run of the paper as written stays [X] points lower. [One sentence on accuracy for new things, where we remain below the paper.]</aside>
+  <p class="source" style="margin-top:auto">Accuracy in %, mean of 5 seeds. Paper, Tables 2 and 3. As written: report, Table 3 (runs_vanilla/). With fixes: SPEC.md (runs/); the Office row averages the six 10/20 transfers. —: run with fixes still pending, 22 Nov 2026. Bold: matches or beats the paper.</p>
+  <aside class="notes">Read the table left to right. As written, the method sits 14 to 50 points below the paper on every task. With our four fixes, Digits recovers: 71.9 against 72.5 on MNIST to USPS, within noise, and 58.8 against 46.4 on SVHN to MNIST, above the paper. Office recovers 19 points to 61.3 on average, matching the paper on two of six transfers. What remains is new things on Office, 36.2 against 70.8. The VisDA run with fixes is still pending.</aside>
 </section>
 
 <!-- ============================================================ 11 -->
@@ -514,13 +558,13 @@ aside.notes{display:none}
     <div style="display:flex;flex-direction:column">
       <h2>Next steps</h2>
       <ul class="future" style="padding-left:30px;margin:6px 0 0">
-        <li>Close the remaining gap on new things <span class="todo">[TODO check against Results]</span></li>
-        <li>Add the paper's two remaining experiments<span class="tag">(Ours-d with real source features, the two-step upgrade A→D→W)</span></li>
+        <li>Close the remaining gap on new things on office photos<span class="tag">(36.2 against 70.8)</span></li>
+        <li>Finish the runs still in flight, then add the paper's two remaining experiments<span class="tag">(Office 20/31 and VisDA with fixes; Ours-d, the two-step upgrade A→D→W)</span></li>
       </ul>
       <div class="thanks">Thank you. Questions?</div>
     </div>
   </div>
-  <aside class="notes">Three lessons stand out. Run a paper exactly as written first, because it shows where accuracy is lost. Treat unstated details as part of the method. And test every cut-off in high dimensions. Next, we want to close the gap on new things and add the paper's two remaining experiments. Thank you.</aside>
+  <aside class="notes">Three lessons stand out. Run a paper exactly as written first, because it shows where accuracy is lost. Treat unstated details as part of the method. And test every cut-off in high dimensions. Next, we want to close the gap on new things on office photos, finish the runs still in flight, and add the paper's two remaining experiments. Thank you. ---</aside>
 </section>
 
 </div><!-- /stage -->
@@ -563,6 +607,18 @@ aside.notes{display:none}
       }
       el("text",{x:c.x,y:c.y+108,"text-anchor":"middle","font-size":28,"font-weight":700,fill:"#0b0b0b"},svg,c.name);
     });
+    /* red marks, shown with the matching caption (see updateFocus) */
+    var red={fill:"none",stroke:"#d92b2b","stroke-width":5,"stroke-linecap":"round"};
+    function mark(key){var g=el("g",red,svg);g.setAttribute("class","ptr");g.setAttribute("data-ptr",key);return g;}
+    var g1=mark("m1");                                   /* every class gets a magnet */
+    el("circle",{cx:690,cy:120,r:40},g1);
+    el("circle",{cx:580,cy:295,r:40},g1);
+    var g2=mark("m2");                                   /* photos take the nearest magnet */
+    el("circle",{cx:643,cy:295,r:19},g2);
+    el("path",{d:"M800 332Q730 330 666 301","marker-end":"url(#arw-red)","stroke-width":6},g2);
+    var g3=mark("m3");                                   /* samples drawn from the bubbles */
+    el("circle",{cx:740,cy:48,r:21},g3);
+    el("path",{d:"M824 12Q792 18 766 33","marker-end":"url(#arw-red)","stroke-width":6},g3);
   })();
 
   /* ---------- slide 6 chart, paired bars (paper vs ours as written) ---------- */
@@ -630,10 +686,47 @@ aside.notes{display:none}
   var slides=[].slice.call(document.querySelectorAll(".slide"));
   var notesEl=document.getElementById("notes"), helpEl=document.getElementById("help"), prog=document.getElementById("progress");
   if(/[?&]static\b/.test(location.search)) document.documentElement.classList.add("static");
-  var cur=0, step=0, pw=null, t0=null;
+  var cur=0, step=0, pw=null, t0=null, scale=1;
   function stepsOf(i){return [].slice.call(slides[i].querySelectorAll(".step"));}
   slides.forEach(function(s,i){var c=document.createElement("div");c.className="counter";c.textContent=(i+1)+" / "+slides.length;s.appendChild(c);});
-  function fit(){var s=Math.min(innerWidth/1920,innerHeight/1080);stage.style.transform="translate("+((innerWidth-1920*s)/2)+"px,"+((innerHeight-1080*s)/2)+"px) scale("+s+")";}
+  function fit(){var s=Math.min(innerWidth/1920,innerHeight/1080);scale=s;stage.style.transform="translate("+((innerWidth-1920*s)/2)+"px,"+((innerHeight-1080*s)/2)+"px) scale("+s+")";placeBoxes();}
+  /* Red focus boxes are measured against what they point at, in stage units.
+     .rowbox covers table rows data-from..data-to; .fitbox covers data-target. */
+  function placeBoxes(){
+    var sl=slides[cur]; if(!sl) return;
+    [].slice.call(sl.querySelectorAll(".rowbox")).forEach(function(b){
+      var wrap=b.parentNode, rows=wrap.querySelectorAll("tbody tr");
+      var a=rows[+b.dataset.from], z=rows[+b.dataset.to];
+      if(!a||!z) return;
+      var wr=wrap.getBoundingClientRect();
+      if(!wr.height) return;
+      var ar=a.getBoundingClientRect(), zr=z.getBoundingClientRect();
+      b.style.top=((ar.top-wr.top)/scale-6)+"px";
+      b.style.height=((zr.bottom-ar.top)/scale+12)+"px";
+    });
+    [].slice.call(sl.querySelectorAll(".fitbox[data-target]")).forEach(function(b){
+      var t=sl.querySelector(b.dataset.target), wrap=b.parentNode;
+      if(!t) return;
+      var wr=wrap.getBoundingClientRect();
+      if(!wr.height) return;
+      var tr=t.getBoundingClientRect();
+      b.style.left=((tr.left-wr.left)/scale-16)+"px";
+      b.style.top=((tr.top-wr.top)/scale-14)+"px";
+      b.style.width=(tr.width/scale+32)+"px";
+      b.style.height=(tr.height/scale+28)+"px";
+    });
+  }
+  /* A focus box is lit only while it is the most recent reveal; data-focus on the
+     lit box turns on the matching arrow inside the picture. */
+  function updateFocus(){
+    var sl=slides[cur]; if(!sl) return;
+    var steps=[].slice.call(sl.querySelectorAll(".step")), last=step>0?steps[step-1]:null;
+    steps.forEach(function(e){if(e.classList.contains("focusbox"))e.classList.toggle("dim",e!==last);});
+    var key=last?last.dataset.focus:"";
+    [].slice.call(sl.querySelectorAll("[data-ptr]")).forEach(function(e){
+      e.classList.toggle("on",!!key&&e.dataset.ptr===key);
+    });
+  }
   function notesHTML(i){var a=slides[i].querySelector("aside.notes");return a?a.innerHTML:"";}
   function render(){
     slides.forEach(function(s,i){s.classList.toggle("active",i===cur);});
@@ -641,6 +734,8 @@ aside.notes{display:none}
     prog.style.width=((cur+1)/slides.length*100)+"%";
     try{history.replaceState(null,"","#"+(cur+1)+(step?"."+step:""));}catch(e){}
     notesEl.innerHTML='<div class="hd">'+(cur+1)+" / "+slides.length+", "+slides[cur].dataset.title+"</div>"+notesHTML(cur);
+    placeBoxes();
+    updateFocus();
     updatePresenter();
   }
   function go(i,s){cur=Math.max(0,Math.min(slides.length-1,i));var n=stepsOf(cur).length;step=Math.max(0,Math.min(n,s));render();}
