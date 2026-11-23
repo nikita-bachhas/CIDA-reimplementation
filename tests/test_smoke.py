@@ -294,3 +294,16 @@ def test_office_configs(tmp_path, name, n_shared, n_private):
     if cfg["adapt"].get("fixed_shots"):
         lab = fixed_labelled(ds, range(n_shared, n_shared + n_private), cfg["adapt"]["fixed_shots"])
         assert all(len(v) == 1 for v in lab.values()) and len(lab) == n_private
+
+
+def test_adabn_skips_a_final_batch_of_one():
+    """A target set of size 2*bs*k + 1 leaves a last batch of one image, which BatchNorm cannot train on
+    (Office-31 Amazon with 31 classes: 2817 images, batches of 64)."""
+    from adapt import adabn
+
+    x = torch.randn(5, 4)
+    ds = torch.utils.data.TensorDataset(x, torch.zeros(5), torch.arange(5))
+    model = torch.nn.Sequential(torch.nn.Linear(4, 3), torch.nn.BatchNorm1d(3))
+    adabn(model, torch.utils.data.DataLoader(ds, batch_size=2), torch.device("cpu"))  # batches 2, 2, 1
+    assert not model.training
+    assert model[1].num_batches_tracked.item() == 2

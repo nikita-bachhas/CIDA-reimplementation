@@ -104,6 +104,52 @@ Per-epoch means (`trajectory.py`; n = 4 up to epoch 3 because one seed resumed a
 - La1 then trains the whole network on these labels for every target sample. Shared accuracy falls from 37.3 to 0 within 10 epochs, and the private predictions merge into a single class.
 - This is the Digits failure (shared samples absorbed into private classes) taken to the end, made worse by the larger synthetic-to-real gap. We have no main-configuration VisDA run to compare with yet.
 
+**Vanilla results, VisDA Real→Syn (5 seeds, ALL / PRIV at epoch 10; paper in brackets):** 7.7 ± 1.4 / 13.9 ± 7.9 (55.8 / 55.7); ALL(cls) 8.4 ± 0.2. As in Syn→Real, every seed ends with a single predicted class. At epoch 10, shared_as_priv is 80.0 and priv_as_shared 20.0: four seeds put everything into one private class, and one seed puts everything into one shared class.
+Each Real→Syn seed takes about 6 h, so every seed was resumed after a requeue. `trajectory.py` therefore has only 1–2 seeds for epochs 0–8 (n in the table):
+
+| epoch | n | ALL | PRIV | shared | shared_as_priv | priv_as_shared | pl_acc_all | B_precision_priv |
+|---|---|---|---|---|---|---|---|---|
+| 0 | 1 | 29.5 | 0.0 | 56.3 | 0.0 | 100.0 | 34.2 | 38.4 |
+| 1 | 1 | 25.6 | 15.4 | 34.9 | 19.0 | 28.8 | 31.5 | 39.0 |
+| 2 | 1 | 27.2 | 18.5 | 35.2 | 18.1 | 22.7 | 30.2 | 40.1 |
+| 3 | 1 | 15.2 | 0.0 | 29.1 | 0.0 | 100.0 | 27.5 | 33.1 |
+| 5 | 1 | 10.3 | 0.0 | 19.7 | 0.0 | 100.0 | 19.4 | 14.2 |
+| 8 | 2 | 9.4 | 8.4 | 10.3 | 50.0 | 42.2 | 12.7 | 11.4 |
+| 10 | 5 | 7.7 | 13.9 | 2.1 | 80.0 | 20.0 | 9.5 | 18.4 |
+
+- The start is better than Syn→Real: the source model trained on real images gets 56.3 on the shared synthetic classes, and the pseudo-labels are 34.2% accurate (Syn→Real: 37.3 and 10.4).
+- It still collapses. PRIV rises for two epochs and then drops to 0 by epoch 3, when the seed predicts every image as shared. Pseudo-label accuracy falls from 34 to 10, and by epoch 10 each seed predicts a single class.
+- The paper reports 55.8 / 55.7 with the same architecture, so at least one of the choices the paper leaves open must differ from the authors' code. Our main suspects are the fully fine-tuned ResNet-50 (on Office A→D, freezing it took ALL from 49.8 to 70.3) and the fe/fd warm-up, which ends 24% away from identity (Syn→Real seed 0).
+
+**All vanilla runs are complete.** ALL / PRIV against the paper: Digits 33–47 / 47–61 (paper 46–73 / 46–72); Office-31 Table 3 21–56 / 3–27 (paper 62–88 / 62–88); Office-31 Table 2 10–60 / 1–21 (paper 64–90 / 63–88); VisDA 6–8 / 14–16 (paper 56 / 56).
+
+## Main configuration on Office-31
+
+All four changes on, with the ResNet-50 frozen (`configs/office31.yaml`, `configs/office20.yaml`; runs in `runs/<task>/`). 5 seeds, ALL / PRIV at epoch 60. Best epoch = highest mean ALL over seeds, chosen with target labels (`scripts/epochs.py runs/`), so an upper bound only.
+
+| Setting | Task | Main config | Best epoch (ep) | Vanilla | Paper |
+|---|---|---|---|---|---|
+| Table 3 (10/20) | A→D | **70.3 ± 4.5 / 48.5 ± 8.8** | 72.3 / 52.3 (28) | 45.2 / 16.9 | 72.2 / 72.6 |
+| | A→W | **67.1 ± 7.2 / 44.4 ± 12.8** | 69.9 / 49.0 (17) | 51.3 / 26.9 | 62.1 / 62.0 |
+| | D→A | 41.2 ± 2.6 / 11.4 ± 5.9 | 50.3 / 25.6 (8) | 25.2 / 3.2 | 62.6 / 61.8 |
+| | D→W | 72.3 ± 3.1 / 48.6 ± 6.2 | 75.8 / 53.1 (9) | 56.1 / 17.8 | 78.5 / 78.7 |
+| | W→A | 43.4 ± 6.5 / 12.2 ± 8.1 | 55.1 / 31.3 (8) | 20.9 / 7.4 | 62.1 / 62.4 |
+| | W→D | 73.5 ± 5.2 / 52.1 ± 10.5 | 77.5 / 57.7 (11) | 54.3 / 19.6 | 87.8 / 87.6 |
+| Table 2 (20/31) | A→D | 65.3 ± 2.9 / 26.6 ± 7.1 | 69.5 / 35.6 (21) | 47.7 / 16.3 | 73.3 / 73.1 |
+| | A→W | **66.6 ± 2.8 / 25.5 ± 6.1** | 68.3 / 32.5 (25) | 42.5 / 20.9 | 63.6 / 62.6 |
+| | D→A | 32.9 ± 4.6 / 2.5 ± 2.3 | 56.4 / 24.7 (3) | 9.9 / 4.4 | 64.1 / 64.3 |
+| | D→W | 71.7 ± 0.7 / 27.1 ± 1.2 | 79.6 / 43.2 (8) | 53.2 / 17.7 | 80.3 / 79.4 |
+| | W→A | 40.6 ± 4.9 / 4.5 ± 2.2 | 54.6 / 24.1 (4) | 14.7 / 1.4 | 63.7 / 62.8 |
+| | W→D | 77.5 ± 1.9 / 42.9 ± 4.8 | 82.6 / 53.7 (11) | 60.0 / 12.7 | 89.5 / 88.4 |
+
+- **ALL rises by 16 to 26 points over vanilla on every transfer.** It matches the paper on A→D (70.3 against 72.2, within noise) and exceeds it on A→W (67.1 against 62.1 in Table 3, 66.6 against 63.6 in Table 2). It stays 6 to 31 points below on the others.
+- **Shared accuracy holds except for Table 2 with Amazon as target.** It stays at 77–100 through adaptation on Table 3 and on Table 2 A→D, A→W, D→W, W→D (93–100 on the last two), and shared_as_priv stays below 9%. On Table 2 D→A it falls from 71.6 at epoch 0 to 68.6 at epoch 30 and 49.7 at epoch 60; on W→A to 60.7. In vanilla, shared accuracy fell to 36–50 with Amazon as target.
+- **PRIV is still the gap: 2.5–52.1 against 62–88 in the paper.** It improves over vanilla on every transfer except Table 2 D→A (2.5 against 4.4, within noise). The remaining loss is private samples predicted as shared, 16–94% at epoch 30. ALL peaks between epochs 3 and 28 and decays by 2 to 24 points until epoch 60; PRIV falls further (Table 2 D→A: 24.7 at epoch 3 → 2.5).
+- **Amazon targets are the weakest** (PRIV 2.5–12.2, and the four largest decays from the best epoch: Table 2 D→A 23.5, Table 2 W→A 14.0, W→A 11.7, D→A 9.1). In Table 3, the private part of B_t is only 54–60% correct there, against 73–93% with DSLR or Webcam as target. In Table 2 D→A it falls from 73.0 at epoch 0 to 38.2 at epoch 60, and pl_acc_all from 51.6 to 39.8: the errors build up late.
+- **Table 2 PRIV is lower than Table 3 on every transfer** (A→D 26.6 against 48.5, D→W 27.1 against 48.6). With 20 shared classes, more shared guides compete for each private sample: priv_as_shared at epoch 30 is 42–94% (Table 2 W→D lowest, D→A highest).
+- Table 2 D→A first crashed in AdaBN: Amazon with 31 classes has 2,817 images = 44 × 64 + 1, and BatchNorm cannot train on a final batch of one. Fixed in 7c71273 (the batch is skipped).
+- Earlier versions of `trajectory.py` and `epochs.py` dropped a resumed seed's epochs from before the restart (n = 4 in early rows). Both now keep the last logged value per epoch.
+
 ## Inconsistencies in the paper
 
 1. **Office private classes.** Supp §5 says the private classes are those "ranked 21–31", which is 11 classes. Table 3 has |Ct| = 20, which means 10 private classes. We use indices 20–29 for Table 3 (`configs/office31.yaml`) and 20–30 for Table 2, where |Cs| = 20 and |Ct| = 31 (`configs/office20.yaml`).

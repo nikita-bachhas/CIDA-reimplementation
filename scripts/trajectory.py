@@ -21,11 +21,13 @@ def main():
     variants = defaultdict(lambda: defaultdict(list))  # variant -> epoch -> [log rows]
     for log in sorted(Path(args.task_dir).glob("adapt_*/log.jsonl")):
         variant = re.sub(r"_seed\d+$", "", log.parent.name)
-        rows = [json.loads(l) for l in open(log)]
-        start = max(i for i, r in enumerate(rows) if r.get("event") == "labelled")  # last (re)start
-        for r in rows[start:]:
+        per_epoch = {}  # last logged row per epoch: a resumed seed keeps its epochs from before the restart
+        for l in open(log):
+            r = json.loads(l) if l.strip() else {}
             if "epoch" in r and "all" in r:
-                variants[variant][r["epoch"]].append(r)
+                per_epoch[r["epoch"]] = r
+        for e, r in per_epoch.items():
+            variants[variant][e].append(r)
     for variant, by_epoch in variants.items():
         print(f"\n== {variant}  (mean over seeds)")
         print("epoch  n " + "".join(f"{c:>17}" for c in COLS))
