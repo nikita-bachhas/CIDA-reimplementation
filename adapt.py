@@ -94,6 +94,8 @@ def adabn(model, loader, device):
         m.momentum = None  # cumulative average over the whole pass
     model.train()
     for x, _, _ in loader:
+        if len(x) < 2:  # BatchNorm cannot train on one sample (Amazon: 2,817 = 44 x 64 + 1)
+            continue
         model(x.to(device))
     for m in bns:
         m.momentum = 0.1

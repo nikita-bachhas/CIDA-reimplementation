@@ -644,6 +644,8 @@ The report's configuration (user's decision, 2026-11-23) on A→W, D→W, D→A 
 - PRIV's remaining loss is mostly private → shared (24–26%); D→W also has 12.6% private ↔ private confusion.
 - Time: source 21.2 min (Amazon) and 25.9 min (DSLR); 8.3–8.7 min per adaptation seed on Webcam.
 
+**Amazon targets: crash and fix** (job 56791, W→A, 2026-11-23): the source stage finished, then adaptation seed 0 failed in AdaBN with `ValueError: Expected more than 1 value per channel when training`. AdaBN re-estimates BatchNorm statistics over the target set in batches of 64. Amazon has 2,817 images, which is 44 × 64 + 1, so the last batch holds one image, and BatchNorm cannot run in train mode on a single sample. `adabn()` in `adapt.py` now skips batches of fewer than 2 images. The skipped image is 1 of 2,817 and only affects the BatchNorm statistics. Earlier runs are unchanged: DSLR (498) and Webcam (795) never leave a batch of one. The only earlier Amazon-target runs are the vanilla ones, and vanilla switches AdaBN off. D→A (job 56787) hits the same error after its source stage. Both source models are saved and reused on resubmission.
+
 ## Investigated, not adopted
 
 **Prediction-step changes for PRIV** (`scripts/posthoc.py`, re-evaluating the 15 saved Digits models; no target labels used). Mean change from the paper's rule (ALL / PRIV / shared):
