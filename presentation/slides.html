@@ -483,7 +483,7 @@ aside.notes{display:none}
   <h1>The baseline trains on its own early mistakes</h1>
   <div class="body">
     <div class="loop-wrap">
-      <svg viewBox="0 0 740 500" style="width:100%;height:auto" role="img" aria-label="A loop: each image takes the label of its nearest guide, training pulls it towards that guide, the features drift to the guide that was wrong, and the next round of labels is worse">
+      <svg viewBox="-80 0 900 500" style="width:100%;height:auto" role="img" aria-label="A loop: each image takes the label of its nearest guide, training pulls it towards that guide, the features drift to the guide that was wrong, and the next round of labels is worse">
         <g fill="#f3f2ee"><rect x="60" y="10" width="620" height="130" rx="22"/><rect x="400" y="250" width="300" height="170" rx="22"/><rect x="30" y="250" width="300" height="170" rx="22"/></g>
         <g fill="#0b0b0b" text-anchor="middle">
           <g font-size="29"><text x="400" y="70">Each image takes the label</text><text x="400" y="110">of its nearest guide</text></g>
@@ -498,8 +498,13 @@ aside.notes{display:none}
           <path d="M580 148V242"/><path d="M392 335H342"/><path d="M180 242V148"/>
         </g>
         <text x="370" y="468" text-anchor="middle" font-size="27" fill="#52514e">and the next round of labels is worse than the last</text>
+        <g fill="none" stroke="#d92b2b" stroke-width="5" stroke-linecap="round">
+          <g class="ptr" data-ptr="L1"><rect x="60" y="10" width="620" height="130" rx="22"/><path d="M-66 75H46" marker-end="url(#arw-red)"/></g>
+          <g class="ptr" data-ptr="L2"><rect x="400" y="250" width="300" height="170" rx="22"/><path d="M806 335H714" marker-end="url(#arw-red)"/></g>
+          <g class="ptr" data-ptr="L3"><rect x="30" y="250" width="300" height="170" rx="22"/><path d="M-66 335H16" marker-end="url(#arw-red)"/><path d="M180 242V148" marker-end="url(#arw-red)"/></g>
+        </g>
       </svg>
-      <p class="source">One image per new class is labelled, so the model labels the rest of the new photos itself. Guides come from the source class means, and for a new class from its single labelled image. The best epoch is always early, between 0 and 12.</p>
+      <span class="step" data-focus="L1"></span><span class="step" data-focus="L2"></span><span class="step" data-focus="L3"></span>
     </div>
     <div class="cards">
       <div class="card step"><h2>Digits: known images drift into the new classes</h2><p>First labels 38 to 44% right. By epoch 30, 57 to 60% of known images are called new.</p></div>
@@ -508,7 +513,7 @@ aside.notes{display:none}
     </div>
   </div>
   <p class="defence step">This is the method, not our code. Even at the best epoch, chosen with target labels we would not have, the baseline stays 1 to 19 points short on Office-31 and 24 to 33 on VisDA.</p>
-  <aside class="notes">The method as written has no safeguard against its own early mistakes. One image per new class is labelled, so the model labels the rest itself, training pulls every image towards whichever guide it picked, and the features move towards the guide that was wrong. The next round of labels is then worse, which is why the best epoch is always an early one. [click] On digits, known images drift into the new classes. Only 38 to 44 percent of the first labels are right. [click] On office photos it runs the other way, with up to 94 percent of new-class images called known. [click] On VisDA everything collapses onto a single class. [click] This is the method, not our code. Even at the best epoch, chosen with target labels we would not have, the baseline stays 1 to 19 points short on office photos and 24 to 33 on VisDA.</aside>
+  <aside class="notes">The method as written has no safeguard against its own early mistakes. [click] One image per new class is labelled, so the model labels the rest itself: each image takes the label of its nearest guide. [click] Training then pulls every image towards whichever guide it picked. [click] So the features move towards the guide that was wrong, and the next round of labels is worse. That is why the best epoch is always an early one. [click] On digits, known images drift into the new classes. Only 38 to 44 percent of the first labels are right. [click] On office photos it runs the other way, with up to 94 percent of new-class images called known. [click] On VisDA everything collapses onto a single class. [click] This is the method, not our code. Even at the best epoch, chosen with target labels we would not have, the baseline stays 1 to 19 points short on office photos and 24 to 33 on VisDA.</aside>
 </section>
 
 <!-- ============================================================ 8 -->

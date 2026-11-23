@@ -87,7 +87,13 @@ Here is our baseline: CIDA exactly as the paper describes it, with none of our f
 
 ## Slide 7. Why the baseline fails (40 s)
 
-The method as written has no safeguard against its own early mistakes. One image per new class is labelled, so the model labels the rest itself, training pulls every image towards whichever guide it picked, and the features move towards the guide that was wrong. The next round of labels is then worse, which is why the best epoch is always an early one.
+The method as written has no safeguard against its own early mistakes.
+
+**[click]** One image per new class is labelled, so the model labels the rest itself: each image takes the label of its nearest guide.
+
+**[click]** Training then pulls every image towards whichever guide it picked.
+
+**[click]** So the features move towards the guide that was wrong, and the next round of labels is worse. That is why the best epoch is always an early one.
 
 **[click]** On digits, known images drift into the new classes. Only 38 to 44 percent of the first labels are right.
 
