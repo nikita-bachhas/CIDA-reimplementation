@@ -73,7 +73,7 @@ The epoch is the same for every task and is not tuned per task with target label
   \centering
   \footnotesize
   \setlength{\tabcolsep}{3.5pt}
-  \caption{Results of the baseline (\cref{sec:exp-vanilla}) and of our changes (\cref{sec:exp-improvements}) against the numbers reported in the paper. ALL and PRIV accuracy in \%, mean over 5 seeds, at epoch 15. $^\dagger$VisDA adapts for 10 epochs, so its rows are at the last epoch. The Improved columns are to be filled in. The paper reports one number per task and does not give its epoch.}
+  \caption{Results of the baseline (\cref{sec:exp-vanilla}) and of our changes (\cref{sec:exp-improvements}) against the numbers reported in the paper. ALL and PRIV accuracy in \%, mean over 5 seeds, at epoch 15. $^\dagger$VisDA adapts for 10 epochs, so its rows are at the last epoch. Bold marks values above the paper. The Improved columns are to be filled in. The paper reports one number per task and does not give its epoch.}
   \label{tab:results}
   \begin{tabular}{@{}llcccccc@{}}
     \toprule
@@ -81,9 +81,9 @@ The epoch is the same for every task and is not tuned per task with target label
     \cmidrule(lr){3-4}\cmidrule(lr){5-6}\cmidrule(lr){7-8}
     Setting & Task & ALL & PRIV & ALL & PRIV & ALL & PRIV \\
     \midrule
-    Digits & M$\to$U & 47.0 & 54.0 &  &  & 72.5 & 71.6 \\
-     & U$\to$M & 49.6 & 59.0 &  &  & 69.4 & 68.6 \\
-     & S$\to$M & 35.1 & 44.2 &  &  & 46.4 & 45.7 \\
+    Digits & M$\to$U & 47.0 & 54.0 & 71.6 & 57.5 & 72.5 & 71.6 \\
+     & U$\to$M & 49.6 & 59.0 & 68.3 & 54.4 & 69.4 & 68.6 \\
+     & S$\to$M & 35.1 & 44.2 & \textbf{58.2} & \textbf{52.6} & 46.4 & 45.7 \\
     \midrule
     Office 10/20 & A$\to$D & 55.8 & 33.1 &  &  & 72.2 & 72.6 \\
      & A$\to$W & 59.2 & 38.2 &  &  & 62.1 & 62.0 \\
