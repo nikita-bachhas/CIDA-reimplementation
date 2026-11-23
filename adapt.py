@@ -163,7 +163,7 @@ def main(argv=None):
     eval_excl = set(lab_idx) if cfg["tgt_eval_split"] == cfg["tgt_train_split"] else set()
 
     # --------------------------------------------------------------- model
-    src_path = args.source_ckpt or Path(cfg["out_dir"]) / "source" / "final.pt"
+    src_path = args.source_ckpt or cfg.get("source_from") or Path(cfg["out_dir"]) / "source" / "final.pt"
     src = load_ckpt(src_path)
     model = CIDA(cfg, n_shared, n_private, ablation).to(device)
     model.fs.load_state_dict(src["fs"])

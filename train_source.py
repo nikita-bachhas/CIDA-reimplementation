@@ -55,6 +55,9 @@ def main(argv=None):
     args = ap.parse_args(argv)
     cfg = load_config(args.config, args.set)
     scfg = cfg["src_train"]
+    if cfg.get("source_from"):  # reuses another task's source model (same source domain and classes)
+        print(f"[skip] source model comes from {cfg['source_from']}", flush=True)
+        return
     out = Path(cfg["out_dir"]) / "source"
     out.mkdir(parents=True, exist_ok=True)
     if (out / "final.pt").exists() and not args.force:

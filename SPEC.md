@@ -675,18 +675,23 @@ The user asked on 2026-11-23 for the same results in the Table 3 setting (10 sha
 
 - **Same as the Table 2 final runs:** hand-picked one-shot images, `pseudo_label: lp`, 20 adaptation epochs, ResNet-50 frozen, last epoch reported.
 - **Picks:** the Table 2 picks of each target domain without trash_can, which Table 3 drops. DSLR targets use the picks of `office_a2d_fixedshot.yaml` (the Table 2 DSLR picks came from these), Webcam and Amazon targets those of the `office20_*_final.yaml` configs.
-- **Source length, step-matched to the Table 2 final runs.** With 10 shared classes each source domain has about half the images, so the epoch counts are raised to keep the number of source steps:
+- **Time limit (user, 2026-11-23): about 2 h, jobs run one after another.** Step-matched source models (Amazon 340, Webcam 410, DSLR 712 epochs) would take ~1 h 50 min for three models alone, since source training costs 3–5 s per epoch whatever the step count (Table 2 logs: Amazon 8.4 s, DSLR 4.9 s, Webcam 4.1–4.3 s). Two changes make all six tasks fit one job:
+  - **Shared source models.** The source stage uses only the source domain and the 10 shared classes, so A→D and A→W would train the same model (likewise W→D / W→A, D→W / D→A). New config key `source_from`: `train_source.py` skips the stage and `adapt.py` loads that file. A→W, W→A and D→A reuse the source models of A→D, W→D and D→W, which must run first in the same job.
+  - **Table 2 epoch counts, not step counts.** Each source domain keeps its Table 2 final-run epoch count, which gives about half the Table 2 steps:
 
-| Source | Images (10 classes) | Steps per epoch | Source epochs | Steps | Table 2 final |
-| --- | --- | --- | --- | --- | --- |
-| Amazon (A→D, A→W) | 824 | 25 | 340 + 1 | ~8,525 | 150 + 1, ~8,450 |
-| Webcam (W→D, W→A) | 235 | 7 | 410 + 1 | ~2,877 | 180 + 1, ~2,880 |
-| DSLR (D→W, D→A) | 154 | 4 | 712 + 1 | ~2,852 | 317 + 1, ~2,850 |
+| Source | Images (10 classes) | Steps per epoch | Source epochs | Steps | Table 2 final | Est. time |
+| --- | --- | --- | --- | --- | --- | --- |
+| Amazon (A→D, A→W) | 824 | 25 | 150 + 1 | ~3,775 | 150 + 1, ~8,450 | ~14 min |
+| Webcam (W→D, W→A) | 235 | 7 | 180 + 1 | ~1,267 | 180 + 1, ~2,880 | ~12 min |
+| DSLR (D→W, D→A) | 154 | 4 | 317 + 1 | ~1,272 | 317 + 1, ~2,850 | ~24 min |
+
+  - **Seed 0 only** (one adaptation per task, ~5–9 min each): about 1.5 h for the whole job, estimated from the Table 2 timings. Seeds 1–4 can follow later with `STAGES=adapt`.
+  - **Risk:** the Webcam and DSLR source models get ~1,270 steps. In Table 2, W→D's source at ~800 steps was under-trained (Ls2 2.17, 39% of negatives detected) and at ~1,600 steps nearly settled (Ls2 0.79, 94.5%). Check `loss_ls2` and `neg_detected` at the end of each source stage.
 
 - **Targets:** DSLR 327 images, Webcam 481, Amazon 1,772 (shared + private classes; labelled images left out of evaluation). None leaves a single-image AdaBN batch, and the AdaBN fix covers it anyway.
-- **Untested:** lp has never run in training in the Table 3 setting (`office_a2d_lpref.yaml` exists but has no recorded result). Step-matching is a choice of ours; matching epochs instead would give these source models about half the steps, which under-trained W→D in Table 2.
+- **Untested:** lp has never run in training in the Table 3 setting (`office_a2d_lpref.yaml` exists but has no recorded result). Single seed: no spread; Table 2 seed sd was 0.6–2.0 ALL and 1.5–4.4 PRIV.
 - **Compare with:** paper Table 3 A→D 72.2 / 72.6, A→W 62.1 / 62.0, D→W 78.5 / 78.7, W→D 87.8 / 87.6, D→A 62.6 / 61.8, W→A 62.1 / 62.4; vanilla (epoch 60) A→D 45.2 / 16.9, A→W 51.3 / 26.9, D→W 56.1 / 17.8, W→D 54.3 / 19.6, D→A 25.2 / 3.2, W→A 20.9 / 7.4.
-- **Checked locally:** all six configs load with the 10 + 10 split and every pick resolves to a real image; W→D ran end to end on the CPU (1 source epoch, 1 adaptation epoch).
+- **Checked locally:** all six configs load with the 10 + 10 split and every pick resolves to a real image; W→D ran end to end on the CPU (1 source epoch, 1 adaptation epoch); W→A with `source_from` skipped the source stage and adapted from the shared model.
 
 ## Investigated, not adopted
 

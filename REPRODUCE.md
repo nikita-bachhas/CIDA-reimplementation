@@ -196,12 +196,12 @@ sbatch slurm/run.sbatch configs/office20_d2a_final.yaml
 sbatch slurm/run.sbatch configs/office20_w2a_final.yaml
 ```
 
-**Final run in the Table 3 setting (10 shared + 10 private), all six tasks** (2026-11-23; SPEC "Final run: off-protocol configuration in the Table 3 setting"). Each config trains its own source model (same step counts as the Table 2 final runs: Amazon ~21 min, Webcam ~13 min, DSLR ~26 min), then seeds 0–4 at 20 epochs. Targets are smaller than in Table 2, so adaptation should take about 5–9 min per seed (estimate). About 2 h per job:
+**Final run in the Table 3 setting (10 shared + 10 private), all six tasks** (2026-11-23; SPEC "Final run: off-protocol configuration in the Table 3 setting"). One job, seed 0, ~1.5 h estimated. The order matters: A→W, W→A and D→A reuse the source models trained by A→D, W→D and D→W (`source_from`).
 
 ```bash
-sbatch --export=ALL,CONFIGS="configs/office_a2d_final.yaml configs/office_w2d_final.yaml" slurm/run.sbatch
-sbatch --export=ALL,CONFIGS="configs/office_a2w_final.yaml configs/office_d2w_final.yaml" slurm/run.sbatch
-sbatch --export=ALL,CONFIGS="configs/office_d2a_final.yaml configs/office_w2a_final.yaml" slurm/run.sbatch
+sbatch --export=ALL,SEEDS="0",CONFIGS="configs/office_a2d_final.yaml configs/office_a2w_final.yaml configs/office_w2d_final.yaml configs/office_w2a_final.yaml configs/office_d2w_final.yaml configs/office_d2a_final.yaml" slurm/run.sbatch
+# later, more seeds (source models are reused):
+sbatch --export=ALL,STAGES=adapt,SEEDS="1 2 3 4",CONFIGS="configs/office_a2d_final.yaml configs/office_a2w_final.yaml configs/office_w2d_final.yaml configs/office_w2a_final.yaml configs/office_d2w_final.yaml configs/office_d2a_final.yaml" slurm/run.sbatch
 ```
 
 **Step-matched source training, paper protocol — dropped, not to be run** (the report now uses the off-protocol configuration only). (2026-11-23; SPEC "Under test: step-matched source training, paper protocol"). W→D (180 source epochs) and D→W (317), random one-shot draws, lp, 60 adaptation epochs, seeds 0–4. Each trains its own source model (W→D ~13 min, D→W ~26 min), then 5 seeds of ~34 / ~26 min:

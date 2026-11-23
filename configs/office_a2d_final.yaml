@@ -1,14 +1,14 @@
 # Final run, Table 3 setting (10 shared + 10 private) on A->D: the report's off-protocol configuration,
 # as configs/office20_*_final.yaml (Table 2 setting) but with the Table 3 class split. Hand-picked one-shot dslr
 # images (the Table 2 picks without trash_can, which Table 3 drops; not the paper's protocol), lp pseudo-labels,
-# 20 adaptation epochs, ResNet-50 frozen. Source length is step-matched to the Table 2 final runs: 10 shared
-# classes give amazon 25 source steps per epoch, so 340 epochs + 1 warm-up is ~8,525 steps (Table 2: Amazon
-# ~8,450, Webcam ~2,880, DSLR ~2,850). Seeds 0-4 change only the training RNG.
+# 20 adaptation epochs, ResNet-50 frozen. Source length: 150 epochs + 1 warm-up, the Table 2 final-run epoch count
+# for this source domain (about half the Table 2 steps, since 10 shared classes give half the images; chosen
+# so all six tasks fit one ~2 h job). Seeds 0-4 change only the training RNG.
 # Trains its own source model: writes runs/office_a2d_final/source and
 # runs/office_a2d_final/adapt_1shot_abl-none_final_seed<k>.
 base: office_a2d.yaml
 name: office_a2d_final
-src_train: {epochs: 340, backbone_lr_mult: 0.0}
+src_train: {epochs: 150, backbone_lr_mult: 0.0}
 adapt:
   tag: final
   pseudo_label: lp
