@@ -19,11 +19,11 @@ How to use this script.
 | 6     | The baseline                         | 30 s | 2:25    |
 | 7     | Why the baseline fails               | 40 s | 3:05    |
 | 8     | Four changes                         | 35 s | 3:40    |
-| 9     | Results                              | 30 s | 4:10    |
-| 10    | Limitations                          | 20 s | 4:30    |
-| 11    | Future work                          | 15 s | 4:45    |
+| 9     | Results                              | 35 s | 4:15    |
+| 10    | Limitations                          | 25 s | 4:40    |
+| 11    | Future work                          | 15 s | 4:55    |
 
-The reimplementation, slides 6 to 9, takes 135 seconds, the largest share of the talk. The total is 4:45, which leaves 15 seconds of slack.
+The reimplementation, slides 6 to 9, takes 135 seconds, the largest share of the talk. The total is 4:55, which leaves 5 seconds of slack.
 
 ---
 
@@ -109,7 +109,7 @@ So we made four changes, one for each cause.
 
 **[click]** Fourth, for office photos we keep the pretrained image network fixed. Retraining it on about 900 photos dropped the new-thing accuracy of its features from 72.4 to 33.1.
 
-## Slide 9. Results (30 s)
+## Slide 9. Results (35 s)
 
 Read the table left to right. As written, the method sits 14 to 50 points below the paper on every task.
 
@@ -121,7 +121,9 @@ Read the table left to right. As written, the method sits 14 to 50 points below 
 
 **[click]** What remains is the new classes on office photos, 36.2 against 70.8.
 
-## Slide 10. Limitations (20 s)
+**[click]** And separately, with the one labelled image per new class chosen by eye and reported at epoch 15, all three digit transfers land above the paper: 83.7 against 72.5, 77.1 against 69.4, and 60.4 against 46.4. That is a different protocol from the table, so we keep it apart.
+
+## Slide 10. Limitations (25 s)
 
 Three limits.
 
@@ -130,6 +132,8 @@ Three limits.
 **[click]** New classes on office photos are still the gap.
 
 **[click]** And without target labels we cannot pick the best epoch, so we report the last one.
+
+**[click]** Finally, the one labelled image matters more than the paper suggests, and we have not isolated how much.
 
 ## Slide 11. Future work (15 s)
 
@@ -147,11 +151,13 @@ Next, **[click]** run VisDA with the four changes, **[click]** close the new-cla
 | 7 | The feedback loop; best epoch between 0 and 12 | Nikkita's report, "The core problem" |
 | 7 | 38 to 44%, 57 to 60%; up to 94%; 10% and single-class collapse | Nikkita's report, "How the failure shows up on each benchmark" |
 | 7 | 1 to 19 points on Office-31, 24 to 33 on VisDA at the best epoch | Nikkita's report, "Is it our reproduction or the method?" |
-| 8 | 74 to 78% and 14 to 21%, 44.8, 55.1, 71.9, 33.1 and 72.4, approximately 900 photos | SPEC.md, "Our choices". **To confirm with Sourabh and Siddharth.** |
+| 8 | 74 to 78% and 14 to 21%, 44.8, 55.1, 71.9, 33.1 and 72.4, approximately 900 photos | SPEC.md, "Our choices" |
+| 8 | +7.9, +18.3, +5.3 overall and 2 to 7 points lower on new things | Sourabh's report, matched all-target against confident-only La1 at epoch 15, 5 seeds |
+| 9 | 83.7 / 75.5, 77.1 / 71.0, 60.4 / 59.1 | Sourabh's report, chosen one-shot supports, confident-only La1, epoch 15, 5 seeds (83.73 ± 1.83, 77.10 ± 4.65, 60.37 ± 4.07) |
 | 8 | 13% on Digits, 24% on VisDA, projection error after pretraining | Nikkita's report, "Why the early pseudo-labels are wrong" |
 | 9 | Paper columns | Paper, Tables 2 and 3 |
 | 9 | As written: 43.7/50.5, 47.2/60.7, 32.8/46.5, 6.2/16.1, 7.7/13.9 | Report, Table 3 (preset=vanilla, 5 seeds, `runs_vanilla/`) |
-| 9 | With our changes: 71.9/55.3, 65.5/51.0, 58.8/44.0, 61.3/36.2 | SPEC.md, "Vanilla results, Digits" (our main runs) and "Main configuration on Office-31". Office row = mean of the six 10/20 transfers. **To confirm with Sourabh and Siddharth.** |
+| 9 | With our changes: 71.9/55.3, 65.5/51.0, 58.8/44.0, 61.3/36.2 | SPEC.md, "Vanilla results, Digits" (our main runs, last epoch, random one-shot images) and "Main configuration on Office-31". Office row = mean of the six 10/20 transfers. **Office still to confirm with Siddharth.** |
 | 10 | One GPU, six hours, one job at a time | `README.md` line 34, CCDS GPU TC2 QoS `normal` |
 | 10 | Peak near epoch 30, drift to epoch 60 | SPEC.md, Office A→D frozen run (ALL 72.2 / PRIV 52.3 at epoch 30, PRIV 48.5 at epoch 60) |
 | 10, 11 | 36.2 against 70.8; 26% of new-class images pulled into known classes | Same sources as slide 9, Office averages; SPEC.md, A→D confusion at epoch 60 |

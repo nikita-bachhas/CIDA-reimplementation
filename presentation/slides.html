@@ -186,6 +186,11 @@ svg.arw{width:64px;height:26px;flex:none;stroke:var(--ink2);stroke-width:3;fill:
 .lesson{margin-bottom:44px}
 .lesson p{font-size:40px;font-weight:700;line-height:1.22}
 .lesson p span{display:block;font-weight:400;font-size:32px;color:var(--ink2);margin-top:8px;line-height:1.3}
+.callout{background:var(--known-bg);border-radius:20px;padding:20px 32px;margin-top:22px}
+.callout h2{font-size:32px;margin:0 0 10px}
+.callout .row{display:flex;gap:48px;font-size:34px;font-weight:700}
+.callout .row b{font-size:40px}
+.callout .n{font-size:26px;color:var(--ink2);margin-top:10px;line-height:1.3}
 .future li{font-size:34px;line-height:1.3;margin-bottom:26px}
 .future li .tag{display:block}
 .thanks{font-size:56px;font-weight:800;margin-top:auto}
@@ -515,7 +520,7 @@ aside.notes{display:none}
     <tbody>
       <tr class="step"><td class="i">1</td><td>Internal calibration still matches the old photos<span class="tag">(source BatchNorm statistics)</span></td><td>Recalibrate on the new photos<span class="tag">(AdaBN)</span></td><td class="num">74 to 78%</td><td class="arrow">→</td><td class="num">14 to 21%</td><td class="meas">known images labelled as new, lower is better, Digits</td></tr>
       <tr class="step"><td class="i">2</td><td>The bridge starts slightly bent<span class="tag">(plain MLP, about 13% error on Digits and 24% on VisDA after pretraining)</span></td><td>Build it to start as an exact pass-through<span class="tag">(u + MLP(u), last layer set to zero)</span></td><td class="num">44.8</td><td class="arrow">→</td><td class="num">71.9</td><td class="meas">overall accuracy, MNIST→USPS</td></tr>
-      <tr class="step"><td class="i">3</td><td>The model learns from all its own guesses<span class="tag">(loss L<sub>a1</sub> on every photo)</span></td><td>Learn only from the most confident 20%<span class="tag">(loss L<sub>a1</sub> on B<sub>t</sub>)</span></td><td class="num">55.1</td><td class="arrow">→</td><td class="num">71.9</td><td class="meas">overall accuracy, MNIST→USPS</td></tr>
+      <tr class="step"><td class="i">3</td><td>The model learns from all its own guesses<span class="tag">(loss L<sub>a1</sub> on every photo)</span></td><td>Learn only from the most confident 20%<span class="tag">(loss L<sub>a1</sub> on B<sub>t</sub>)</span></td><td class="num">55.1</td><td class="arrow">→</td><td class="num">71.9</td><td class="meas">overall accuracy, MNIST→USPS. A matched comparison on all three digit transfers gives +7.9, +18.3 and +5.3 overall, and 2 to 7 points lower on new things</td></tr>
       <tr class="step"><td class="i">4</td><td>Retraining the image network on approximately 900 photos erases general vision<span class="tag">(Office and VisDA only)</span></td><td>Keep the pretrained network fixed<span class="tag">(frozen ResNet-50)</span></td><td class="num">33.1</td><td class="arrow">→</td><td class="num">72.4</td><td class="meas">accuracy on new things from the features alone, Office Amazon→DSLR</td></tr>
     </tbody>
   </table>
@@ -540,8 +545,13 @@ aside.notes{display:none}
       <tr class="step"><td class="l">VisDA, synthetic→real<span class="tag">as written, real→syn: 7.7 / 13.9</span></td><td>56.4</td><td>56.3</td><td>6.2</td><td>16.1</td><td>not run</td><td>not run</td></tr>
     </tbody>
   </table>
-  <p class="source" style="margin-top:auto">Accuracy in %, mean of 5 seeds. Paper, Tables 2 and 3. As written: report, Table 3 (runs_vanilla/). With our changes: SPEC.md (runs/); the Office row averages the six 10/20 transfers. Bold: matches or beats the paper. VisDA with our changes was not run, see the next slide.</p>
-  <aside class="notes">Read the table left to right. As written, the method sits 14 to 50 points below the paper on every task. [click] With our four changes, digits recover: 71.9 against the paper's 72.5 on MNIST to USPS, within noise, [click] and 58.8 against 46.4 on SVHN to MNIST, above the paper. [click] Office photos recover 19 points, to 61.3 on average. [click] What remains is the new classes on office photos, 36.2 against 70.8.</aside>
+  <div class="callout step">
+    <h2>Separately: digits with one-shot supports chosen by eye, at epoch 15</h2>
+    <div class="row"><span>MNIST→USPS <b>83.7</b> / 75.5</span><span>USPS→MNIST <b>77.1</b> / 71.0</span><span>SVHN→MNIST <b>60.4</b> / 59.1</span></div>
+    <p class="n">Overall / new things, 5 seeds. Above the paper on both measures for all three transfers. A different protocol from the table, which averages over random one-shot images at the last epoch, so the two are not directly comparable.</p>
+  </div>
+  <p class="source" style="margin-top:auto">Accuracy in %, mean of 5 seeds. Paper, Tables 2 and 3. As written: report, Table 3 (runs_vanilla/). With our changes: SPEC.md (runs/); the Office row averages the six 10/20 transfers. Bold: matches or beats the paper.</p>
+  <aside class="notes">Read the table left to right. As written, the method sits 14 to 50 points below the paper on every task. [click] With our four changes, digits recover: 71.9 against the paper's 72.5 on MNIST to USPS, within noise, [click] and 58.8 against 46.4 on SVHN to MNIST, above the paper. [click] Office photos recover 19 points, to 61.3 on average. [click] What remains is the new classes on office photos, 36.2 against 70.8. [click] And separately, with the one labelled image per new class chosen by eye and reported at epoch 15, all three digit transfers land above the paper: 83.7 against 72.5, 77.1 against 69.4, and 60.4 against 46.4. That is a different protocol from the table, so we keep it apart.</aside>
 </section>
 
 <!-- ============================================================ 10 -->
@@ -551,8 +561,9 @@ aside.notes{display:none}
   <div class="lesson step"><div class="dot">1</div><p>We never ran VisDA with our changes<span>The course cluster gives one GPU for six hours at a time, one job at a time. ResNet-50 over VisDA, five seeds and two training stages, did not fit the budget we had left. The VisDA row above is the baseline only.</span></p></div>
   <div class="lesson step"><div class="dot">2</div><p>New classes on Office photos are still the gap<span>Overall accuracy recovers to 61.3, but accuracy on the new classes reaches only 36.2 against the paper's 70.8. Most of what is lost is new-class images assigned to a known class.</span></p></div>
   <div class="lesson step"><div class="dot">3</div><p>We cannot choose the epoch without target labels<span>New-class accuracy peaks near epoch 30 and drifts down by epoch 60. We report the last epoch, which costs a few points but uses no label we would not have.</span></p></div>
+  <div class="lesson step"><div class="dot">4</div><p>The one labelled image matters, and we have not isolated how much<span>The digits study chose a clear example per new class and reported epoch 15; the main table averages over random one-shot images at the last epoch. The two differences are not separated.</span></p></div>
   <p class="source" style="margin-top:auto">Five seeds per task throughout. Treat differences under about two points between variants as noise.</p>
-  <aside class="notes">Three limits. [click] We never ran VisDA with our changes. The cluster gives one GPU for six hours at a time, and ResNet-50 over VisDA with five seeds did not fit what we had left. [click] New classes on office photos are still the gap. [click] And without target labels we cannot pick the best epoch, so we report the last one.</aside>
+  <aside class="notes">Three limits. [click] We never ran VisDA with our changes. The cluster gives one GPU for six hours at a time, and ResNet-50 over VisDA with five seeds did not fit what we had left. [click] New classes on office photos are still the gap. [click] And without target labels we cannot pick the best epoch, so we report the last one. [click] Finally, the one labelled image matters more than the paper suggests, and we have not isolated how much.</aside>
 </section>
 
 <!-- ============================================================ 11 -->
