@@ -669,6 +669,25 @@ The report's configuration (user's decision, 2026-11-23) on A→W, D→W, D→A 
 - **Source models:** Webcam 180 epochs ended with Ls2 0.31, 99.3% of negatives detected (job 56791; same as W→D's). DSLR 317 epochs uses D→W's recipe; its log copy (job 56787) stops at epoch 90.
 - Time: 13.2–13.4 min per adaptation seed (Amazon is 3.5× the size of Webcam).
 
+### Final run: off-protocol configuration in the Table 3 setting (2026-11-23)
+
+The user asked on 2026-11-23 for the same results in the Table 3 setting (10 shared + 10 private classes, |Ct| = 20). Until now our method had run there only on A→D, with older configurations (random shots: 70.3 / 48.5 / 93.4; hand-picked, nearest guide, 60 epochs: 81.9 / 69.8 / 94.7). Configs `configs/office_<task>_final.yaml` for all six tasks, folders `runs/office_<task>_final/`, tag `final`, seeds 0–4.
+
+- **Same as the Table 2 final runs:** hand-picked one-shot images, `pseudo_label: lp`, 20 adaptation epochs, ResNet-50 frozen, last epoch reported.
+- **Picks:** the Table 2 picks of each target domain without trash_can, which Table 3 drops. DSLR targets use the picks of `office_a2d_fixedshot.yaml` (the Table 2 DSLR picks came from these), Webcam and Amazon targets those of the `office20_*_final.yaml` configs.
+- **Source length, step-matched to the Table 2 final runs.** With 10 shared classes each source domain has about half the images, so the epoch counts are raised to keep the number of source steps:
+
+| Source | Images (10 classes) | Steps per epoch | Source epochs | Steps | Table 2 final |
+| --- | --- | --- | --- | --- | --- |
+| Amazon (A→D, A→W) | 824 | 25 | 340 + 1 | ~8,525 | 150 + 1, ~8,450 |
+| Webcam (W→D, W→A) | 235 | 7 | 410 + 1 | ~2,877 | 180 + 1, ~2,880 |
+| DSLR (D→W, D→A) | 154 | 4 | 712 + 1 | ~2,852 | 317 + 1, ~2,850 |
+
+- **Targets:** DSLR 327 images, Webcam 481, Amazon 1,772 (shared + private classes; labelled images left out of evaluation). None leaves a single-image AdaBN batch, and the AdaBN fix covers it anyway.
+- **Untested:** lp has never run in training in the Table 3 setting (`office_a2d_lpref.yaml` exists but has no recorded result). Step-matching is a choice of ours; matching epochs instead would give these source models about half the steps, which under-trained W→D in Table 2.
+- **Compare with:** paper Table 3 A→D 72.2 / 72.6, A→W 62.1 / 62.0, D→W 78.5 / 78.7, W→D 87.8 / 87.6, D→A 62.6 / 61.8, W→A 62.1 / 62.4; vanilla (epoch 60) A→D 45.2 / 16.9, A→W 51.3 / 26.9, D→W 56.1 / 17.8, W→D 54.3 / 19.6, D→A 25.2 / 3.2, W→A 20.9 / 7.4.
+- **Checked locally:** all six configs load with the 10 + 10 split and every pick resolves to a real image; W→D ran end to end on the CPU (1 source epoch, 1 adaptation epoch).
+
 ## Investigated, not adopted
 
 **Prediction-step changes for PRIV** (`scripts/posthoc.py`, re-evaluating the 15 saved Digits models; no target labels used). Mean change from the paper's rule (ALL / PRIV / shared):

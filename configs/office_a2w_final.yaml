@@ -1,0 +1,27 @@
+# Final run, Table 3 setting (10 shared + 10 private) on A->W: the report's off-protocol configuration,
+# as configs/office20_*_final.yaml (Table 2 setting) but with the Table 3 class split. Hand-picked one-shot webcam
+# images (the Table 2 picks without trash_can, which Table 3 drops; not the paper's protocol), lp pseudo-labels,
+# 20 adaptation epochs, ResNet-50 frozen. Source length is step-matched to the Table 2 final runs: 10 shared
+# classes give amazon 25 source steps per epoch, so 340 epochs + 1 warm-up is ~8,525 steps (Table 2: Amazon
+# ~8,450, Webcam ~2,880, DSLR ~2,850). Seeds 0-4 change only the training RNG.
+# Trains its own source model: writes runs/office_a2w_final/source and
+# runs/office_a2w_final/adapt_1shot_abl-none_final_seed<k>.
+base: office_a2w.yaml
+name: office_a2w_final
+src_train: {epochs: 340, backbone_lr_mult: 0.0}
+adapt:
+  tag: final
+  pseudo_label: lp
+  epochs: 20
+  backbone_lr_mult: 0.0
+  fixed_shots:
+    phone: frame_0011.jpg           # black multi-line handset (the most common model), 3/4, display and keypad visible
+    printer: frame_0018.jpg         # boxy laser printer (7 of 20, like the DSLR pick), 3/4, plain wall
+    projector: frame_0019.jpg       # silver tabletop model (15 of 30), lens front and centre
+    punchers: frame_0016.jpg        # two-hole punch with arch handle (11 of 27, like the DSLR pick), paper guide visible
+    ring_binder: frame_0023.jpg     # lever-arch binder (18 of 40), ring mechanism and spine visible
+    ruler: frame_0005.jpg           # purple ruler (4 of 11), whole length visible, clearer than the white ones on grey
+    scissors: frame_0011.jpg        # blue scissors (13 of 25), open, blades and handles visible
+    speaker: frame_0023.jpg         # tall white speaker with grey grille (the most common model), 3/4
+    stapler: frame_0020.jpg         # black Swingline (black staplers 9 of 24), throat and anvil visible
+    tape_dispenser: frame_0020.jpg  # rectangular black model (9 of 23, like the DSLR pick), roll and cutter visible

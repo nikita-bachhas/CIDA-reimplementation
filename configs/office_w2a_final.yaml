@@ -1,0 +1,27 @@
+# Final run, Table 3 setting (10 shared + 10 private) on W->A: the report's off-protocol configuration,
+# as configs/office20_*_final.yaml (Table 2 setting) but with the Table 3 class split. Hand-picked one-shot amazon
+# images (the Table 2 picks without trash_can, which Table 3 drops; not the paper's protocol), lp pseudo-labels,
+# 20 adaptation epochs, ResNet-50 frozen. Source length is step-matched to the Table 2 final runs: 10 shared
+# classes give webcam 7 source steps per epoch, so 410 epochs + 1 warm-up is ~2,877 steps (Table 2: Amazon
+# ~8,450, Webcam ~2,880, DSLR ~2,850). Seeds 0-4 change only the training RNG.
+# Trains its own source model: writes runs/office_w2a_final/source and
+# runs/office_w2a_final/adapt_1shot_abl-none_final_seed<k>.
+base: office_w2a.yaml
+name: office_w2a_final
+src_train: {epochs: 410, backbone_lr_mult: 0.0}
+adapt:
+  tag: final
+  pseudo_label: lp
+  epochs: 20
+  backbone_lr_mult: 0.0
+  fixed_shots:
+    phone: frame_0051.jpg           # black multi-line desk phone with display (the most common kind), 3/4
+    printer: frame_0022.jpg         # black all-in-one inkjet with paper in the tray, 3/4
+    projector: frame_0038.jpg       # grey mid-size projector, lens front and centre, 3/4
+    punchers: frame_0033.jpg        # black three-hole office punch with handle (many images are craft punches), 3/4
+    ring_binder: frame_0050.jpg     # black three-ring binder, open, rings visible
+    ruler: frame_0004.jpg           # stainless steel ruler (6 of 75 alike), tick marks visible
+    scissors: frame_0056.jpg        # orange-handled scissors (8 of 100 alike), open
+    speaker: frame_0037.jpg         # pair of black desktop speakers, drivers visible
+    stapler: frame_0018.jpg         # black desktop stapler (the most common kind), throat visible
+    tape_dispenser: frame_0047.jpg  # black desktop dispenser with roll (the most common kind)
