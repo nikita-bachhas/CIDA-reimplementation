@@ -1,0 +1,17 @@
+# Siddharth's MNIST -> USPS baseline. Improved reproduction, not preset=vanilla.
+base: digits_m2u.yaml
+out_dir: runs/digits_m2u_siddharth
+model:
+  proj_residual: true
+  proj_final_act: false
+adapt:
+  seed_offset: 0           # --seed 0..4 means actual Python/NumPy/PyTorch seed 0..4
+  tag: improved_seed0to4
+  shots: 1
+  fewshot_frac: null
+  fixed_shots: null        # random support draw for each seed in the baseline
+  adabn: true
+  la1_samples: confident
+  la1_temp: 1.0
+  pseudo_label: nearest
+  rectify: {enabled: false}

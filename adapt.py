@@ -31,7 +31,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
-from cida.common import (Logger, Timer, extract, get_device, infinite, load_ckpt, load_config, rng_state,
+from cida.common import (CheckpointOnSignal, Logger, Timer, extract, get_device, infinite, load_ckpt, load_config, rng_state,
                          save_ckpt, set_rng_state, set_seed)
 from cida.data import Relabeled, build_domain, fixed_labelled, sample_labelled
 from cida.metrics import cida_metrics
@@ -116,12 +116,13 @@ def main(argv=None):
     losses = ABLATIONS[ablation]
     out = Path(cfg["out_dir"]) / run_name(cfg, args.seed)
     out.mkdir(parents=True, exist_ok=True)
-    if (out / "final_metrics.json").exists() and not args.force:
+    if (out / "final_metrics.json").exists() and (out / "final.pt").exists() and not args.force:
         print(f"[skip] already finished: {out / 'final_metrics.json'} (use --force to rerun)", flush=True)
         return
-    set_seed(1000 + args.seed)
+    set_seed(acfg.get("seed_offset", 1000) + args.seed)
     device = get_device(cfg.get("device", "auto"))
     log = Logger(out)
+    stop = CheckpointOnSignal()
 
     # ---------------------------------------------------------------- data
     dom, bs, nw = cfg["tgt_domain"], cfg["batch_size"], cfg.get("num_workers", 4)
@@ -221,6 +222,7 @@ def main(argv=None):
                 o.zero_grad(set_to_none=True)
             (le + ld).backward()
             pre_opts["fe"].step(), pre_opts["fd"].step()
+            stop.exit_if_requested(checkpoint)
         rel = ((model.fd(model.fe(u)) - u).norm(dim=1) / u.norm(dim=1)).mean().item()
         log.log(event="proj_pretrained", loss_fe=le.item(), loss_fd=ld.item(), rel_recon_err=rel)
         state["pretrained"] = True
@@ -380,6 +382,7 @@ def main(argv=None):
             sums[key] += loss.item()
             counts[key] += 1
             state["iter"] += 1
+            stop.exit_if_requested(checkpoint)
             if timer.due():
                 checkpoint()
         protos_t, b_iter, diag = refresh()
@@ -387,14 +390,19 @@ def main(argv=None):
         state["epoch"] = epoch + 1
         log.log(epoch=epoch + 1, **{f"loss_{k}": sums[k] / max(counts[k], 1) for k in losses}, **diag, **metrics)
         checkpoint()
+        stop.exit_if_requested(checkpoint)
 
     final = {"run": out.name, "config": args.config, "seed": args.seed, "ablation": ablation, **evaluate()}
-    with open(out / "final_metrics.json", "w") as f:
-        json.dump(final, f, indent=2)
     save_ckpt({"model": model.state_dict(), "labelled": labelled, "cfg": cfg}, out / "final.pt")
+    metrics_path = out / "final_metrics.json"
+    metrics_tmp = metrics_path.with_suffix(".json.tmp")
+    with open(metrics_tmp, "w") as f:
+        json.dump(final, f, indent=2)
+    metrics_tmp.replace(metrics_path)
     if not cfg.get("keep_ckpt", False):  # the resume checkpoint (model + all optimiser states) is no longer needed
         ckpt_path.unlink(missing_ok=True)
     log.log(event="done", **final)
+    stop.close()
 
 
 if __name__ == "__main__":

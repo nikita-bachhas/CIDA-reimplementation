@@ -28,14 +28,22 @@
 #SBATCH --job-name=cida
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
+#SBATCH --open-mode=append
 #SBATCH --requeue
 #SBATCH --signal=B:USR1@180
 
-# Conda setup as in the cluster guide (activate before `set -u`: conda's scripts use unset variables).
-module load anaconda/25.5.1
-eval "$(conda shell.bash hook)"
-conda activate cida
+# Reuse an existing uv/venv interpreter when supplied; otherwise retain the original setup.
+# export CIDA_PYTHON=/absolute/path/to/existing/project/.venv/bin/python
+if [ -n "${CIDA_PYTHON:-}" ]; then
+    [ -x "$CIDA_PYTHON" ] || { echo "Python interpreter is not executable: $CIDA_PYTHON" >&2; exit 1; }
+else
+    # Activate before `set -u`: Conda's scripts use unset variables.
+    module load anaconda/25.5.1
+    eval "$(conda shell.bash hook)"
+    conda activate cida
+fi
 set -euo pipefail
+PYTHON_BIN=${CIDA_PYTHON:-python}
 
 if [ -n "${CONFIGS:-}" ]; then read -r -a CONFIG_LIST <<< "$CONFIGS"; else CONFIG_LIST=("$1"); shift; fi
 for c in "${CONFIG_LIST[@]}"; do [ -f "$c" ] || { echo "no such config: $c" >&2; exit 1; }; done
@@ -47,13 +55,34 @@ echo "job ${SLURM_JOB_ID:-local} on $(hostname): ${CONFIG_LIST[*]} | stages: $ST
 nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader || true
 
 PID=""
-trap 'echo "6 h limit near: requeueing; work resumes from checkpoints"; [ -n "$PID" ] && kill -TERM "$PID"; scontrol requeue "$SLURM_JOB_ID"; exit 0' USR1
+requeue_for_time_limit() {
+    trap '' USR1
+    echo "Time limit near: requesting a safe checkpoint before requeue"
+    local rc=0
+    if [ -n "$PID" ]; then
+        if kill -0 "$PID" 2>/dev/null; then
+            kill -USR1 "$PID" || true
+        fi
+        wait "$PID" || rc=$?
+    fi
+    if [ "$rc" -ne 0 ] && [ "$rc" -ne 99 ]; then
+        echo "Training exited with code $rc during checkpoint request; not requeueing a failed run" >&2
+        exit "$rc"
+    fi
+    if ! scontrol requeue "$SLURM_JOB_ID"; then
+        echo "Requeue failed. Checkpoints are saved; resubmit the same sbatch command to resume." >&2
+        exit 1
+    fi
+    exit 0
+}
+trap requeue_for_time_limit USR1
 run() {  # run one step; on failure say which one, with its exit code, in both .out and .err
     local rc=0
     "$@" & PID=$!; wait "$PID" || rc=$?; PID=""
     if [ "$rc" -ne 0 ]; then
-        echo "FAILED with exit code $rc at $(date '+%F %T'): $*" | tee /dev/stderr
-        [ "$rc" -gt 128 ] && echo "(exit code > 128: killed by signal $((rc - 128)); 9 = SIGKILL, often out of memory)" | tee /dev/stderr
+        # Append: plain tee /dev/stderr can truncate Slurm's error file and erase the traceback.
+        echo "FAILED with exit code $rc at $(date '+%F %T'): $*" | tee -a /dev/stderr
+        [ "$rc" -gt 128 ] && echo "(exit code > 128: killed by signal $((rc - 128)); 9 = SIGKILL, often out of memory)" | tee -a /dev/stderr
         exit "$rc"
     fi
 }
@@ -61,7 +90,7 @@ run() {  # run one step; on failure say which one, with its exit code, in both .
 for CONFIG in "${CONFIG_LIST[@]}"; do
 echo "=== $CONFIG"
 if [[ " $STAGES " == *" source "* ]]; then
-    run python train_source.py --config "$CONFIG" --set num_workers=6 "$@"
+    run "$PYTHON_BIN" train_source.py --config "$CONFIG" --set num_workers=6 "$@"
 fi
 if [[ " $STAGES " == *" adapt "* ]]; then
     for v in ${VARIANTS:-__default__}; do
@@ -69,7 +98,7 @@ if [[ " $STAGES " == *" adapt "* ]]; then
         for a in ${ABLATIONS:-__default__}; do
             abl=(); [ "$a" != "__default__" ] && abl=("adapt.ablation=$a")
             for s in $SEEDS; do
-                run python adapt.py --config "$CONFIG" --seed "$s" --set num_workers=6 "$@" \
+                run "$PYTHON_BIN" adapt.py --config "$CONFIG" --seed "$s" --set num_workers=6 "$@" \
                     ${var[@]+"${var[@]}"} ${abl[@]+"${abl[@]}"}
             done
         done
