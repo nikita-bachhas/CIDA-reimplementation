@@ -43,7 +43,7 @@ Office-31 and VisDA have no official split, so they adapt and are evaluated on t
 Office-31 and VisDA images are resized so that the shorter side is 256 pixels and cropped to $224\times224$.
 During training they are augmented with the flips, rotations up to 15 degrees, random crops, colour jitter and channel swaps of the supplementary material.
 Epoch counts and the other settings the paper leaves open are listed in \cref{tab:choices}.
-We report the last epoch, because selecting an epoch would need target labels.
+Results are compared at a fixed epoch, as described at the end of this subsection.
 
 \paragraph{Metrics.}
 ALL is the accuracy over all target samples, and PRIV is the accuracy over the samples of the private classes $\Cp$.
@@ -63,9 +63,53 @@ With the frozen ResNet-50, Office-31 adaptation takes about 10 to 45 minutes per
 In the baseline, VisDA source training takes about 7 minutes per epoch on Syn$\to$Real.
 Adaptation then takes about 2 hours per seed on Syn$\to$Real and about 6 hours per seed on Real$\to$Syn.
 
+\paragraph{Results table.}
+\Cref{tab:results} collects the results of both configurations next to the numbers reported in the paper, and \cref{sec:exp-vanilla,sec:exp-improvements} refer to it.
+We compare the configurations at one fixed epoch for every task, epoch 15 on Digits and Office-31.
+VisDA adapts for only 10 epochs, so its rows show the last epoch.
+The epoch is the same for every task and is not tuned per task with target labels.
+
+\begin{table}[t]
+  \centering
+  \footnotesize
+  \setlength{\tabcolsep}{3.5pt}
+  \caption{Results of the baseline (\cref{sec:exp-vanilla}) and of our changes (\cref{sec:exp-improvements}) against the numbers reported in the paper. ALL and PRIV accuracy in \%, mean over 5 seeds, at epoch 15. $^\dagger$VisDA adapts for 10 epochs, so its rows are at the last epoch. The Improved columns are to be filled in. The paper reports one number per task and does not give its epoch.}
+  \label{tab:results}
+  \begin{tabular}{@{}llcccccc@{}}
+    \toprule
+    & & \multicolumn{2}{c}{Baseline} & \multicolumn{2}{c}{Improved} & \multicolumn{2}{c}{Paper (reported)} \\
+    \cmidrule(lr){3-4}\cmidrule(lr){5-6}\cmidrule(lr){7-8}
+    Setting & Task & ALL & PRIV & ALL & PRIV & ALL & PRIV \\
+    \midrule
+    Digits & M$\to$U & 47.0 & 54.0 &  &  & 72.5 & 71.6 \\
+     & U$\to$M & 49.6 & 59.0 &  &  & 69.4 & 68.6 \\
+     & S$\to$M & 35.1 & 44.2 &  &  & 46.4 & 45.7 \\
+    \midrule
+    Office 10/20 & A$\to$D & 55.8 & 33.1 &  &  & 72.2 & 72.6 \\
+     & A$\to$W & 59.2 & 38.2 &  &  & 62.1 & 62.0 \\
+     & D$\to$A & 48.6 & 26.8 &  &  & 62.6 & 61.8 \\
+     & D$\to$W & 66.2 & 33.8 &  &  & 78.5 & 78.7 \\
+     & W$\to$A & 45.5 & 24.5 &  &  & 62.1 & 62.4 \\
+     & W$\to$D & 68.6 & 39.9 &  &  & 87.8 & 87.6 \\
+    \midrule
+    Office 20/31 & A$\to$D & 53.3 & 31.6 &  &  & 73.3 & 73.1 \\
+     & A$\to$W & 52.3 & 35.4 &  &  & 63.6 & 62.6 \\
+     & D$\to$A & 39.4 & 9.0 &  &  & 64.1 & 64.3 \\
+     & D$\to$W & 69.9 & 22.0 &  &  & 80.3 & 79.4 \\
+     & W$\to$A & 39.0 & 11.7 &  &  & 63.7 & 62.8 \\
+     & W$\to$D & 69.8 & 22.8 &  &  & 89.5 & 88.4 \\
+    \midrule
+    VisDA$^\dagger$ & Syn$\to$Real & 6.2 & 16.1 &  &  & 56.4 & 56.3 \\
+     & Real$\to$Syn & 7.7 & 13.9 &  &  & 55.8 & 55.7 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
 \subsection{Baseline results}\label{sec:exp-vanilla}
+\Cref{tab:results} reports the baseline next to the numbers reported in the paper.
 % Emptied on request. The previous text, tables tab:vanilla and tab:vanilla-epochs are in commit a42c640.
 
 \subsection{Improvements}\label{sec:exp-improvements}
+\Cref{tab:results} reports the results with our changes next to the baseline and the paper.
 % Emptied on request. The previous text, Nikita's improvements and tables tab:imp-pseudo and
 % tab:imp-pseudo-epochs are in commit a42c640.

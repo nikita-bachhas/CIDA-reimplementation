@@ -32,7 +32,6 @@ We tuned the Digits epoch counts on M$\to$U only and then kept them fixed for th
     Adaptation epoch length & Five times the number of target batches, so each of the five losses sees approximately one pass over the target data. \\
     Projection pretraining & 2{,}000 iterations. \\
     Data splits & Digits adapts on the target training split and tests on the target test split. Office adapts and tests on the whole target domain, minus the labelled images. \\
-    Model selection & Last epoch, because no target labels are available for selection. \\
     Warm-up & Updates both $f_s$ and $g_s$. The algorithm lists only $f_s$, but $g_s$ also needs training. \\
     Private guides & One-shot images pass through $f_t$ in the same batch as target samples, so BatchNorm never sees a batch of only one image per class. \\
     \bottomrule
