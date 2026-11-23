@@ -10,6 +10,11 @@ Round-robin (iter % 5) over [Lr1, Lr2, Lc, La1, La2], each with its own Adam:
   La1 (ft)          class separability w.r.t. target prototypes P_t, nearest-guide labels  Eq. 6
   La2 (fe, ft)      ||ft(x) - guide_c||^2 for x in B_t^c                     Eq. 6
 Guides: fe(mu_s^c) for shared classes, ft(one-shot sample) for private classes.
+adapt.stop=share_peak (not in the paper, on by default for Office Table 3 only): keep the epoch with the
+highest predicted private-class share, a label-free quantity, and stop once it has not risen for
+adapt.stop_patience epochs. Its runs get "sharestop" in their folder name.
+Optional (adapt.b_sampler=balanced, not in the paper): every pseudo-class gets the same expected share
+of each B_t batch.
 At the end of every epoch: pseudo-label all target samples, refit P_t, reselect B_t (top n%).
 
   python adapt.py --config configs/digits_m2u.yaml --seed 0 [--set adapt.ablation=b ...]
@@ -25,7 +30,7 @@ from pathlib import Path
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, WeightedRandomSampler
 
 from cida.common import (Logger, Timer, extract, get_device, infinite, load_ckpt, load_config, rng_state,
                          save_ckpt, set_rng_state, set_seed)
@@ -48,6 +53,8 @@ def run_name(cfg, seed):
     a = cfg["adapt"]
     shot = f"few{int(100 * a['fewshot_frac'])}" if a.get("fewshot_frac") else f"{a.get('shots', 1)}shot"
     tag = a.get("tag") or ""
+    if a.get("stop", "last") == "share_peak" and "sharestop" not in tag.split("_"):
+        tag = f"{tag}_sharestop" if tag else "sharestop"  # never share a folder with a 60-epoch run
     return f"adapt_{shot}_abl-{a.get('ablation', 'none')}{('_' + tag) if tag else ''}_seed{seed}"
 
 
@@ -225,6 +232,36 @@ def main(argv=None):
     def private_guides(v_lab, y_lab):
         return torch.stack([v_lab[y_lab == c].mean(0) for c in private_classes])
 
+    # Label-free early stopping (not in the paper; SPEC.md). share_peak keeps the model of the epoch with the
+    # highest predicted private-class share on the evaluation images, saved on every strict rise, and stops
+    # once the share has not risen for stop_patience epochs. Epoch 0 is not a candidate. The best share and
+    # epoch live in `state`, so a requeued job resumes the rule where it left off. The saved model is named
+    # by its epoch, and older ones are deleted only after `state` is checkpointed, so a job killed in between
+    # still finds the file that its checkpointed `state` points to.
+    stop_mode = acfg.get("stop", "last")
+    if stop_mode not in ("last", "share_peak"):
+        raise ValueError(f"adapt.stop must be last or share_peak, got {stop_mode!r}")
+    patience = acfg.get("stop_patience", 3)
+
+    def best_path(e):
+        return out / f"best_e{e}.pt"
+
+    def drop_best(keep=None):
+        for f in out.glob("best_e*.pt"):
+            if f != keep:
+                f.unlink(missing_ok=True)
+
+    state.setdefault("best_share", -1.0)
+    state.setdefault("best_epoch", None)
+
+    def stop_due():
+        return (stop_mode == "share_peak" and state["best_epoch"] is not None
+                and state["epoch"] - state["best_epoch"] >= patience)
+
+    b_sampler = acfg.get("b_sampler", "shuffle")
+    if b_sampler not in ("shuffle", "balanced"):
+        raise ValueError(f"adapt.b_sampler must be shuffle or balanced, got {b_sampler!r}")
+
     def ft_with_guides(x):
         """ft on a batch plus labelled samples in the same forward pass (shared BN batch)."""
         xl, yl = labelled_batch()
@@ -265,7 +302,12 @@ def main(argv=None):
             "B_min_class": min((b_lab_t == c).sum().item() for c in range(n_total)),
         }
         b_ds = Relabeled(tgt_aug, b_idx, b_lab)
-        b_loader = DataLoader(b_ds, bs, shuffle=True, drop_last=len(b_ds) >= bs, num_workers=nw)
+        if b_sampler == "balanced":  # weight 1 / (class size): every pseudo-class has the same expected share
+            counts = torch.bincount(b_lab_t, minlength=n_total).float()
+            sampler = WeightedRandomSampler((1.0 / counts[b_lab_t]).double(), num_samples=len(b_ds), replacement=True)
+            b_loader = DataLoader(b_ds, bs, sampler=sampler, drop_last=len(b_ds) >= bs, num_workers=nw)
+        else:
+            b_loader = DataLoader(b_ds, bs, shuffle=True, drop_last=len(b_ds) >= bs, num_workers=nw)
         return protos_t, infinite(b_loader), diag
 
     @torch.no_grad()
@@ -292,6 +334,8 @@ def main(argv=None):
     timer = Timer(cfg.get("ckpt_every_minutes"))
 
     for epoch in range(state["epoch"], acfg["epochs"]):
+        if stop_due():  # also checked here: a job requeued after the stop decision must not train further
+            break
         sums = {k: 0.0 for k in losses}
         counts = {k: 0 for k in losses}
         for _ in range(iters_per_epoch):
@@ -327,15 +371,33 @@ def main(argv=None):
         protos_t, b_iter, diag = refresh()
         metrics = evaluate()
         state["epoch"] = epoch + 1
-        log.log(epoch=epoch + 1, **{f"loss_{k}": sums[k] / max(counts[k], 1) for k in losses}, **diag, **metrics)
+        stop_log = {}
+        if stop_mode == "share_peak":
+            if metrics["pred_priv_share"] > state["best_share"]:
+                state["best_share"], state["best_epoch"] = metrics["pred_priv_share"], epoch + 1
+                save_ckpt({"model": model.state_dict(), "epoch": epoch + 1}, best_path(epoch + 1))
+            stop_log = {"best_epoch": state["best_epoch"]}
+        log.log(epoch=epoch + 1, **{f"loss_{k}": sums[k] / max(counts[k], 1) for k in losses}, **diag, **metrics,
+                **stop_log)
         checkpoint()
+        if stop_mode == "share_peak":
+            drop_best(keep=best_path(state["best_epoch"]))
+        if stop_due():
+            break
 
-    final = {"run": out.name, "config": args.config, "seed": args.seed, "ablation": ablation, **evaluate()}
+    stop_info = {}
+    if stop_mode == "share_peak" and state["best_epoch"] is not None:
+        model.load_state_dict(load_ckpt(best_path(state["best_epoch"]))["model"])
+        stop_info = {"stop_epoch": state["best_epoch"], "stop_share": state["best_share"],
+                     "epochs_trained": state["epoch"], "stop_patience": patience}
+    final = {"run": out.name, "config": args.config, "seed": args.seed, "ablation": ablation, **stop_info,
+             **evaluate()}
     with open(out / "final_metrics.json", "w") as f:
         json.dump(final, f, indent=2)
     save_ckpt({"model": model.state_dict(), "labelled": labelled, "cfg": cfg}, out / "final.pt")
     if not cfg.get("keep_ckpt", False):  # the resume checkpoint (model + all optimiser states) is no longer needed
         ckpt_path.unlink(missing_ok=True)
+        drop_best()  # final.pt now holds the share-peak model
     log.log(event="done", **final)
 
 

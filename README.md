@@ -16,7 +16,7 @@ scripts/confusion.py  Per-class confusion for finished runs (GPU job: slurm/conf
 scripts/posthoc.py    Label-free prediction-step variants (gate / bias) on finished runs (GPU job: slurm/posthoc.sbatch)
 scripts/feature_probe.py Can each feature space (ImageNet, source, adapted) separate the private classes? (GPU job: slurm/py.sbatch)
 configs/             One YAML per transfer (base.yaml holds the defaults; presets/vanilla.yaml = the paper as written)
-slurm/               CCDS GPU TC2 job scripts: run.sbatch (one experiment), check.sbatch (environment check)
+slurm/               CCDS GPU TC2 job scripts: run.sbatch (one experiment), steps.sbatch (a multi-step plan in one job), check.sbatch (environment check)
 tests/               Prototype unit tests + an end-to-end smoke test on synthetic data
 ```
 
@@ -109,11 +109,16 @@ sbatch --export=ALL,STAGES=adapt slurm/run.sbatch configs/office_a2d.yaml adapt.
 sbatch --export=ALL,SEEDS="0" slurm/run.sbatch configs/digits_m2u.yaml                      # just one seed
 sbatch slurm/run.sbatch configs/digits_m2u.yaml preset=vanilla                               # the paper as written -> runs_vanilla/
 sbatch --export=ALL,CONFIGS="configs/digits_m2u.yaml configs/digits_u2m.yaml" slurm/run.sbatch preset=vanilla  # several in one job
+sbatch slurm/steps.sbatch slurm/steps_share_peak.sh          # a multi-step plan in one job (see below)
 squeue -u $USER                                             # status; output in logs/cida_<jobid>.out
 python scripts/aggregate.py runs/                           # results table (cheap; or run it after a job)
 ```
 
-`preset=vanilla` turns off all our changes to the method (see SPEC.md, "Vanilla preset"). `CONFIGS` runs several experiments one after another in a single job, which keeps to one job in the queue; it requeues itself at the 6 h limit like any other job.
+`preset=vanilla` turns off all our changes to the method (see SPEC.md, "Vanilla preset").
+
+The Office Table 3 configs (`configs/office_*.yaml`) keep the share-peak epoch by default and write their runs to `adapt_1shot_abl-none_sharestop_seed<k>` (see SPEC.md, "Share-peak stop on Office Table 3"). Add `adapt.stop=last` to train all 60 epochs and keep the last, as runs did before 23 November 2026. Scripts that take a run prefix need `--runs adapt_1shot_abl-none_sharestop` for these runs. `CONFIGS` runs several experiments one after another in a single job, which keeps to one job in the queue; it requeues itself at the 6 h limit like any other job.
+
+QoS `normal` also allows only 2 submitted jobs per user, so a `--dependency` chain holds at most one waiting job. For a longer plan, `steps.sbatch` sources a bash file of `run <command>` lines in one job, requeues itself at the 6 h limit and skips finished runs on restart.
 
 Submit the next experiment only after the previous one finishes. With one GPU per user, extra jobs only sit in the queue as `QOSMaxGRESPerUser`, and the guide asks you to cancel those.
 

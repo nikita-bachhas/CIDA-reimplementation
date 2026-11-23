@@ -35,3 +35,8 @@ adapt:
   cov_shrink: 0.1
   cov_eps: 1.0e-4
   iters_per_epoch: null    # default: len(target loader) * number of losses
+  stop: last               # last: train all epochs | share_peak: keep the epoch with the highest predicted
+                           # private-class share (label-free; not in the paper, see SPEC.md).
+                           # office31.yaml sets share_peak for Office Table 3
+  stop_patience: 3         # share_peak only: stop once the share has not risen for this many epochs
+  b_sampler: shuffle       # B_t batches: shuffle (paper) | balanced: equal expected share per pseudo-class (not in the paper)

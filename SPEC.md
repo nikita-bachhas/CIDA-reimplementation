@@ -59,9 +59,10 @@ This file records what the paper fixes, what we chose ourselves, and where the p
 | Residual fe/fd, exact identity at the start | Plain MLP pretrained to near-identity (`model.proj_residual: false`) |
 | fe/fd last layer linear | Last layer with the activation from supp Table 2 (`model.proj_final_act: true`) |
 | ResNet-50 backbone frozen (Office, VisDA) | Whole network trained with Adam 1e-4 (`backbone_lr_mult: 1.0` in both stages) |
+| Share-peak stop (Office Table 3) | All epochs, last model kept (`adapt.stop: last`) |
 
 Kept in vanilla, because the paper fixes them: the two-FC256 ResNet head (supp Table 2A), the 3σ negative test (`neg_mode: paper`), La1 temperature 1, and everything under "Fixed by the paper".
-Kept in vanilla, because the paper is silent and the method needs *some* value: log-density logits, covariance regularisation, batch sizes, epochs and the adaptation-epoch length, LeNet BatchNorm and layer sizes, the private-guide batch, data splits, last-epoch model selection, the warm-up training gs (Algo 2 typo), and the Office class indices (inconsistency 1).
+Kept in vanilla, because the paper is silent and the method needs *some* value: log-density logits, covariance regularisation, batch sizes, epochs and the adaptation-epoch length, LeNet BatchNorm and layer sizes, the private-guide batch, data splits, last-epoch model selection (Digits, Office Table 2, VisDA), the warm-up training gs (Algo 2 typo), and the Office class indices (inconsistency 1).
 
 What we already know about these settings one at a time (Digits M→U unless stated): plain-MLP fe/fd gave ALL 44.8 ± 5.2; paper La1 gave 55.1 / 58.4 (ALL / PRIV); full fine-tuning on Office A→D gave 49.8 / 33.3 (with the one-FC256 head). Vanilla combines all of them.
 
@@ -125,7 +126,7 @@ Each Real→Syn seed takes about 6 h, so every seed was resumed after a requeue.
 
 ## Main configuration on Office-31
 
-All four changes on, with the ResNet-50 frozen (`configs/office31.yaml`, `configs/office20.yaml`; runs in `runs/<task>/`). 5 seeds, ALL / PRIV at epoch 60.
+All four changes on, with the ResNet-50 frozen (`configs/office31.yaml`, `configs/office20.yaml`; runs in `runs/<task>/`). 5 seeds, ALL / PRIV at epoch 60. Since 23 November 2026 the Table 3 configs stop at the share-peak epoch by default, and the section "Share-peak stop on Office Table 3" gives those results.
 
 | Setting | Task | Main config | Vanilla | Paper |
 |---|---|---|---|---|
@@ -151,6 +152,54 @@ All four changes on, with the ResNet-50 frozen (`configs/office31.yaml`, `config
 1. **Office private classes.** Supp §5 says the private classes are those "ranked 21–31", which is 11 classes. Table 3 has |Ct| = 20, which means 10 private classes. We use indices 20–29 for Table 3 (`configs/office31.yaml`) and 20–30 for Table 2, where |Cs| = 20 and |Ct| = 31 (`configs/office20.yaml`).
 2. **The 3σ rule in high dimensions.** For a Gaussian, the point μ + 3√λ·ν has squared Mahalanobis distance exactly 9, so the Algo 1 test reduces to "Mahalanobis distance > 3 from the most likely class". In D dimensions a typical in-distribution sample has squared distance about D (100 or 256). So almost every global sample, and almost every real class sample, counts as "negative": the acceptance rate is about 100%. `src_train.neg_mode=chi2` instead uses the chi-square(D) quantile as the threshold. **Result (Digits M→U):** the chi2 threshold (143 for D = 100) also accepts 100% of samples. The global Gaussian's covariance includes the spread *between* classes, so its samples lie far outside every class prototype under either rule. Both source models trained identically (same losses to 5 decimals), so the threshold is irrelevant here: the negatives are simply samples of the global Gaussian. The two adaptation runs then differ only through GPU nondeterminism: ALL 71.9 vs 70.5, PRIV 55.3 vs 53.5. **Treat differences under about 2 points between variants as noise.**
 3. **Algo 1 line 9** writes P(u_s) where it means P(u_n).
+
+## Share-peak stop on Office Table 3 (adopted 2026-11-23)
+
+**Why.** On the five Office tasks used to design the rule, ALL falls after about epoch 10. The fall is worst on the Amazon targets, D→A (49.8 at epoch 10, 41.2 at epoch 60) and W→A (54.1, 43.4). B_t is only 58 to 66% correct there. Lc then sends more private images to shared classes, and the next B_t is worse. The private → shared leak rises from 48 to 79% on D→A.
+
+**The rule (`adapt.stop: share_peak`).** The drift shows up as a falling share of images predicted as any private class (`pred_priv_share`, logged every epoch). This share counts predictions only, so it uses no labels. The run keeps the model of the epoch with the highest share, epoch 0 excluded, and stops once the share has not risen for `adapt.stop_patience` epochs (default 3). `final_metrics.json` then holds `stop_epoch`, `stop_share` and `epochs_trained`, and `final.pt` is the stop-epoch model.
+
+**Where it is on.** `configs/office31.yaml` sets it, so it covers the six Table 3 tasks and their variants (`_nols1`, `_chi2`, `_noneg`, `_bb01`). Table 2 (`office20.yaml`), Digits, VisDA and `preset=vanilla` keep `adapt.stop: last`. A share-peak run adds `sharestop` to its folder name, as in `adapt_1shot_abl-none_sharestop_seed0`, so it never reuses the folder of a 60-epoch run. `adapt.stop=last` reproduces the earlier 60-epoch runs.
+
+**Why not Digits or Table 2.** Replayed on the Digits logs, the rule stops U→M at epoch 1 on all 5 seeds and gives 49.4 ALL against 65.5, so Digits keeps its fixed 30 epochs. Table 2 was not tested.
+
+**Results (job 56672 on TC2, ALL / PRIV per image, mean ± SD over seeds 0 to 4).** The runs used branch `feat/lp-pseudolabel`, whose default code path is the same as this one. Main here means Ryan's own 60-epoch runs, paired seed by seed with the stopped runs. They match the table in "Main configuration on Office-31" on A→D, D→A and W→A, and differ by up to 3.4 ALL on A→W. The rule was designed on the first five tasks, and A→D was held out until the rule was fixed.
+
+| Task | Main, epoch 60 | Share-peak stop | Stop epochs | Paired Δ ALL / PRIV | Seeds with higher ALL |
+|---|---|---|---|---|---|
+| A→W | 70.5 ± 4.9 / 49.7 ± 8.3 | 72.2 ± 3.4 / 52.6 ± 5.5 | 12 to 17 | +1.7 / +3.0 | 4 of 5 |
+| D→A | 41.2 ± 2.6 / 11.4 ± 5.9 | 50.0 ± 3.7 / 25.6 ± 6.2 | 5 to 8 | +8.8 / +14.1 | 5 of 5 |
+| D→W | 72.7 ± 2.7 / 49.3 ± 5.0 | 75.3 ± 2.3 / 53.1 ± 4.0 | 7 to 19 | +2.6 / +3.7 | 5 of 5 |
+| W→A | 43.4 ± 6.5 / 12.2 ± 8.1 | 54.5 ± 4.3 / 31.1 ± 6.5 | 4 to 9 | +11.0 / +18.9 | 5 of 5 |
+| W→D | 73.4 ± 5.3 / 51.9 ± 10.7 | 77.3 ± 5.3 / 57.4 ± 9.9 | 11 to 14 | +3.8 / +5.5 | 5 of 5 |
+| Mean of the five design tasks | 60.2 / 34.9 | 65.9 / 44.0 | | +5.6 / +9.1 | 24 of 25 |
+| A→D (held out) | 70.2 ± 4.6 / 48.3 ± 9.0 | 71.5 ± 5.0 / 50.6 ± 9.0 | 15 to 20 | +1.3 / +2.2 | 3 of 5 |
+
+- **The rule holds on the held-out task.** The bar, set before the run, was a change of −1 ALL or better on A→D. ALL rose on 3 seeds, stayed equal on 1 and fell by 2.2 on 1.
+- **The held-out gain is smaller,** +1.3 against +5.6. A→D drifts less, since its mean ALL peaks at epoch 30 and falls only 2.0 by epoch 60.
+- **Training is deterministic.** Each stopped run matches its 60-epoch run at every common epoch, with a largest gap of 0.00 in ALL and PRIV. The one exception is A→D seed 4, whose 60-epoch run was requeued at epoch 17. From epoch 18 its log differs by up to 0.95 ALL, so a resume from a checkpoint is not bit-exact. That seed stops at epoch 15, before the resume, so its pair still holds.
+- **The stop epochs match an offline replay** on the 60-epoch logs for 27 of 30 seeds. The other 3 are exact ties in the share (A→W seed 4 has 40.764 at epochs 12 and 14). The rule keeps the earlier epoch of a tie.
+
+**With LP after training.** LP after training relabels the evaluation images by label propagation from the class guides (`scripts/posthoc.py` on `office-rectify-sweep`). It is transductive, because each image's label depends on the other evaluation images. Paired by seed, ALL / PRIV per image, mean over seeds 0 to 4.
+
+| Task | Main + LP after training | Stop + LP after training | Paired Δ ALL / PRIV | Seeds with higher ALL | Paper |
+|---|---|---|---|---|---|
+| A→D | 75.3 / 58.2 | 74.6 / 56.4 | −0.6 / −1.7 | 1 of 5 | 72.2 / 72.6 |
+| A→W | 76.2 / 61.7 | 75.0 / 58.3 | −1.2 / −3.4 | 1 of 5 | 62.1 / 62.0 |
+| D→A | 52.9 / 36.9 | 57.6 / 40.2 | +4.7 / +3.3 | 5 of 5 | 62.6 / 61.8 |
+| D→W | 77.7 / 59.2 | 79.9 / 61.8 | +2.3 / +2.5 | 4 of 5 | 78.5 / 78.7 |
+| W→A | 55.6 / 38.9 | 60.8 / 44.0 | +5.2 / +5.1 | 4 of 5 | 62.1 / 62.4 |
+| W→D | 78.5 / 61.1 | 79.2 / 61.0 | +0.7 / −0.1 | 2 of 5 | 87.8 / 87.6 |
+| Mean of six | 69.4 / 52.7 | 71.2 / 53.6 | +1.8 / +1.0 | 17 of 30 | 70.9 / 70.9 |
+
+- **Stop plus LP after training gives the best six-task mean,** 71.2 ALL against the paper's 70.9. PRIV is 53.6 against 70.9, so the new classes remain the gap.
+- **The two gains add up on the Amazon targets,** where the drift is strongest. On A→D and A→W, LP after training does slightly better on the 60-epoch model.
+
+**Source model without Ls1 (job 56687, `configs/office_d2a_nols1.yaml` and `office_w2a_nols1.yaml`).** These ran with `adapt.stop: last`. Paired by seed with Main at epoch 60, ALL changes by −0.3 on D→A and −0.7 on W→A, and PRIV by −0.8 and +0.4. Pseudo-label accuracy at epoch 0 moves by at most 1.7 on any seed. So Ls1 does no harm here, and it does not explain the Amazon gap.
+
+## Under test: balanced B_t batches
+
+**`adapt.b_sampler: balanced` (default `shuffle`).** Each B_t sample is drawn with weight 1 / (size of its pseudo-class), so every class has the same expected share of a batch. The smallest class in B_t has one image on all five Office tasks. A mislabelled image in a small class is repeated in almost every batch, so the outcome is uncertain. It has not been run yet. On Office Table 3 its runs would use the share-peak stop, as in `adapt.b_sampler=balanced adapt.tag=bbal`, which writes to `adapt_1shot_abl-none_bbal_sharestop_seed<k>`.
 
 ## Investigated, not adopted
 
